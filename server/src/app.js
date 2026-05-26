@@ -13,8 +13,10 @@ if (process.env.NODE_ENV === 'production') {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
     throw new Error('FATAL: JWT_SECRET must be set and at least 32 characters in production')
   }
-  if (!process.env.CLIENT_ORIGIN || process.env.CLIENT_ORIGIN.includes('localhost')) {
-    throw new Error('FATAL: CLIENT_ORIGIN must be set to a non-localhost URL in production')
+  if (!process.env.CLIENT_ORIGIN) {
+    // Warn only — on first Railway deploy the URL isn't known yet.
+    // Set CLIENT_ORIGIN to your Railway URL after the first deploy, then redeploy.
+    console.warn('[WARN] CLIENT_ORIGIN not set — CORS and Socket.IO may reject browser requests. Set it to your Railway URL.')
   }
 }
 
@@ -94,8 +96,19 @@ app.use('/api/print',            ...scoped, require('./routes/print'))
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date() }))
 
-// ─── 404 ──────────────────────────────────────────────────────────────────────
-app.use((_req, res) => res.status(404).json({ error: 'Not found' }))
+// ─── Serve React frontend in production ───────────────────────────────────────
+// The client is built into client/dist by Railway's buildCommand before start.
+// Relative /api paths work perfectly — same origin, no CORS needed.
+if (process.env.NODE_ENV === 'production') {
+  const path     = require('path')
+  const distPath = path.join(__dirname, '../../client/dist')
+  app.use(express.static(distPath))
+  // SPA fallback — React Router handles all non-API client routes
+  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')))
+} else {
+  // ─── 404 (dev only — production falls through to SPA) ─────────────────────
+  app.use((_req, res) => res.status(404).json({ error: 'Not found' }))
+}
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 app.use(errorHandler)
