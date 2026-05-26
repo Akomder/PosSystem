@@ -5,9 +5,12 @@
 
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
-  --color-primary: #4F46E5;
-  --color-primary-light: #EEF2FF;
-  --color-primary-dark: #3730A3;
+  --color-primary: #14b8a6;
+  --color-primary-light: #f0fdfa;
+  --color-primary-dark: #0f766e;
+  --color-accent: #f3761d;
+  --color-accent-light: #fff7ed;
+  --color-accent-dark: #c2530d;
 }
 
 * {
@@ -71,4 +74,34 @@ body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Liquid blob float animation */
+@keyframes liquidFloat {
+  0%, 100% { transform: translate(0px, 0px) scale(1);   }
+  33%       { transform: translate(8px, -8px) scale(1.05); }
+  66%       { transform: translate(-5px, 5px) scale(0.97); }
+}
+.liquid-blob {
+  animation: liquidFloat 8s ease-in-out infinite;
+}
+.liquid-blob-2 {
+  animation: liquidFloat 11s ease-in-out infinite reverse;
+}
+
+/* Shimmer effect for loading */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Profile modal pop-in */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
 }

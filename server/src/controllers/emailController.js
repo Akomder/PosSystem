@@ -126,19 +126,53 @@ async function resetPassword(req, res, next) {
 }
 
 // ─── GET /api/email/config ────────────────────────────────────────────────────
-async function getEmailConfig(req, res) {
-  const configured = !!process.env.SMTP_HOST
-  res.json({
-    configured,
-    mode:      configured ? 'smtp' : 'ethereal',
-    host:      process.env.SMTP_HOST     || '(Ethereal — dev only)',
-    port:      process.env.SMTP_PORT     || '587',
-    secure:    process.env.SMTP_SECURE   || 'false',
-    user:      process.env.SMTP_USER     || '',
-    fromName:  process.env.EMAIL_FROM_NAME    || 'POS System',
-    fromEmail: process.env.EMAIL_FROM_ADDRESS || 'noreply@pos.system',
-    appUrl:    process.env.APP_URL       || 'http://localhost:5173',
-  })
+async function getEmailConfig(req, res, next) {
+  try {
+    const cfg = await emailService.getConfig()
+    const configured = !!cfg
+    res.json({
+      configured,
+      mode:      configured ? 'smtp' : 'ethereal',
+      source:    cfg?.source || 'none',
+      host:      cfg?.host      || '',
+      port:      cfg?.port      || 587,
+      secure:    cfg?.secure    || false,
+      user:      cfg?.user      || '',
+      fromName:  cfg?.fromName  || 'POS System',
+      fromEmail: cfg?.fromEmail || 'noreply@pos.system',
+      appUrl:    process.env.APP_URL || 'http://localhost:5173',
+    })
+  } catch (err) { next(err) }
+}
+
+// ─── PUT /api/email/config ────────────────────────────────────────────────────
+async function updateEmailConfig(req, res, next) {
+  const { host, port, secure, user, pass, fromName, fromEmail } = req.body
+  if (!host) return res.status(400).json({ error: 'host is required' })
+
+  try {
+    const upsert = async (key, value) => {
+      await query(
+        `INSERT INTO system_settings (key, value, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+        [key, String(value)]
+      )
+    }
+
+    await upsert('smtp.host',      host)
+    await upsert('smtp.port',      port      || 587)
+    await upsert('smtp.secure',    secure    ? 'true' : 'false')
+    await upsert('smtp.user',      user      || '')
+    if (pass) await upsert('smtp.pass', pass)  // don't overwrite pass if not provided
+    await upsert('email.fromName',  fromName  || 'POS System')
+    await upsert('email.fromEmail', fromEmail || 'noreply@pos.system')
+
+    // Reload the email transporter with new config
+    await emailService.reloadConfig()
+
+    res.json({ success: true, message: 'Email configuration updated and transporter reloaded.' })
+  } catch (err) { next(err) }
 }
 
 // ─── POST /api/email/test ─────────────────────────────────────────────────────
@@ -182,6 +216,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getEmailConfig,
+  updateEmailConfig,
   testEmail,
   validateResetToken,
 }

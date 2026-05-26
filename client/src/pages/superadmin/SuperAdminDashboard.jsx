@@ -154,8 +154,8 @@ export default function SuperAdminDashboard() {
       {/* Secondary stats */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-gray-900 rounded-2xl border border-gray-800 p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-900/40 flex items-center justify-center">
-            <TrendingUp size={20} className="text-indigo-400" />
+          <div className="w-12 h-12 rounded-xl bg-teal-900/40 flex items-center justify-center">
+            <TrendingUp size={20} className="text-teal-400" />
           </div>
           <div>
             <p className="text-2xl font-bold text-white">{fmtCurrency(s.monthlyRevenue ?? 0)}</p>

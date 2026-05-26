@@ -27,18 +27,18 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-indigo-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-teal-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Card */}
         <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-black/30 overflow-hidden">
 
           {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-8 py-8 text-center">
+          <div className="bg-gradient-to-r from-teal-600 to-violet-600 px-8 py-8 text-center">
             <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Mail size={28} className="text-white" />
             </div>
             <h1 className="text-xl font-bold text-white">Forgot Password?</h1>
-            <p className="text-sm text-indigo-200 mt-1">
+            <p className="text-sm text-teal-200 mt-1">
               We'll send you a reset link instantly
             </p>
           </div>
@@ -72,7 +72,7 @@ export default function ForgotPassword() {
                       href={preview}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline break-all"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 dark:text-teal-400 hover:underline break-all"
                     >
                       {preview}
                     </a>
@@ -81,7 +81,7 @@ export default function ForgotPassword() {
 
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium transition-colors"
+                  className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 font-medium transition-colors"
                 >
                   <ArrowLeft size={14} /> Back to Sign In
                 </Link>
@@ -112,7 +112,7 @@ export default function ForgotPassword() {
                       onChange={e => setEmail(e.target.value)}
                       placeholder="you@example.com"
                       autoFocus
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition placeholder-gray-400"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition placeholder-gray-400"
                     />
                   </div>
                 </div>
@@ -120,7 +120,7 @@ export default function ForgotPassword() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-60 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/30 text-sm"
+                  className="w-full py-3 bg-gradient-to-r from-teal-600 to-violet-600 hover:from-teal-500 hover:to-violet-500 disabled:opacity-60 text-white font-semibold rounded-xl transition-all shadow-lg shadow-teal-500/30 text-sm"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
@@ -133,7 +133,7 @@ export default function ForgotPassword() {
                 <div className="text-center">
                   <Link
                     to="/login"
-                    className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
                   >
                     <ArrowLeft size={13} /> Back to Sign In
                   </Link>

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Store, Eye, Edit2, Trash2, Power,
-  ChevronRight, DollarSign, ShoppingBag, Users, X,
+  ChevronRight, DollarSign, ShoppingBag, Users, X, Megaphone, Send, CheckCircle,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { superadminApi } from '../../services/api'
@@ -161,6 +161,138 @@ function Field({ label, children }) {
   )
 }
 
+// ─── BroadcastModal ───────────────────────────────────────────────────────────
+function BroadcastModal({ restaurants, onClose }) {
+  const [subject,  setSubject]  = useState('')
+  const [message,  setMessage]  = useState('')
+  const [targeted, setTargeted] = useState(false)  // false = all active
+  const [selected, setSelected] = useState([])     // selected restaurant rawIds
+  const [sending,  setSending]  = useState(false)
+  const [result,   setResult]   = useState(null)   // { sent, failed, total }
+  const [error,    setError]    = useState('')
+
+  const toggleRestaurant = (rawId) => {
+    setSelected(s => s.includes(rawId) ? s.filter(x => x !== rawId) : [...s, rawId])
+  }
+
+  const handleSend = async () => {
+    if (!subject.trim() || !message.trim()) { setError('Subject and message are required'); return }
+    setSending(true)
+    setError('')
+    try {
+      const body = { subject, message }
+      if (targeted && selected.length) body.restaurantIds = selected
+      const res = await superadminApi.broadcast(body)
+      setResult(res)
+    } catch(e) {
+      setError(e.message || 'Failed to send broadcast')
+    } finally { setSending(false) }
+  }
+
+  const activeCount = targeted ? selected.length : restaurants.filter(r => r.status === 'active').length
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+          <div className="flex items-center gap-2">
+            <Megaphone size={15} className="text-violet-400" />
+            <h2 className="text-sm font-semibold text-white">Broadcast Announcement</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 transition-colors"><X size={16} /></button>
+        </div>
+
+        {result ? (
+          <div className="p-6 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-emerald-900/40 flex items-center justify-center mx-auto">
+              <CheckCircle size={24} className="text-emerald-400" />
+            </div>
+            <h3 className="text-sm font-semibold text-white">Broadcast Sent</h3>
+            <p className="text-xs text-gray-400">
+              {result.sent} email{result.sent !== 1 ? 's' : ''} delivered
+              {result.failed > 0 && <span className="text-red-400">, {result.failed} failed</span>}
+            </p>
+            <button onClick={onClose}
+              className="mt-2 px-6 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-xl transition-colors">
+              Done
+            </button>
+          </div>
+        ) : (
+          <div className="px-5 py-4 space-y-4 max-h-[75vh] overflow-y-auto">
+            {error && <p className="text-xs text-red-400 bg-red-900/20 border border-red-700/40 px-3 py-2 rounded-lg">{error}</p>}
+
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Subject</label>
+              <input className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500 placeholder-gray-600"
+                placeholder="Scheduled maintenance — 2 Jan 2026" value={subject}
+                onChange={e => setSubject(e.target.value)} />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Message</label>
+              <textarea rows={5}
+                className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500 placeholder-gray-600 resize-none"
+                placeholder="Write your announcement here…" value={message}
+                onChange={e => setMessage(e.target.value)} />
+            </div>
+
+            {/* Target */}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-gray-400">Recipients</label>
+              <div className="flex gap-3">
+                <button onClick={() => setTargeted(false)}
+                  className={clsx('flex-1 py-2 text-xs rounded-xl border transition-colors',
+                    !targeted ? 'bg-violet-600/20 border-violet-600/50 text-violet-300' : 'bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300')}>
+                  All active restaurants
+                </button>
+                <button onClick={() => setTargeted(true)}
+                  className={clsx('flex-1 py-2 text-xs rounded-xl border transition-colors',
+                    targeted ? 'bg-violet-600/20 border-violet-600/50 text-violet-300' : 'bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300')}>
+                  Select specific
+                </button>
+              </div>
+              {targeted && (
+                <div className="bg-gray-800 rounded-xl p-2 max-h-36 overflow-y-auto space-y-1">
+                  {restaurants.map(r => (
+                    <label key={r.rawId} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-700 cursor-pointer">
+                      <input type="checkbox" className="accent-violet-500"
+                        checked={selected.includes(r.rawId)}
+                        onChange={() => toggleRestaurant(r.rawId)} />
+                      <span className="text-xs text-gray-300">{r.name}</span>
+                      <span className={clsx('ml-auto text-[10px] px-1.5 py-0.5 rounded-full',
+                        r.status === 'active' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-gray-700 text-gray-500')}>
+                        {r.status}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-600">
+              Will send to Admin email(s) of {activeCount} restaurant{activeCount !== 1 ? 's' : ''}
+              {targeted && !selected.length ? ' — select at least one restaurant' : ''}.
+            </p>
+
+            <div className="flex gap-3 pt-1">
+              <button onClick={onClose}
+                className="flex-1 py-2.5 text-sm text-gray-400 border border-gray-700 rounded-xl hover:border-gray-600 hover:text-gray-200 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSend}
+                disabled={sending || !subject.trim() || !message.trim() || (targeted && !selected.length)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl transition-colors">
+                {sending ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={14} />}
+                {sending ? 'Sending…' : 'Send Broadcast'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── ConfirmDialog ─────────────────────────────────────────────────────────────
 function ConfirmDialog({ message, onConfirm, onCancel, danger }) {
   return (
@@ -192,6 +324,7 @@ export default function Restaurants() {
   const [statusFilter, setStatusFilter] = useState('')
   const [modal, setModal]             = useState(null) // null | 'add' | { edit: item }
   const [confirm, setConfirm]         = useState(null)
+  const [broadcast, setBroadcast]     = useState(false)
   const navigate = useNavigate()
 
   const load = useCallback(() => {
@@ -240,13 +373,20 @@ export default function Restaurants() {
           <h1 className="text-xl font-bold text-white">Restaurants</h1>
           <p className="text-sm text-gray-500 mt-0.5">{restaurants.length} restaurant{restaurants.length !== 1 ? 's' : ''} found</p>
         </div>
-        <button
-          onClick={() => setModal('add')}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-xl transition-colors shadow-lg shadow-violet-900/30"
-        >
-          <Plus size={15} />
-          Add Restaurant
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setBroadcast(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white text-sm font-medium rounded-xl transition-colors"
+          >
+            <Megaphone size={15} /> Broadcast
+          </button>
+          <button
+            onClick={() => setModal('add')}
+            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-xl transition-colors shadow-lg shadow-violet-900/30"
+          >
+            <Plus size={15} /> Add Restaurant
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -427,6 +567,9 @@ export default function Restaurants() {
           onConfirm={confirm.onConfirm}
           onCancel={() => setConfirm(null)}
         />
+      )}
+      {broadcast && (
+        <BroadcastModal restaurants={restaurants} onClose={() => setBroadcast(false)} />
       )}
     </div>
   )

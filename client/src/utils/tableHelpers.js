@@ -38,7 +38,7 @@ export function getPlaceholderColor(id) {
     '#EEF2FF', '#FFF7ED', '#F0FDF4', '#FFF1F2',
     '#F0F9FF', '#FDF4FF', '#FFFBEB', '#F7FEE7',
   ]
-  const num = parseInt(id.replace(/\D/g, ''), 10) || 0
+  const num = parseInt(String(id).replace(/\D/g, ''), 10) || 0
   return colors[num % colors.length]
 }
 
@@ -47,6 +47,6 @@ export function getPlaceholderTextColor(id) {
     '#4F46E5', '#EA580C', '#16A34A', '#E11D48',
     '#0284C7', '#A21CAF', '#D97706', '#65A30D',
   ]
-  const num = parseInt(id.replace(/\D/g, ''), 10) || 0
+  const num = parseInt(String(id).replace(/\D/g, ''), 10) || 0
   return colors[num % colors.length]
 }

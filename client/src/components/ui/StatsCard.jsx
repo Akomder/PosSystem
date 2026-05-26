@@ -2,7 +2,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react'
 import clsx from 'clsx'
 
 const colorMap = {
-  indigo:  { bg: 'bg-indigo-50  dark:bg-indigo-900/30',  icon: 'text-indigo-600 dark:text-indigo-400' },
+  teal:  { bg: 'bg-teal-50  dark:bg-teal-900/30',  icon: 'text-teal-600 dark:text-teal-400' },
   green:   { bg: 'bg-green-50   dark:bg-green-900/30',   icon: 'text-green-600  dark:text-green-400'  },
   amber:   { bg: 'bg-amber-50   dark:bg-amber-900/30',   icon: 'text-amber-600  dark:text-amber-400'  },
   blue:    { bg: 'bg-blue-50    dark:bg-blue-900/30',    icon: 'text-blue-600   dark:text-blue-400'   },
@@ -16,10 +16,10 @@ export default function StatsCard({
   change,
   changeType = 'up',
   icon: Icon,
-  color = 'indigo',
+  color = 'teal',
   subtitle,
 }) {
-  const c = colorMap[color] || colorMap.indigo
+  const c = colorMap[color] || colorMap.teal
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-5">

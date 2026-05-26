@@ -25,7 +25,7 @@ const CATEGORY_OPTIONS_EXPENSE = [
   { value: 'Other Expense',   label: 'Other Expense'   },
 ]
 
-const EMPTY_FORM = { type: 'income', category: '', amount: '', note: '', createdBy: '' }
+const EMPTY_FORM = { type: 'income', category: '', amount: '', description: '', reference: '' }
 
 export default function CashFlow() {
   const { t } = useSettings()
@@ -132,7 +132,7 @@ export default function CashFlow() {
           { label: t('cashflow.openingBalance'), value: summary.openingBalance, icon: Wallet,       color: 'text-gray-600 dark:text-gray-300',    bg: 'bg-gray-50 dark:bg-gray-700/50'       },
           { label: t('cashflow.totalIncome'),    value: summary.totalIncome,    icon: TrendingUp,   color: 'text-green-600 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/20'     },
           { label: t('cashflow.totalExpense'),   value: summary.totalExpense,   icon: TrendingDown, color: 'text-red-600 dark:text-red-400',      bg: 'bg-red-50 dark:bg-red-900/20'         },
-          { label: t('cashflow.closingBalance'), value: summary.closingBalance, icon: Wallet,       color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/20'  },
+          { label: t('cashflow.closingBalance'), value: summary.closingBalance, icon: Wallet,       color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50 dark:bg-teal-900/20'  },
         ].map(card => (
           <div key={card.label} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
             <div className="flex items-center gap-3">
@@ -175,8 +175,8 @@ export default function CashFlow() {
             onChange={e => setStatusFilter(e.target.value)}
             options={[
               { value: '', label: t('cashflow.allStatuses') },
-              { value: 'paid',      label: t('cashflow.paid')      },
-              { value: 'cancelled', label: t('cashflow.cancelled') },
+              { value: 'paid',    label: t('cashflow.paid')    },
+              { value: 'pending', label: t('cashflow.pending') },
             ]}
           />
         </div>
@@ -185,7 +185,7 @@ export default function CashFlow() {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
-          <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
           {t('common.loading')}
         </div>
       ) : entries.length === 0 ? (
@@ -223,14 +223,14 @@ export default function CashFlow() {
             <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
               {entries.map(e => (
                 <tr key={e.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{e.code}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{e.reference || `CF-${String(e.id).padStart(3,'0')}`}</td>
                   <td className="px-4 py-3">
                     <Badge variant={e.type === 'income' ? 'success' : 'danger'}>
                       {e.type === 'income' ? t('cashflow.income') : t('cashflow.expense')}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{e.category}</td>
-                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 max-w-xs truncate">{e.note || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 max-w-xs truncate">{e.description || '—'}</td>
                   <td className={clsx(
                     'px-4 py-3 font-semibold',
                     e.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
@@ -238,8 +238,8 @@ export default function CashFlow() {
                     {e.type === 'expense' ? '-' : '+'}{formatCurrency(e.amount)}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={e.status === 'paid' ? 'success' : 'default'}>
-                      {e.status === 'paid' ? t('cashflow.paid') : t('cashflow.cancelled')}
+                    <Badge variant={e.status === 'paid' ? 'success' : 'warning'}>
+                      {e.status === 'paid' ? t('cashflow.paid') : t('cashflow.pending')}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
@@ -252,12 +252,12 @@ export default function CashFlow() {
                           {t('cashflow.markPaid')}
                         </button>
                       )}
-                      {e.status !== 'cancelled' && (
+                      {e.status !== 'pending' && (
                         <button
-                          onClick={() => handleStatusChange(e.id, 'cancelled')}
+                          onClick={() => handleStatusChange(e.id, 'pending')}
                           className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                         >
-                          {t('cashflow.markCancelled')}
+                          {t('cashflow.markPending')}
                         </button>
                       )}
                       <button
@@ -326,14 +326,14 @@ export default function CashFlow() {
             required
           />
           <Input
-            label={t('cashflow.note')}
-            value={form.note}
-            onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+            label={t('cashflow.description')}
+            value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
           />
           <Input
-            label={t('cashflow.createdBy')}
-            value={form.createdBy}
-            onChange={e => setForm(f => ({ ...f, createdBy: e.target.value }))}
+            label={t('cashflow.reference')}
+            value={form.reference}
+            onChange={e => setForm(f => ({ ...f, reference: e.target.value }))}
           />
         </form>
       </Modal>

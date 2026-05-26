@@ -10,13 +10,14 @@ export function calculateTotal(subtotal, tax) {
   return Math.round((subtotal + tax) * 100) / 100
 }
 
-// Schema status values: 'Pending' | 'In Progress' | 'Served' | 'Closed'
+// Schema status values: 'Pending' | 'In Progress' | 'Served' | 'Closed' | 'Cancelled'
 export function getStatusVariant(status) {
   const map = {
     'Pending':     'pending',
     'In Progress': 'in-progress',
     'Served':      'served',
     'Closed':      'closed',
+    'Cancelled':   'danger',
   }
   return map[status] || 'pending'
 }
@@ -26,8 +27,10 @@ export const STATUS_LABELS = {
   'In Progress': 'In Progress',
   'Served':      'Served',
   'Closed':      'Closed',
+  'Cancelled':   'Cancelled',
 }
 
+// Cancelled is terminal — not in the progression flow
 const STATUS_FLOW = ['Pending', 'In Progress', 'Served', 'Closed']
 
 export function getNextStatus(currentStatus) {

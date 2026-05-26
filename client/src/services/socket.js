@@ -54,3 +54,8 @@ export function onTableUpdated(cb) {
   socket?.on('table:updated', cb)
   return () => socket?.off('table:updated', cb)
 }
+
+export function onStockLow(cb) {
+  socket?.on('stock:low', cb)
+  return () => socket?.off('stock:low', cb)
+}

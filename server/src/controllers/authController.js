@@ -41,23 +41,27 @@ async function login(req, res, next) {
       return res.status(401).json({ error: 'Invalid email or password' })
     }
 
-    // 3. Get linked staff profile (may not exist)
-    const staffRes = await query(
-      'SELECT * FROM staff WHERE user_id = $1',
-      [user.id]
-    )
-    const staff = staffRes.rows[0] || null
+    // 3. Get linked staff profile + restaurant plan (may not exist)
+    const [staffRes, restRes] = await Promise.all([
+      query('SELECT * FROM staff WHERE user_id = $1', [user.id]),
+      user.restaurant_id
+        ? query('SELECT plan FROM restaurants WHERE id = $1', [user.restaurant_id])
+        : Promise.resolve({ rows: [] }),
+    ])
+    const staff          = staffRes.rows[0] || null
+    const restaurantPlan = restRes.rows[0]?.plan || null
 
     // 4. Build JWT payload
     const payload = {
-      id:           user.id,
-      staffId:      staff ? staff.id : null,
-      name:         staff ? staff.name : user.email,
-      email:        user.email,
-      role:         user.role,
-      avatar:       staff ? staff.avatar : null,
-      restaurantId: user.restaurant_id || null,
-      isSuperAdmin: user.role === 'SuperAdmin',
+      id:             user.id,
+      staffId:        staff ? staff.id : null,
+      name:           staff ? staff.name : user.email,
+      email:          user.email,
+      role:           user.role,
+      avatar:         staff ? staff.avatar : null,
+      restaurantId:   user.restaurant_id || null,
+      restaurantPlan,
+      isSuperAdmin:   user.role === 'SuperAdmin',
     }
 
     const token        = signAccess(payload)
@@ -68,14 +72,15 @@ async function login(req, res, next) {
       token,
       refreshToken,
       user: {
-        id:           fmtUserId(user.id),
-        staffId:      staff ? fmtStaffId(staff.id) : null,
-        name:         payload.name,
-        email:        user.email,
-        role:         user.role,
-        avatar:       staff ? staff.avatar : null,
-        restaurantId: user.restaurant_id || null,
-        isSuperAdmin: user.role === 'SuperAdmin',
+        id:             fmtUserId(user.id),
+        staffId:        staff ? fmtStaffId(staff.id) : null,
+        name:           payload.name,
+        email:          user.email,
+        role:           user.role,
+        avatar:         staff ? staff.avatar : null,
+        restaurantId:   user.restaurant_id || null,
+        restaurantPlan,
+        isSuperAdmin:   user.role === 'SuperAdmin',
       },
     })
   } catch (err) {
@@ -147,4 +152,42 @@ async function refresh(req, res, next) {
   }
 }
 
-module.exports = { login, getMe, refresh }
+// ─── PUT /api/auth/profile ────────────────────────────────────────────────────
+async function updateProfile(req, res, next) {
+  const { name } = req.body
+  if (!name?.trim()) return res.status(400).json({ error: 'Name is required' })
+  try {
+    // Update the linked staff record's name
+    const { rows } = await query(
+      `UPDATE staff SET name = $1, updated_at = NOW()
+       WHERE user_id = $2 RETURNING id, name`,
+      [name.trim(), req.user.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Staff profile not found' })
+    res.json({ name: rows[0].name })
+  } catch (err) { next(err) }
+}
+
+// ─── POST /api/auth/change-password ──────────────────────────────────────────
+async function changePassword(req, res, next) {
+  const { currentPassword, newPassword } = req.body
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'currentPassword and newPassword are required' })
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' })
+  }
+  try {
+    const { rows } = await query('SELECT password_hash FROM users WHERE id = $1', [req.user.id])
+    if (!rows.length) return res.status(404).json({ error: 'User not found' })
+
+    const match = await bcrypt.compare(currentPassword, rows[0].password_hash)
+    if (!match) return res.status(401).json({ error: 'Current password is incorrect' })
+
+    const hash = await bcrypt.hash(newPassword, 10)
+    await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, req.user.id])
+    res.json({ message: 'Password changed successfully' })
+  } catch (err) { next(err) }
+}
+
+module.exports = { login, getMe, refresh, updateProfile, changePassword }

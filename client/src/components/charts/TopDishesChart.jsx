@@ -6,7 +6,7 @@ import {
   Cell,
 } from 'recharts'
 
-const COLORS = ['#4F46E5', '#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE']
+const COLORS = ['#14b8a6', '#0d9488', '#f3761d', '#0ea5e9', '#8b5cf6']
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null

@@ -18,6 +18,19 @@ import Sell from './pages/Sell'
 import Invoices from './pages/Invoices'
 import Returns from './pages/Returns'
 import CustomerOrder from './pages/CustomerOrder'
+import Staff from './pages/Staff'
+import StockTakes from './pages/StockTakes'
+import PriceBooks from './pages/PriceBooks'
+import PurchaseOrders from './pages/PurchaseOrders'
+import PurchaseReturns from './pages/PurchaseReturns'
+import DamageRecords from './pages/DamageRecords'
+import Shifts from './pages/Shifts'
+import Promotions from './pages/Promotions'
+import Settings from './pages/Settings'
+import AuditLog from './pages/AuditLog'
+import Kitchen from './pages/Kitchen'
+import OfflineBanner from './components/OfflineBanner'
+import StockLowToast from './components/StockLowToast'
 
 // SuperAdmin pages
 import SuperAdminLayout from './pages/superadmin/SuperAdminLayout'
@@ -25,6 +38,8 @@ import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard'
 import Restaurants from './pages/superadmin/Restaurants'
 import RestaurantDetail from './pages/superadmin/RestaurantDetail'
 import EmailSettings from './pages/superadmin/EmailSettings'
+import Admins from './pages/superadmin/Admins'
+import SuperAdminAuditLog from './pages/superadmin/AuditLog'
 
 // ─── Route Guards ──────────────────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
@@ -68,6 +83,8 @@ function AppRoutes() {
         <Route index element={<SuperAdminDashboard />} />
         <Route path="restaurants" element={<Restaurants />} />
         <Route path="restaurants/:id" element={<RestaurantDetail />} />
+        <Route path="admins" element={<Admins />} />
+        <Route path="audit-log" element={<SuperAdminAuditLog />} />
         <Route path="email" element={<EmailSettings />} />
       </Route>
 
@@ -105,9 +122,42 @@ function AppRoutes() {
       <Route path="/returns"   element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Returns />} />
       </Route>
+      <Route path="/staff"     element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<Staff />} />
+      </Route>
+      <Route path="/stock-takes"      element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<StockTakes />} />
+      </Route>
+      <Route path="/price-books"      element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<PriceBooks />} />
+      </Route>
+      <Route path="/purchase-orders"  element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<PurchaseOrders />} />
+      </Route>
+      <Route path="/purchase-returns" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<PurchaseReturns />} />
+      </Route>
+      <Route path="/damage-records"   element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<DamageRecords />} />
+      </Route>
+      <Route path="/shifts"           element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<Shifts />} />
+      </Route>
+      <Route path="/promotions"       element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<Promotions />} />
+      </Route>
+      <Route path="/settings"         element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<Settings />} />
+      </Route>
+      <Route path="/audit-log"        element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<AuditLog />} />
+      </Route>
 
       {/* Sell screen — full screen, no layout */}
-      <Route path="/sell" element={<ProtectedRoute><Sell /></ProtectedRoute>} />
+      <Route path="/sell"    element={<ProtectedRoute><Sell /></ProtectedRoute>} />
+
+      {/* Kitchen display — full screen, no layout */}
+      <Route path="/kitchen" element={<ProtectedRoute><Kitchen /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
@@ -120,6 +170,8 @@ export default function App() {
       <SettingsProvider>
         <AuthProvider>
           <AppProvider>
+            <OfflineBanner />
+            <StockLowToast />
             <AppRoutes />
           </AppProvider>
         </AuthProvider>

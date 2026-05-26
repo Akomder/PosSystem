@@ -1,7 +1,7 @@
 const router  = require('express').Router()
 const { body } = require('express-validator')
 const {
-  getAllOrders, getOrder, createOrder, updateStatus, updateOrder,
+  getAllOrders, getOrder, createOrder, updateStatus, updateOrder, markItemDone,
 } = require('../controllers/ordersController')
 const authenticate = require('../middleware/auth')
 const requireRole  = require('../middleware/authorize')
@@ -15,7 +15,7 @@ router.post(
   '/',
   requireRole('Admin','Waiter'),
   [
-    body('tableId').isInt({ min: 1 }).withMessage('tableId must be a positive integer'),
+    body('tableId').optional({ nullable: true }).isInt({ min: 1 }).withMessage('tableId must be a positive integer'),
     body('items').isArray({ min: 1 }).withMessage('At least one item required'),
     body('items.*.menuItemId').isInt({ min: 1 }).withMessage('Each item needs a valid menuItemId'),
     body('items.*.quantity').isInt({ min: 1 }).withMessage('Each item needs quantity >= 1'),
@@ -40,5 +40,8 @@ router.put(
   ],
   updateOrder
 )
+
+// Mark a single item as done (kitchen bump)
+router.patch('/:orderId/items/:itemId/done', requireRole('Admin','Waiter','Cashier'), markItemDone)
 
 module.exports = router

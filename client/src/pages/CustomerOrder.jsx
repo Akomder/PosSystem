@@ -121,7 +121,7 @@ export default function CustomerOrder() {
         <h1 className="text-xl font-bold text-gray-900 mb-1">Order Placed!</h1>
         <p className="text-sm text-gray-500 mb-3">
           Your order{' '}
-          <span className="font-semibold text-indigo-600">{confirmation.orderId}</span>{' '}
+          <span className="font-semibold text-teal-600">{confirmation.orderId}</span>{' '}
           is being prepared.
         </p>
         <p className="text-xs text-gray-400">A staff member will be with you shortly.</p>
@@ -140,11 +140,11 @@ export default function CustomerOrder() {
         </div>
         <button
           onClick={() => setCartOpen(true)}
-          className="relative p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+          className="relative p-2 text-teal-600 hover:bg-teal-50 rounded-xl transition-colors"
         >
           <ShoppingCart size={22} />
           {cartCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-teal-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
               {cartCount}
             </span>
           )}
@@ -171,7 +171,7 @@ export default function CustomerOrder() {
                       {item.description && (
                         <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{item.description}</p>
                       )}
-                      <p className="text-sm font-semibold text-indigo-600 mt-1.5">
+                      <p className="text-sm font-semibold text-teal-600 mt-1.5">
                         ${item.price.toFixed(2)}
                       </p>
                     </div>
@@ -180,7 +180,7 @@ export default function CustomerOrder() {
                         <>
                           <button
                             onClick={() => removeItem(item.id)}
-                            className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 transition-colors"
+                            className="w-7 h-7 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-100 transition-colors"
                           >
                             <Minus size={12} />
                           </button>
@@ -189,7 +189,7 @@ export default function CustomerOrder() {
                       )}
                       <button
                         onClick={() => addItem(item)}
-                        className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors"
+                        className="w-7 h-7 rounded-full bg-teal-600 text-white flex items-center justify-center hover:bg-teal-700 transition-colors"
                       >
                         <Plus size={12} />
                       </button>
@@ -207,9 +207,9 @@ export default function CustomerOrder() {
         <div className="fixed bottom-0 left-0 right-0 z-10 p-4 max-w-xl mx-auto">
           <button
             onClick={() => setCartOpen(true)}
-            className="w-full bg-indigo-600 text-white font-semibold py-3.5 rounded-xl flex items-center justify-between px-5 shadow-lg"
+            className="w-full bg-teal-600 text-white font-semibold py-3.5 rounded-xl flex items-center justify-between px-5 shadow-lg"
           >
-            <span className="bg-indigo-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+            <span className="bg-teal-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
               {cartCount}
             </span>
             <span>View Order</span>
@@ -263,7 +263,7 @@ export default function CustomerOrder() {
                     <span className="w-5 text-center text-sm font-semibold">{item.quantity}</span>
                     <button
                       onClick={() => addItem(item)}
-                      className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center hover:bg-indigo-200"
+                      className="w-6 h-6 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center hover:bg-teal-200"
                     >
                       <Plus size={10} />
                     </button>
@@ -296,7 +296,7 @@ export default function CustomerOrder() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting || !cart.length}
-                className="w-full bg-indigo-600 text-white font-semibold py-3.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="w-full bg-teal-600 text-white font-semibold py-3.5 rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors"
               >
                 {submitting ? 'Placing Order…' : `Place Order · $${total.toFixed(2)}`}
               </button>

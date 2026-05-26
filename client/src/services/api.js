@@ -23,6 +23,13 @@ async function request(method, path, body) {
 
   const data = await res.json()
   if (!res.ok) {
+    // 401 = token invalid or expired — clear stale session and redirect to login
+    if (res.status === 401 && !path.includes('/auth/')) {
+      localStorage.removeItem('pos_user')
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login'
+      }
+    }
     const err = new Error(data.error || data.message || 'Request failed')
     err.status = res.status
     err.data   = data
@@ -39,9 +46,11 @@ const del    = (path)        => request('DELETE', path)
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authApi = {
-  login:   (email, password)  => post('/auth/login', { email, password }),
-  me:      ()                 => get('/auth/me'),
-  refresh: (refreshToken)     => post('/auth/refresh', { refreshToken }),
+  login:          (email, password)              => post('/auth/login',           { email, password }),
+  me:             ()                             => get('/auth/me'),
+  refresh:        (refreshToken)                 => post('/auth/refresh',          { refreshToken }),
+  updateProfile:  (name)                         => put('/auth/profile',           { name }),
+  changePassword: (currentPassword, newPassword) => post('/auth/change-password',  { currentPassword, newPassword }),
 }
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
@@ -50,16 +59,20 @@ export const ordersApi = {
   getOne:       (id)          => get(`/orders/${id}`),
   create:       (body)        => post('/orders', body),
   updateStatus: (id, status)  => patch(`/orders/${id}/status`, { status }),
+  cancel:       (id, reason)  => patch(`/orders/${id}/status`, { status: 'Cancelled', cancelReason: reason }),
   update:       (id, body)    => put(`/orders/${id}`, body),
+  markItemDone: (orderId, itemId) => patch(`/orders/${orderId}/items/${itemId}/done`),
 }
 
 // ─── Tables ───────────────────────────────────────────────────────────────────
 export const tablesApi = {
   getAll:       (params = {}) => get('/tables?' + new URLSearchParams(params)),
   getOne:       (id)          => get(`/tables/${id}`),
+  create:       (body)        => post('/tables', body),
   updateStatus: (id, status)  => patch(`/tables/${id}/status`, { status }),
   assignWaiter: (id, staffId) => patch(`/tables/${id}/assign`, { staffId }),
   update:       (id, body)    => put(`/tables/${id}`, body),
+  delete:       (id)          => del(`/tables/${id}`),
 }
 
 // ─── Menu ─────────────────────────────────────────────────────────────────────
@@ -134,6 +147,120 @@ export const reportsApi = {
   channel:  (params = {}) => get('/stats/reports/channel?'  + new URLSearchParams(params)),
 }
 
+// ─── Zones ────────────────────────────────────────────────────────────────────
+export const zonesApi = {
+  getAll:  ()          => get('/zones'),
+  create:  (body)      => post('/zones', body),
+  update:  (id, body)  => put(`/zones/${id}`, body),
+  delete:  (id)        => del(`/zones/${id}`),
+}
+
+// ─── Sales Channels ───────────────────────────────────────────────────────────
+export const salesChannelsApi = {
+  getAll:  ()          => get('/sales-channels'),
+  create:  (body)      => post('/sales-channels', body),
+  update:  (id, body)  => put(`/sales-channels/${id}`, body),
+  delete:  (id)        => del(`/sales-channels/${id}`),
+}
+
+// ─── Shifts ───────────────────────────────────────────────────────────────────
+export const shiftsApi = {
+  getAll:   (params={}) => get('/shifts?' + new URLSearchParams(params)),
+  getCurrent: ()        => get('/shifts/current'),
+  open:     (body)      => post('/shifts/open', body),
+  close:    (id, body)  => patch(`/shifts/${id}/close`, body),
+}
+
+// ─── Stock Takes ──────────────────────────────────────────────────────────────
+export const stockTakesApi = {
+  getAll:     ()              => get('/stock-takes'),
+  getOne:     (id)            => get(`/stock-takes/${id}`),
+  create:     (body)          => post('/stock-takes', body),
+  updateItem: (id, itemId, b) => patch(`/stock-takes/${id}/items/${itemId}`, b),
+  complete:   (id)            => patch(`/stock-takes/${id}/complete`),
+  delete:     (id)            => del(`/stock-takes/${id}`),
+}
+
+// ─── Price Books ──────────────────────────────────────────────────────────────
+export const priceBooksApi = {
+  getAll:     ()              => get('/price-books'),
+  getOne:     (id)            => get(`/price-books/${id}`),
+  create:     (body)          => post('/price-books', body),
+  update:     (id, body)      => put(`/price-books/${id}`, body),
+  addItem:    (id, body)      => post(`/price-books/${id}/items`, body),
+  removeItem: (id, itemId)    => del(`/price-books/${id}/items/${itemId}`),
+  delete:     (id)            => del(`/price-books/${id}`),
+}
+
+// ─── Purchase Orders ──────────────────────────────────────────────────────────
+export const purchaseOrdersApi = {
+  getAll:       (params={})   => get('/purchase-orders?' + new URLSearchParams(params)),
+  getOne:       (id)          => get(`/purchase-orders/${id}`),
+  create:       (body)        => post('/purchase-orders', body),
+  updateStatus: (id, status)  => patch(`/purchase-orders/${id}/status`, { status }),
+  delete:       (id)          => del(`/purchase-orders/${id}`),
+}
+
+// ─── Purchase Returns ─────────────────────────────────────────────────────────
+export const purchaseReturnsApi = {
+  getAll:       (params={})   => get('/purchase-returns?' + new URLSearchParams(params)),
+  getOne:       (id)          => get(`/purchase-returns/${id}`),
+  create:       (body)        => post('/purchase-returns', body),
+  updateStatus: (id, status)  => patch(`/purchase-returns/${id}/status`, { status }),
+  delete:       (id)          => del(`/purchase-returns/${id}`),
+}
+
+// ─── Damage Records ───────────────────────────────────────────────────────────
+export const damageRecordsApi = {
+  getAll:  (params={}) => get('/damage-records?' + new URLSearchParams(params)),
+  getOne:  (id)        => get(`/damage-records/${id}`),
+  create:  (body)      => post('/damage-records', body),
+  delete:  (id)        => del(`/damage-records/${id}`),
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+export const settingsApi = {
+  cancelReasons:      { getAll: () => get('/settings/cancel-reasons'),     create: b => post('/settings/cancel-reasons', b),     update: (id,b) => put(`/settings/cancel-reasons/${id}`, b),     delete: id => del(`/settings/cancel-reasons/${id}`) },
+  noteTemplates:      { getAll: () => get('/settings/note-templates'),     create: b => post('/settings/note-templates', b),     update: (id,b) => put(`/settings/note-templates/${id}`, b),     delete: id => del(`/settings/note-templates/${id}`) },
+  processingSectors:  { getAll: () => get('/settings/processing-sectors'), create: b => post('/settings/processing-sectors', b), update: (id,b) => put(`/settings/processing-sectors/${id}`, b), delete: id => del(`/settings/processing-sectors/${id}`) },
+  printTemplates:     { getAll: () => get('/settings/print-templates'),    create: b => post('/settings/print-templates', b),    update: (id,b) => put(`/settings/print-templates/${id}`, b),    delete: id => del(`/settings/print-templates/${id}`) },
+  store:              { get: () => get('/settings/store'), update: b => put('/settings/store', b) },
+}
+
+// ─── Promotions ───────────────────────────────────────────────────────────────
+export const promotionsApi = {
+  getAll:  (params={}) => get('/promotions?' + new URLSearchParams(params)),
+  getOne:  (id)        => get(`/promotions/${id}`),
+  create:  (body)      => post('/promotions', body),
+  update:  (id, body)  => put(`/promotions/${id}`, body),
+  apply:   (id, body)  => post(`/promotions/${id}/apply`, body),
+  delete:  (id)        => del(`/promotions/${id}`),
+}
+
+// ─── Print / Receipts ─────────────────────────────────────────────────────────
+export const printApi = {
+  getReceiptUrl:       (orderId) => `${BASE}/print/${orderId}/receipt`,
+  getKitchenTicketUrl: (orderId) => `${BASE}/print/${orderId}/kitchen-ticket`,
+}
+
+// ─── Modifiers ────────────────────────────────────────────────────────────────
+export const modifiersApi = {
+  getGroups:       ()              => get('/modifiers/groups'),
+  getGroup:        (id)            => get(`/modifiers/groups/${id}`),
+  createGroup:     (body)          => post('/modifiers/groups', body),
+  updateGroup:     (id, body)      => put(`/modifiers/groups/${id}`, body),
+  deleteGroup:     (id)            => del(`/modifiers/groups/${id}`),
+  addOption:       (groupId, body) => post(`/modifiers/groups/${groupId}/options`, body),
+  updateOption:    (id, body)      => put(`/modifiers/options/${id}`, body),
+  deleteOption:    (id)            => del(`/modifiers/options/${id}`),
+  setItemGroups:   (menuItemId, groupIds) => put(`/modifiers/menu-items/${menuItemId}/groups`, { groupIds }),
+}
+
+// ─── Audit Logs ───────────────────────────────────────────────────────────────
+export const auditLogsApi = {
+  getAll: (params={}) => get('/audit-logs?' + new URLSearchParams(params)),
+}
+
 // ─── Super Admin ──────────────────────────────────────────────────────────────
 export const superadminApi = {
   overview:             ()           => get('/superadmin/overview'),
@@ -144,6 +271,16 @@ export const superadminApi = {
   toggleStatus:         (id, status) => patch(`/superadmin/restaurants/${id}/status`, { status }),
   deleteRestaurant:     (id)         => del(`/superadmin/restaurants/${id}`),
   createStaff:          (id, body)   => post(`/superadmin/restaurants/${id}/staff`, body),
+  resetStaffPassword:   (restaurantId, userId, newPassword) =>
+                          patch(`/superadmin/restaurants/${restaurantId}/staff/${userId}/password`, { newPassword }),
+  // Admin management
+  getAdmins:     ()     => get('/superadmin/admins'),
+  createAdmin:   (body) => post('/superadmin/admins', body),
+  deleteAdmin:   (id)   => del(`/superadmin/admins/${id}`),
+  // Audit log
+  getAuditLog:   (params={}) => get('/superadmin/audit-log?' + new URLSearchParams(params)),
+  // Broadcast
+  broadcast:     (body) => post('/superadmin/broadcast', body),
 }
 
 // ─── Email / SMTP ─────────────────────────────────────────────────────────────
@@ -153,8 +290,9 @@ export const emailApi = {
   resetPassword:  (token, password) => publicRequest('POST', '/email/reset-password',  { token, password }),
   validateToken:  (token)           => publicRequest('GET',  `/email/validate-token?token=${encodeURIComponent(token)}`),
   // SuperAdmin-only
-  getConfig:      ()    => get('/email/config'),
-  testEmail:      (to)  => post('/email/test', { to }),
+  getConfig:      ()     => get('/email/config'),
+  updateConfig:   (body) => put('/email/config', body),
+  testEmail:      (to)   => post('/email/test', { to }),
 }
 
 // ─── Public (no auth) ────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import { Loader2 } from 'lucide-react'
 import clsx from 'clsx'
 
 const variants = {
-  primary:   'bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 shadow-sm',
+  primary:   'bg-teal-600 text-white hover:bg-[#f3761d] active:bg-[#c2530d] shadow-sm',
   secondary: 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100',
   danger:    'bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 active:bg-red-200',
   ghost:     'text-gray-600 hover:bg-gray-100 active:bg-gray-200',
@@ -35,7 +35,7 @@ export default function Button({
       disabled={disabled || loading}
       className={clsx(
         'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150',
-        'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1',
+        'focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         variants[variant],
         sizes[size],

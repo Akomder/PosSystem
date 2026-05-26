@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Store, DollarSign, ShoppingBag, Activity,
-  Users, Clock, TrendingUp, Plus, X, Mail,
+  Users, Clock, TrendingUp, Plus, X, Mail, KeyRound,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -127,6 +127,77 @@ function Tooltip2({ active, payload, label }) {
   )
 }
 
+// ─── Reset Password Modal ──────────────────────────────────────────────────────
+function ResetPasswordModal({ restaurantId, staff, onClose }) {
+  const [newPassword, setNewPassword] = useState('')
+  const [saving,      setSaving]      = useState(false)
+  const [done,        setDone]        = useState(false)
+  const [error,       setError]       = useState('')
+
+  // Parse raw staff id number from "STF-001" format
+  const userId = staff.rawUserId || staff.id.replace(/\D/g,'')
+
+  const handleSave = async () => {
+    if (newPassword.length < 6) { setError('Password must be at least 6 characters'); return }
+    setSaving(true)
+    setError('')
+    try {
+      await superadminApi.resetStaffPassword(restaurantId, userId, newPassword)
+      setDone(true)
+    } catch(e) {
+      setError(e.message || 'Failed to reset password')
+    } finally { setSaving(false) }
+  }
+
+  const inputCls = 'w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-violet-500 placeholder-gray-600'
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+          <div className="flex items-center gap-2">
+            <KeyRound size={15} className="text-violet-400" />
+            <h3 className="text-sm font-semibold text-white">Reset Password</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300"><X size={16} /></button>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-xs text-gray-500">
+            Setting a new password for <strong className="text-gray-300">{staff.name}</strong>
+          </p>
+          {error && <p className="text-xs text-red-400 bg-red-900/20 px-3 py-2 rounded-lg border border-red-700/40">{error}</p>}
+          {done
+            ? <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-900/20 px-3 py-2 rounded-lg border border-emerald-700/40">
+                <span>✓</span> Password reset successfully.
+              </div>
+            : <>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5">New Password</label>
+                  <input className={inputCls} type="password" placeholder="min 6 characters"
+                    value={newPassword} onChange={e => setNewPassword(e.target.value)} autoFocus />
+                </div>
+                <div className="flex justify-end gap-3 pt-1">
+                  <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200 px-4 py-2">Cancel</button>
+                  <button onClick={handleSave} disabled={saving}
+                    className="px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50">
+                    {saving ? 'Resetting…' : 'Reset Password'}
+                  </button>
+                </div>
+              </>
+          }
+        </div>
+        {done && (
+          <div className="px-5 pb-4">
+            <button onClick={onClose}
+              className="w-full py-2 bg-gray-800 hover:bg-gray-700 text-sm text-gray-200 rounded-xl transition-colors">
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function RestaurantDetail() {
   const { id } = useParams()
@@ -134,6 +205,7 @@ export default function RestaurantDetail() {
   const [data, setData]         = useState(null)
   const [loading, setLoading]   = useState(true)
   const [addStaff, setAddStaff] = useState(false)
+  const [resetPw,  setResetPw]  = useState(null)  // staff object to reset
 
   const load = () => {
     setLoading(true)
@@ -208,8 +280,8 @@ export default function RestaurantDetail() {
       {/* Monthly + Tables info */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-gray-800/60 border border-gray-700/60 rounded-2xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-900/30 flex items-center justify-center">
-            <TrendingUp size={17} className="text-indigo-400" />
+          <div className="w-10 h-10 rounded-xl bg-teal-900/30 flex items-center justify-center">
+            <TrendingUp size={17} className="text-teal-400" />
           </div>
           <div>
             <p className="text-xs text-gray-500">Monthly Revenue</p>
@@ -310,7 +382,7 @@ export default function RestaurantDetail() {
               <div className="px-4 py-8 text-center text-gray-600 text-xs">No staff yet</div>
             )}
             {(data.staff || []).map(s => (
-              <div key={s.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-800/30 transition-colors">
+              <div key={s.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-800/30 transition-colors group">
                 <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
                   <span className="text-xs font-bold text-gray-300">
                     {s.name.slice(0,2).toUpperCase()}
@@ -325,6 +397,13 @@ export default function RestaurantDetail() {
                 <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium', ROLE_COLORS[s.role] || 'bg-gray-700 text-gray-400')}>
                   {s.role}
                 </span>
+                <button
+                  onClick={() => setResetPw(s)}
+                  title="Reset password"
+                  className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-600 hover:text-violet-400 hover:bg-violet-900/20 rounded-lg transition-all"
+                >
+                  <KeyRound size={13} />
+                </button>
               </div>
             ))}
           </div>
@@ -332,11 +411,10 @@ export default function RestaurantDetail() {
       </div>
 
       {addStaff && (
-        <AddStaffModal
-          restaurantId={id}
-          onClose={() => setAddStaff(false)}
-          onAdded={load}
-        />
+        <AddStaffModal restaurantId={id} onClose={() => setAddStaff(false)} onAdded={load} />
+      )}
+      {resetPw && (
+        <ResetPasswordModal restaurantId={id} staff={resetPw} onClose={() => setResetPw(null)} />
       )}
     </div>
   )

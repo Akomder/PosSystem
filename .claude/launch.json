@@ -4,7 +4,7 @@
     {
       "name": "client",
       "runtimeExecutable": "npm",
-      "cwd": "C:\\Users\\souka\\OneDrive\\Desktop\\POS SYSTEM\\PosSystem\\client",
+      "cwd": "C:\\Users\\souka\\OneDrive\\Desktop\\POS\\PosSystem\\client",
       "runtimeArgs": ["run", "dev"],
       "port": 5173
     }

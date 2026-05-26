@@ -1,7 +1,11 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
 import { ordersApi, tablesApi, menuApi } from '../services/api'
-import { onOrderCreated, onOrderUpdated, onTableUpdated } from '../services/socket'
+import { onOrderCreated, onOrderUpdated, onTableUpdated, onStockLow } from '../services/socket'
 import { useAuth } from './AuthContext'
+import {
+  cacheMenu,      getCachedMenu,
+  cacheTables,    getCachedTables,
+} from '../lib/offlineDb'
 
 // ── Actions ──────────────────────────────────────────────────────────────────
 const A = {
@@ -15,6 +19,8 @@ const A = {
   ADD_MENU_ITEM:        'ADD_MENU_ITEM',
   UPDATE_MENU_ITEM:     'UPDATE_MENU_ITEM',
   TOGGLE_SIDEBAR:       'TOGGLE_SIDEBAR',
+  ADD_STOCK_ALERTS:     'ADD_STOCK_ALERTS',
+  DISMISS_STOCK_ALERT:  'DISMISS_STOCK_ALERT',
 }
 
 // ── Reducer ───────────────────────────────────────────────────────────────────
@@ -58,6 +64,21 @@ function appReducer(state, action) {
     case A.TOGGLE_SIDEBAR:
       return { ...state, sidebarOpen: !state.sidebarOpen }
 
+    case A.ADD_STOCK_ALERTS:
+      return {
+        ...state,
+        stockAlerts: [
+          ...state.stockAlerts,
+          ...action.payload.map(a => ({ ...a, _key: `${a.id}-${Date.now()}` })),
+        ],
+      }
+
+    case A.DISMISS_STOCK_ALERT:
+      return {
+        ...state,
+        stockAlerts: state.stockAlerts.filter(a => a._key !== action.payload),
+      }
+
     default: return state
   }
 }
@@ -71,6 +92,7 @@ export function AppProvider({ children }) {
     orders:      [],
     tables:      [],
     menuItems:   [],
+    stockAlerts: [],
     sidebarOpen: true,
     loading:     { orders: true, tables: true, menu: true },
   })
@@ -87,12 +109,28 @@ export function AppProvider({ children }) {
       .catch(() => dispatch({ type: A.SET_LOADING, payload: { orders: false } }))
 
     tablesApi.getAll()
-      .then(data => dispatch({ type: A.SET_TABLES, payload: data }))
-      .catch(() => dispatch({ type: A.SET_LOADING, payload: { tables: false } }))
+      .then(data => {
+        dispatch({ type: A.SET_TABLES, payload: data })
+        cacheTables(data).catch(() => {}) // persist for offline use
+      })
+      .catch(async () => {
+        // Network failure — try the last cached copy
+        const cached = await getCachedTables().catch(() => null)
+        if (cached) dispatch({ type: A.SET_TABLES, payload: cached })
+        else dispatch({ type: A.SET_LOADING, payload: { tables: false } })
+      })
 
     menuApi.getAll()
-      .then(data => dispatch({ type: A.SET_MENU, payload: data }))
-      .catch(() => dispatch({ type: A.SET_LOADING, payload: { menu: false } }))
+      .then(data => {
+        dispatch({ type: A.SET_MENU, payload: data })
+        cacheMenu(data).catch(() => {}) // persist for offline use
+      })
+      .catch(async () => {
+        // Network failure — try the last cached copy
+        const cached = await getCachedMenu().catch(() => null)
+        if (cached) dispatch({ type: A.SET_MENU, payload: cached })
+        else dispatch({ type: A.SET_LOADING, payload: { menu: false } })
+      })
   }, [user?.id])   // re-run whenever the logged-in user changes
 
   // ── Socket.IO real-time updates ───────────────────────────────────────────
@@ -106,7 +144,10 @@ export function AppProvider({ children }) {
     const offTable = onTableUpdated(({ table }) => {
       dispatch({ type: A.UPDATE_TABLE, payload: table })
     })
-    return () => { offCreated?.(); offUpdated?.(); offTable?.() }
+    const offStock = onStockLow(({ items }) => {
+      if (items?.length) dispatch({ type: A.ADD_STOCK_ALERTS, payload: items })
+    })
+    return () => { offCreated?.(); offUpdated?.(); offTable?.(); offStock?.() }
   }, [])
 
   // ── Action creators ───────────────────────────────────────────────────────
@@ -149,6 +190,9 @@ export function AppProvider({ children }) {
   const toggleSidebar = useCallback(() =>
     dispatch({ type: A.TOGGLE_SIDEBAR }), [])
 
+  const dismissStockAlert = useCallback((_key) =>
+    dispatch({ type: A.DISMISS_STOCK_ALERT, payload: _key }), [])
+
   return (
     <AppContext.Provider
       value={{
@@ -162,6 +206,7 @@ export function AppProvider({ children }) {
         updateMenuItem,
         toggleMenuItemAvailability,
         toggleSidebar,
+        dismissStockAlert,
       }}
     >
       {children}

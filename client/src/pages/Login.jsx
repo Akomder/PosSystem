@@ -60,13 +60,13 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-8">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 mb-4">
+            <div className="w-14 h-14 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 dark:shadow-teal-900/50 mb-4">
               <UtensilsCrossed size={26} className="text-white" />
             </div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Bella Vista POS</h1>
@@ -91,11 +91,11 @@ export default function Login() {
                       'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-150',
                       'text-center text-xs font-medium',
                       active
-                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
+                        ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300'
                         : 'border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-gray-500 hover:bg-white dark:hover:bg-gray-600',
                     )}
                   >
-                    <Icon size={20} className={active ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500'} />
+                    <Icon size={20} className={active ? 'text-teal-600 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'} />
                     <span>{role.id}</span>
                   </button>
                 )
@@ -126,7 +126,7 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t('login.placeholder.password')}
                   required
-                  className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 py-2.5 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 py-2.5 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 />
                 <button
                   type="button"
@@ -142,7 +142,7 @@ export default function Login() {
             <div className="text-right -mt-1">
               <Link
                 to="/forgot-password"
-                className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                className="text-xs text-teal-500 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
               >
                 Forgot password?
               </Link>

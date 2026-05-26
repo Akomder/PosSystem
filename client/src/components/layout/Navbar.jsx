@@ -56,7 +56,7 @@ export default function Navbar() {
         <button
           onClick={() => setLang(lang === 'en' ? 'lo' : 'en')}
           title={t('settings.language')}
-          className="px-2.5 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          className="px-2.5 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
         >
           {lang === 'en' ? 'ລາວ' : 'EN'}
         </button>
@@ -82,8 +82,8 @@ export default function Navbar() {
             onClick={() => setDropdownOpen((v) => !v)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
-            <div className="w-7 h-7 bg-indigo-100 dark:bg-indigo-900 rounded-full flex items-center justify-center">
-              <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+            <div className="w-7 h-7 bg-teal-100 dark:bg-teal-900 rounded-full flex items-center justify-center">
+              <span className="text-xs font-bold text-teal-700 dark:text-teal-300">
                 {getInitials(user?.name || '')}
               </span>
             </div>

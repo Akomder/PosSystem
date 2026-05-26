@@ -4,6 +4,7 @@ const {
   forgotPassword,
   resetPassword,
   getEmailConfig,
+  updateEmailConfig,
   testEmail,
   validateResetToken,
 } = require('../controllers/emailController')
@@ -22,6 +23,7 @@ function requireSuperAdmin(req, res, next) {
 }
 
 router.get ('/config', authenticate, requireSuperAdmin, getEmailConfig)
+router.put ('/config', authenticate, requireSuperAdmin, updateEmailConfig)
 router.post('/test',   authenticate, requireSuperAdmin, testEmail)
 
 module.exports = router

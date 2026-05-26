@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: pos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres_password_123
+      POSTGRES_DB: posdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - pos_pgdata:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql
+      - ./init-db.sh:/docker-entrypoint-initdb.d/02-init-db.sh
+
+volumes:
+  pos_pgdata:

@@ -4,6 +4,10 @@ const {
   getOverview, getRestaurants, getRestaurant,
   createRestaurant, updateRestaurant, toggleStatus, deleteRestaurant,
   createRestaurantStaff,
+  getAdmins, createAdmin, deleteAdmin,
+  resetStaffPassword,
+  getAuditLog,
+  broadcast,
 } = require('../controllers/superadminController')
 
 // All superadmin routes require authentication + SuperAdmin role
@@ -24,5 +28,17 @@ router.put('/restaurants/:id',                   updateRestaurant)
 router.patch('/restaurants/:id/status',          toggleStatus)
 router.delete('/restaurants/:id',                deleteRestaurant)
 router.post('/restaurants/:id/staff',            createRestaurantStaff)
+router.patch('/restaurants/:restaurantId/staff/:userId/password', resetStaffPassword)
+
+// SuperAdmin user management
+router.get('/admins',                            getAdmins)
+router.post('/admins',                           createAdmin)
+router.delete('/admins/:id',                     deleteAdmin)
+
+// Audit log
+router.get('/audit-log',                         getAuditLog)
+
+// Broadcast
+router.post('/broadcast',                        broadcast)
 
 module.exports = router

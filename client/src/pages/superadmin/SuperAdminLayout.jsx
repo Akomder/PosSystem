@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Store, LogOut, Shield, ChevronRight, Mail } from 'lucide-react'
+import { LayoutDashboard, Store, LogOut, Shield, ChevronRight, Mail, Users, ScrollText } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '../../context/AuthContext'
 import { useSettings } from '../../context/SettingsContext'
@@ -7,6 +7,8 @@ import { useSettings } from '../../context/SettingsContext'
 const NAV = [
   { to: '/superadmin',              icon: LayoutDashboard, label: 'Overview',       end: true  },
   { to: '/superadmin/restaurants',  icon: Store,           label: 'Restaurants',    end: false },
+  { to: '/superadmin/admins',       icon: Users,           label: 'Admins',         end: false },
+  { to: '/superadmin/audit-log',    icon: ScrollText,      label: 'Audit Log',      end: false },
   { to: '/superadmin/email',        icon: Mail,            label: 'Email Settings', end: false },
 ]
 

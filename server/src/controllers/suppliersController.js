@@ -3,9 +3,9 @@ const { checkValidation } = require('../middleware/errorHandler')
 
 function fmtSupplier(r) {
   return {
-    id:        `SUP-${String(r.id).padStart(3,'0')}`,
-    rawId:     r.id,
+    id:        r.id,
     name:      r.name,
+    contact:   r.contact || '',
     phone:     r.phone || '',
     email:     r.email || '',
     address:   r.address || '',
@@ -17,13 +17,13 @@ function fmtSupplier(r) {
 async function getAll(req, res, next) {
   try {
     const { search } = req.query
-    let sql = 'SELECT * FROM suppliers WHERE 1=1'
-    const params = []
+    const params = [req.restaurantId]
+    let sql = 'SELECT * FROM suppliers WHERE restaurant_id = $1'
     if (search) {
       params.push(`%${search}%`)
-      sql += ` AND (name ILIKE $1 OR phone ILIKE $1 OR email ILIKE $1)`
+      sql += ` AND (name ILIKE $${params.length} OR phone ILIKE $${params.length} OR email ILIKE $${params.length})`
     }
-    sql += ' ORDER BY created_at DESC'
+    sql += ' ORDER BY name'
     const { rows } = await query(sql, params)
     res.json(rows.map(fmtSupplier))
   } catch (err) { next(err) }
@@ -31,33 +31,39 @@ async function getAll(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const { rows } = await query('SELECT * FROM suppliers WHERE id=$1', [req.params.id])
+    const { rows } = await query(
+      'SELECT * FROM suppliers WHERE id=$1 AND restaurant_id=$2',
+      [req.params.id, req.restaurantId]
+    )
     if (!rows.length) return res.status(404).json({ error: 'Supplier not found' })
     res.json(fmtSupplier(rows[0]))
   } catch (err) { next(err) }
 }
 
 async function create(req, res, next) {
-  checkValidation(req)
+  if (!checkValidation(req, res)) return
   try {
-    const { name, phone, email, address, notes } = req.body
+    const { name, contact, phone, email, address, notes } = req.body
     const { rows } = await query(
-      `INSERT INTO suppliers (name,phone,email,address,notes)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [name, phone||null, email||null, address||'', notes||'']
+      `INSERT INTO suppliers (restaurant_id, name, contact, phone, email, address, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [req.restaurantId, name, contact || '', phone || null, email || null,
+       address || '', notes || '']
     )
     res.status(201).json(fmtSupplier(rows[0]))
   } catch (err) { next(err) }
 }
 
 async function update(req, res, next) {
-  checkValidation(req)
+  if (!checkValidation(req, res)) return
   try {
-    const { name, phone, email, address, notes } = req.body
+    const { name, contact, phone, email, address, notes } = req.body
     const { rows } = await query(
-      `UPDATE suppliers SET name=$1,phone=$2,email=$3,address=$4,notes=$5,updated_at=NOW()
-       WHERE id=$6 RETURNING *`,
-      [name, phone||null, email||null, address||'', notes||'', req.params.id]
+      `UPDATE suppliers SET name=$1, contact=$2, phone=$3, email=$4,
+       address=$5, notes=$6, updated_at=NOW()
+       WHERE id=$7 AND restaurant_id=$8 RETURNING *`,
+      [name, contact || '', phone || null, email || null,
+       address || '', notes || '', req.params.id, req.restaurantId]
     )
     if (!rows.length) return res.status(404).json({ error: 'Supplier not found' })
     res.json(fmtSupplier(rows[0]))
@@ -66,9 +72,12 @@ async function update(req, res, next) {
 
 async function remove(req, res, next) {
   try {
-    const { rowCount } = await query('DELETE FROM suppliers WHERE id=$1', [req.params.id])
+    const { rowCount } = await query(
+      'DELETE FROM suppliers WHERE id=$1 AND restaurant_id=$2',
+      [req.params.id, req.restaurantId]
+    )
     if (!rowCount) return res.status(404).json({ error: 'Supplier not found' })
-    res.json({ success: true })
+    res.status(204).end()
   } catch (err) { next(err) }
 }
 

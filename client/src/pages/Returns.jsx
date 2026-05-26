@@ -11,7 +11,7 @@ import EmptyState from '../components/ui/EmptyState'
 import Badge from '../components/ui/Badge'
 import { formatCurrency, formatDate } from '../utils/formatters'
 
-const EMPTY_FORM = { orderId: '', reason: '', createdBy: '', items: [] }
+const EMPTY_FORM = { orderId: '', reason: '', items: [] }
 
 const STATUS_VARIANT = { pending: 'warning', approved: 'success', rejected: 'danger' }
 
@@ -50,7 +50,7 @@ export default function Returns() {
         const data = await ordersApi.getAll({ status: 'Closed' })
         const q = orderSearch.toLowerCase()
         setOrderResults(data.filter(o =>
-          o.id.toLowerCase().includes(q) || String(o.tableNumber).includes(q)
+          String(o.id).toLowerCase().includes(q) || String(o.tableNumber).includes(q)
         ).slice(0, 8))
       } catch {}
     }, 300)
@@ -72,10 +72,9 @@ export default function Returns() {
     setError('')
     try {
       await returnsApi.create({
-        orderId:   form.orderId ? parseInt(form.orderId.replace('ORD-', ''), 10) : null,
-        reason:    form.reason,
-        createdBy: form.createdBy,
-        items:     form.items,
+        orderId: form.orderId ? parseInt(String(form.orderId).replace('ORD-', ''), 10) : null,
+        reason:  form.reason,
+        items:   form.items,
       })
       setModalOpen(false)
       load()
@@ -136,7 +135,7 @@ export default function Returns() {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
-          <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
           {t('common.loading')}
         </div>
       ) : returns.length === 0 ? (
@@ -169,10 +168,10 @@ export default function Returns() {
             <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
               {returns.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{r.code}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{`RET-${String(r.id).padStart(3,'0')}`}</td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.orderId || '—'}</td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-xs truncate">{r.reason}</td>
-                  <td className="px-4 py-3 font-semibold text-red-500 dark:text-red-400">{formatCurrency(r.totalRefund)}</td>
+                  <td className="px-4 py-3 font-semibold text-red-500 dark:text-red-400">{formatCurrency(r.total)}</td>
                   <td className="px-4 py-3">
                     <Badge variant={STATUS_VARIANT[r.status] || 'default'}>
                       {t(`returns.${r.status}`)}
@@ -235,12 +234,12 @@ export default function Returns() {
               {t('returns.linkedOrder')} <span className="text-gray-400 font-normal">({t('returns.optional')})</span>
             </label>
             {form.orderId ? (
-              <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-900/20 rounded-xl px-3 py-2">
-                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">{form.orderId}</span>
+              <div className="flex items-center justify-between bg-teal-50 dark:bg-teal-900/20 rounded-xl px-3 py-2">
+                <span className="text-sm font-medium text-teal-700 dark:text-teal-300">{form.orderId}</span>
                 <button
                   type="button"
                   onClick={() => setForm(f => ({ ...f, orderId: '' }))}
-                  className="text-indigo-400 hover:text-indigo-600 text-xs"
+                  className="text-teal-400 hover:text-teal-600 text-xs"
                 >
                   ×
                 </button>
@@ -251,7 +250,7 @@ export default function Returns() {
                   placeholder={t('returns.searchOrder')}
                   value={orderSearch}
                   onChange={e => setOrderSearch(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-100"
                 />
                 {orderResults.length > 0 && (
                   <div className="absolute left-0 right-0 top-full z-20 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg overflow-hidden">
@@ -264,7 +263,7 @@ export default function Returns() {
                           setOrderSearch('')
                           setOrderResults([])
                         }}
-                        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left"
+                        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-left"
                       >
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{o.id}</span>
                         <span className="text-xs text-gray-400">{t('common.table')} {o.tableNumber} · {formatCurrency(o.total)}</span>
@@ -285,14 +284,9 @@ export default function Returns() {
               placeholder={t('returns.reasonPlaceholder')}
               value={form.reason}
               onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
-              className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 resize-none"
+              className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-100 resize-none"
             />
           </div>
-          <Input
-            label={t('returns.createdBy')}
-            value={form.createdBy}
-            onChange={e => setForm(f => ({ ...f, createdBy: e.target.value }))}
-          />
         </form>
       </Modal>
     </div>

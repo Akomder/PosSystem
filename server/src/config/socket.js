@@ -49,4 +49,10 @@ function emitTableUpdated(tableId, status, table) {
   io.to('pos').emit('table:updated', { tableId, status, table })
 }
 
-module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated }
+// items = [{ id, name, stockQuantity, lowStockThreshold }]
+function emitStockLow(items) {
+  if (!io || !items?.length) return
+  io.to('pos').emit('stock:low', { items })
+}
+
+module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow }

@@ -10,7 +10,7 @@ export default function TableCard({ table, onClick, isSelected, onQRClick }) {
       className={clsx(
         'relative rounded-xl border-2 p-4 cursor-pointer transition-all duration-200',
         'hover:shadow-md',
-        isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : '',
+        isSelected ? 'ring-2 ring-teal-500 ring-offset-2' : '',
       )}
       style={{
         borderColor:     getTableBorderColor(table.status),
@@ -24,7 +24,7 @@ export default function TableCard({ table, onClick, isSelected, onQRClick }) {
           <button
             onClick={(e) => { e.stopPropagation(); onQRClick(table) }}
             title="Show QR Code"
-            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-white/60 rounded-md transition-colors"
+            className="p-1 text-gray-400 hover:text-teal-600 hover:bg-white/60 rounded-md transition-colors"
           >
             <QrCode size={13} />
           </button>

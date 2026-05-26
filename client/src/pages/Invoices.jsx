@@ -7,6 +7,7 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import EmptyState from '../components/ui/EmptyState'
 import Badge from '../components/ui/Badge'
+import DateRangeFilter from '../components/ui/DateRangeFilter'
 import { formatCurrency } from '../utils/formatters'
 
 function formatDateTime(iso) {
@@ -15,14 +16,15 @@ function formatDateTime(iso) {
   return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-const PAYMENT_VARIANT = { cash: 'success', transfer: 'blue', card: 'indigo', default: 'default' }
+const PAYMENT_VARIANT = { cash: 'success', transfer: 'blue', card: 'teal', default: 'default' }
 
 export default function Invoices() {
   const { t } = useSettings()
-  const [invoices, setInvoices] = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [search,   setSearch]   = useState('')
-  const [selected, setSelected] = useState(null)
+  const [invoices,   setInvoices]   = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [search,     setSearch]     = useState('')
+  const [selected,   setSelected]   = useState(null)
+  const [dateRange,  setDateRange]  = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -36,9 +38,13 @@ export default function Invoices() {
   useEffect(() => { load() }, [load])
 
   const filtered = invoices.filter(inv => {
-    if (!search) return true
     const q = search.toLowerCase()
-    return inv.id.toLowerCase().includes(q) || String(inv.tableNumber).includes(q)
+    const matchSearch = !search || inv.id.toLowerCase().includes(q) || String(inv.tableNumber).includes(q)
+    const matchDate = !dateRange || (() => {
+      const d = inv.createdAt?.slice(0, 10)
+      return d >= dateRange.from && d <= dateRange.to
+    })()
+    return matchSearch && matchDate
   })
 
   return (
@@ -51,17 +57,18 @@ export default function Invoices() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="flex gap-3 mb-5">
-        <div className="flex-1 max-w-sm">
+      {/* Search + Date filter */}
+      <div className="flex gap-3 mb-5 flex-wrap">
+        <div className="flex-1 min-w-48 max-w-sm">
           <Input placeholder={t('invoices.search')} value={search} onChange={e => setSearch(e.target.value)} icon={Search} />
         </div>
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
       </div>
 
       {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
-          <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
           {t('common.loading')}
         </div>
       ) : filtered.length === 0 ? (
@@ -95,7 +102,7 @@ export default function Invoices() {
                   onClick={() => setSelected(selected?.id === inv.id ? null : inv)}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                 >
-                  <td className="px-4 py-3 font-mono text-xs text-indigo-600 dark:text-indigo-400 font-semibold">{inv.id}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-teal-600 dark:text-teal-400 font-semibold">{inv.id}</td>
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{formatDateTime(inv.createdAt)}</td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                     {inv.tableNumber ? `${t('common.table')} ${inv.tableNumber}` : '—'}

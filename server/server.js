@@ -4,7 +4,7 @@ const app            = require('./src/app')
 const { initSocket } = require('./src/config/socket')
 const { testConnection } = require('./src/config/db')
 
-const PORT = process.env.PORT || 4000
+const PORT = process.env.PORT || 3001
 
 async function start() {
   // 1. Verify database connection

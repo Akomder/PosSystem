@@ -38,7 +38,7 @@ export default function Input({
             'w-full rounded-lg border bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100',
             'py-2.5 pr-3 transition-all duration-150',
             'placeholder:text-gray-400 dark:placeholder:text-gray-500',
-            'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent',
+            'focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent',
             'disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed',
             Icon ? 'pl-9' : 'pl-3',
             error ? 'border-red-300 focus:ring-red-400' : 'border-gray-200 dark:border-gray-600',

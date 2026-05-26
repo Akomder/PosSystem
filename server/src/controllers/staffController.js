@@ -2,6 +2,7 @@ const bcrypt              = require('bcryptjs')
 const { query, pool }     = require('../config/db')
 const { checkValidation } = require('../middleware/errorHandler')
 const emailService        = require('../services/emailService')
+const PLAN_LIMITS         = require('../config/planLimits')
 
 // ─── format helpers ───────────────────────────────────────────────────────────
 function fmtStaffId(n) { return `STF-${String(n).padStart(3, '0')}` }
@@ -63,6 +64,23 @@ async function createStaff(req, res, next) {
     await client.query('BEGIN')
 
     const rid = req.restaurantId || null
+
+    // ── Plan limit check ────────────────────────────────────────────────────
+    if (rid) {
+      const restRes = await client.query(`SELECT plan FROM restaurants WHERE id=$1`, [rid])
+      const plan = restRes.rows[0]?.plan || 'basic'
+      const limit = PLAN_LIMITS[plan]?.maxStaff ?? 5
+      const countRes = await client.query(`SELECT COUNT(*) FROM staff WHERE restaurant_id=$1`, [rid])
+      const current = parseInt(countRes.rows[0].count)
+      if (current >= limit) {
+        await client.query('ROLLBACK')
+        return res.status(403).json({
+          error: `Plan limit reached. Your ${plan} plan allows up to ${limit} staff members. Upgrade to add more.`,
+          limitType: 'staff', current, limit, plan,
+        })
+      }
+    }
+
     const hash = await bcrypt.hash(password || 'changeme123', 10)
     const userRes = await client.query(
       `INSERT INTO users (email, password_hash, role, restaurant_id) VALUES ($1, $2, $3, $4) RETURNING id`,

@@ -1,6 +1,7 @@
 const { query, pool }     = require('../config/db')
 const { checkValidation } = require('../middleware/errorHandler')
 const { emitTableUpdated } = require('../config/socket')
+const PLAN_LIMITS          = require('../config/planLimits')
 
 // ─── format helpers ───────────────────────────────────────────────────────────
 function fmtTableId(n)  { return `T-${String(n).padStart(2, '0')}` }
@@ -56,14 +57,15 @@ async function updateStatus(req, res, next) {
   if (!VALID.includes(status)) {
     return res.status(400).json({ error: `status must be one of: ${VALID.join(', ')}` })
   }
+  const rid = req.restaurantId
   try {
     let sql, params
     if (status === 'Available') {
-      sql    = `UPDATE restaurant_tables SET status=$1, waiter=NULL, current_order_id=NULL WHERE id=$2 RETURNING *`
-      params = [status, req.params.id]
+      sql    = `UPDATE restaurant_tables SET status=$1, waiter=NULL, current_order_id=NULL WHERE id=$2 AND restaurant_id=$3 RETURNING *`
+      params = [status, req.params.id, rid]
     } else {
-      sql    = `UPDATE restaurant_tables SET status=$1 WHERE id=$2 RETURNING *`
-      params = [status, req.params.id]
+      sql    = `UPDATE restaurant_tables SET status=$1 WHERE id=$2 AND restaurant_id=$3 RETURNING *`
+      params = [status, req.params.id, rid]
     }
     const { rows } = await query(sql, params)
     if (!rows.length) return res.status(404).json({ error: 'Table not found' })
@@ -77,10 +79,11 @@ async function updateStatus(req, res, next) {
 async function assignWaiter(req, res, next) {
   if (!checkValidation(req, res)) return
   const { waiter } = req.body
+  const rid = req.restaurantId
   try {
     const { rows } = await query(
-      `UPDATE restaurant_tables SET waiter=$1 WHERE id=$2 RETURNING *`,
-      [waiter || null, req.params.id]
+      `UPDATE restaurant_tables SET waiter=$1 WHERE id=$2 AND restaurant_id=$3 RETURNING *`,
+      [waiter || null, req.params.id, rid]
     )
     if (!rows.length) return res.status(404).json({ error: 'Table not found' })
     const table = fmt(rows[0])
@@ -97,10 +100,11 @@ async function updateTable(req, res, next) {
   if (capacity !== undefined) { params.push(capacity); sets.push(`capacity = $${params.length}`) }
   if (section  !== undefined) { params.push(section);  sets.push(`section  = $${params.length}`) }
   if (!sets.length) return res.status(400).json({ error: 'Nothing to update' })
-  params.push(req.params.id)
+  const rid = req.restaurantId
+  params.push(req.params.id, rid)
   try {
     const { rows } = await query(
-      `UPDATE restaurant_tables SET ${sets.join(', ')} WHERE id=$${params.length} RETURNING *`,
+      `UPDATE restaurant_tables SET ${sets.join(', ')} WHERE id=$${params.length - 1} AND restaurant_id=$${params.length} RETURNING *`,
       params
     )
     if (!rows.length) return res.status(404).json({ error: 'Table not found' })
@@ -108,4 +112,46 @@ async function updateTable(req, res, next) {
   } catch (err) { next(err) }
 }
 
-module.exports = { getAllTables, getTable, updateStatus, assignWaiter, updateTable }
+// ─── POST /api/tables ─────────────────────────────────────────────────────────
+async function createTable(req, res, next) {
+  const { number, capacity, section } = req.body
+  const rid = req.restaurantId
+  try {
+    // ── Plan limit check ────────────────────────────────────────────────────
+    if (rid) {
+      const restRes = await query(`SELECT plan FROM restaurants WHERE id=$1`, [rid])
+      const plan = restRes.rows[0]?.plan || 'basic'
+      const limit = PLAN_LIMITS[plan]?.maxTables ?? 10
+      const countRes = await query(`SELECT COUNT(*) FROM restaurant_tables WHERE restaurant_id=$1`, [rid])
+      const current = parseInt(countRes.rows[0].count)
+      if (current >= limit) {
+        return res.status(403).json({
+          error: `Plan limit reached. Your ${plan} plan allows up to ${limit} tables. Upgrade to add more.`,
+          limitType: 'tables', current, limit, plan,
+        })
+      }
+    }
+
+    const { rows } = await query(
+      `INSERT INTO restaurant_tables (restaurant_id, number, capacity, section, status)
+       VALUES ($1, $2, $3, $4, 'Available') RETURNING *`,
+      [rid, number, capacity || 2, section || 'Main Hall']
+    )
+    res.status(201).json(fmt(rows[0]))
+  } catch (err) { next(err) }
+}
+
+// ─── DELETE /api/tables/:id ───────────────────────────────────────────────────
+async function deleteTable(req, res, next) {
+  const rid = req.restaurantId
+  try {
+    const { rows } = await query(
+      `DELETE FROM restaurant_tables WHERE id=$1 AND restaurant_id=$2 RETURNING id`,
+      [req.params.id, rid]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Table not found' })
+    res.status(204).end()
+  } catch (err) { next(err) }
+}
+
+module.exports = { getAllTables, getTable, updateStatus, assignWaiter, updateTable, createTable, deleteTable }

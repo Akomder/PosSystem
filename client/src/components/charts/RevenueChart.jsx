@@ -25,7 +25,7 @@ function CustomTooltip({ active, payload, label, metric }) {
 export default function RevenueChart({ data, type = 'bar', metric = 'revenue' }) {
   const dataKey = metric
   const isOrders = metric === 'orders'
-  const color = isOrders ? '#6366F1' : '#4F46E5'
+  const color = isOrders ? '#6366f1' : '#14b8a6'
 
   const commonProps = {
     data,

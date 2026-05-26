@@ -1,9 +1,102 @@
 import { useState, useEffect } from 'react'
-import { BarChart2, TrendingUp, ShoppingBag, Users, UserCheck, DollarSign, Calendar, CreditCard } from 'lucide-react'
+import { BarChart2, TrendingUp, ShoppingBag, Users, UserCheck, DollarSign, Calendar, CreditCard, Download, Printer } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
 import { reportsApi } from '../services/api'
+import DateRangeFilter from '../components/ui/DateRangeFilter'
 import { formatCurrency, formatDate } from '../utils/formatters'
+
+// ─── CSV export helper ────────────────────────────────────────────────────────
+function exportCsv(filename, headers, rows) {
+  const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const lines = [
+    headers.map(escape).join(','),
+    ...rows.map(row => row.map(escape).join(',')),
+  ]
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = Object.assign(document.createElement('a'), { href: url, download: filename })
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+function getExportConfig(tab, data, t) {
+  if (!data) return null
+  switch (tab) {
+    case 'sales':
+      if (!data.daily) return null
+      return {
+        filename: 'sales-report.csv',
+        headers:  ['Date', 'Orders', 'Revenue'],
+        rows:     data.daily.map(r => [formatDate(r.date), r.orders, r.revenue]),
+      }
+    case 'products':
+      if (!Array.isArray(data)) return null
+      return {
+        filename: 'products-report.csv',
+        headers:  ['#', 'Item', 'Quantity', 'Revenue'],
+        rows:     data.map((r, i) => [i + 1, r.name, r.qty, r.revenue]),
+      }
+    case 'customers':
+      if (!Array.isArray(data)) return null
+      return {
+        filename: 'customers-report.csv',
+        headers:  ['Name', 'Visits', 'Total Spent'],
+        rows:     data.map(r => [r.name, r.visits, r.spent]),
+      }
+    case 'staff':
+      if (!Array.isArray(data)) return null
+      return {
+        filename: 'staff-report.csv',
+        headers:  ['Staff', 'Orders', 'Revenue'],
+        rows:     data.map(r => [r.staff, r.orders, r.revenue]),
+      }
+    case 'finance':
+      if (typeof data?.totalIncome !== 'number') return null
+      return {
+        filename: 'finance-report.csv',
+        headers:  ['Category', 'Amount'],
+        rows: [
+          ['Sales Revenue',  data.salesRevenue],
+          ['Other Income',   data.otherIncome],
+          ['Total Income',   data.totalIncome],
+          ['Total Expense',  data.totalExpense],
+          ['Net Balance',    data.netBalance],
+        ],
+      }
+    case 'eod':
+      if (typeof data?.totalOrders !== 'number') return null
+      return {
+        filename: 'eod-report.csv',
+        headers:  ['Metric', 'Value'],
+        rows: [
+          ['Total Orders',   data.totalOrders],
+          ['Subtotal',       data.subtotal],
+          ['Tax',            data.tax],
+          ['Discount',       data.discount],
+          ['Total Sales',    data.total],
+          ['Cash Income',    data.cashIncome],
+          ['Cash Expense',   data.cashExpense],
+          ['Net Balance',    data.netBalance],
+          ...(data.items || []).map(i => [`Item: ${i.name}`, `qty=${i.qty} rev=${i.revenue}`]),
+        ],
+      }
+    case 'channel':
+      if (!Array.isArray(data)) return null
+      return {
+        filename: 'channel-report.csv',
+        headers:  ['Method', 'Orders', 'Revenue', 'Share %'],
+        rows: (() => {
+          const total = data.reduce((s, r) => s + r.revenue, 0) || 1
+          return data.map(r => [r.channel, r.orders, r.revenue, ((r.revenue / total) * 100).toFixed(1)])
+        })(),
+      }
+    default:
+      return null
+  }
+}
 
 const TABS = [
   { key: 'sales',     labelKey: 'reports.sales',     icon: TrendingUp   },
@@ -24,23 +117,34 @@ const PERIODS = [
 export default function Reports() {
   const { t } = useSettings()
 
-  const [tab,    setTab]    = useState('sales')
-  const [period, setPeriod] = useState('week')
-  const [data,   setData]   = useState(null)
-  const [loading,setLoading]= useState(false)
+  const [tab,       setTab]       = useState('sales')
+  const [period,    setPeriod]    = useState('week')
+  const [dateRange, setDateRange] = useState(null)
+  const [data,      setData]      = useState(null)
+  const [loading,   setLoading]   = useState(false)
+
+  const handleExportCsv = () => {
+    const cfg = getExportConfig(tab, data, t)
+    if (cfg) exportCsv(cfg.filename, cfg.headers, cfg.rows)
+  }
+
+  const handlePrint = () => window.print()
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setData(null)
+    const params = dateRange
+      ? { from: dateRange.from, to: dateRange.to }
+      : { period }
     const fetchers = {
-      sales:     () => reportsApi.sales({ period }),
-      products:  () => reportsApi.products({ period }),
-      customers: () => reportsApi.customers({ period }),
-      staff:     () => reportsApi.staff({ period }),
-      finance:   () => reportsApi.finance({ period }),
-      eod:       () => reportsApi.eod({}),
-      channel:   () => reportsApi.channel({ period }),
+      sales:     () => reportsApi.sales(params),
+      products:  () => reportsApi.products(params),
+      customers: () => reportsApi.customers(params),
+      staff:     () => reportsApi.staff(params),
+      finance:   () => reportsApi.finance(params),
+      eod:       () => reportsApi.eod(dateRange ? params : {}),
+      channel:   () => reportsApi.channel(params),
     }
     fetchers[tab]().then(d => {
       if (!cancelled) setData(d)
@@ -48,37 +152,80 @@ export default function Reports() {
       if (!cancelled) setLoading(false)
     })
     return () => { cancelled = true }
-  }, [tab, period])
+  }, [tab, period, dateRange])
 
   return (
-    <div>
+    <div id="reports-page">
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body > * { display: none !important; }
+          #reports-page { display: block !important; }
+          .no-print { display: none !important; }
+          #reports-page { padding: 0; }
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="flex items-start justify-between mb-5">
+      <div className="flex items-start justify-between mb-5 no-print">
         <div>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('reports.title')}</h2>
           <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{t('reports.subtitle')}</p>
         </div>
-        {/* Period selector */}
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
-          {PERIODS.map(p => (
-            <button
-              key={p.value}
-              onClick={() => setPeriod(p.value)}
-              className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                period === p.value
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-              )}
-            >
-              {t(p.labelKey)}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Export buttons */}
+          {data && !loading && (
+            <>
+              <button
+                onClick={handleExportCsv}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <Download size={13} />
+                Export CSV
+              </button>
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <Printer size={13} />
+                Print
+              </button>
+            </>
+          )}
+          <DateRangeFilter
+            value={dateRange}
+            onChange={r => { setDateRange(r) }}
+          />
+          {/* Period selector — disabled when custom date range is active */}
+          {!dateRange && (
+            <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+              {PERIODS.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => setPeriod(p.value)}
+                  className={clsx(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                    period === p.value
+                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  )}
+                >
+                  {t(p.labelKey)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Print header (only shows when printing) */}
+      <div className="hidden print:block mb-4">
+        <h2 className="text-xl font-bold">{t('reports.title')} — {TABS.find(tb => tb.key === tab)?.labelKey && t(TABS.find(tb => tb.key === tab).labelKey)}</h2>
+        <p className="text-sm text-gray-500">{new Date().toLocaleDateString()}</p>
+      </div>
+
       {/* Tab bar */}
-      <div className="flex gap-1 mb-6 border-b border-gray-100 dark:border-gray-700">
+      <div className="flex gap-1 mb-6 border-b border-gray-100 dark:border-gray-700 no-print">
         {TABS.map(({ key, labelKey, icon: Icon }) => (
           <button
             key={key}
@@ -86,7 +233,7 @@ export default function Reports() {
             className={clsx(
               'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
               tab === key
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
+                ? 'border-teal-600 text-teal-600 dark:text-teal-400 dark:border-teal-400'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             )}
           >
@@ -99,7 +246,7 @@ export default function Reports() {
       {/* Content */}
       {loading && (
         <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
-          <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
           {t('common.loading')}
         </div>
       )}
@@ -170,7 +317,7 @@ function SalesReport({ data, t }) {
     <div className="space-y-5">
       <div className="grid grid-cols-3 gap-4">
         <StatCard label={t('reports.totalRevenue')} value={formatCurrency(data.summary.totalRevenue)} icon={TrendingUp} color="text-green-600 dark:text-green-400" bg="bg-green-50 dark:bg-green-900/20" />
-        <StatCard label={t('reports.totalOrders')}  value={data.summary.totalOrders}                  icon={BarChart2}  color="text-indigo-600 dark:text-indigo-400" bg="bg-indigo-50 dark:bg-indigo-900/20" />
+        <StatCard label={t('reports.totalOrders')}  value={data.summary.totalOrders}                  icon={BarChart2}  color="text-teal-600 dark:text-teal-400" bg="bg-teal-50 dark:bg-teal-900/20" />
         <StatCard label={t('reports.avgOrder')}     value={formatCurrency(data.summary.avgOrder)}     icon={DollarSign} color="text-amber-600 dark:text-amber-400"   bg="bg-amber-50 dark:bg-amber-900/20"  />
       </div>
       <SimpleTable
@@ -210,7 +357,7 @@ function ProductsReport({ data, t }) {
                 <div className="font-medium text-gray-900 dark:text-gray-100">{r.name}</div>
                 <div className="mt-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full w-48">
                   <div
-                    className="h-1.5 bg-indigo-500 rounded-full"
+                    className="h-1.5 bg-teal-500 rounded-full"
                     style={{ width: `${(r.qty / max) * 100}%` }}
                   />
                 </div>
@@ -252,7 +399,7 @@ function FinanceReport({ data, t }) {
       <div className="grid grid-cols-3 gap-4">
         <StatCard label={t('reports.col.income')}  value={formatCurrency(data.totalIncome)}  icon={TrendingUp}   color="text-green-600 dark:text-green-400" bg="bg-green-50 dark:bg-green-900/20" />
         <StatCard label={t('reports.col.expense')} value={formatCurrency(data.totalExpense)} icon={DollarSign}   color="text-red-500 dark:text-red-400"     bg="bg-red-50 dark:bg-red-900/20"    />
-        <StatCard label={t('reports.col.balance')} value={formatCurrency(data.netBalance)}   icon={BarChart2}    color="text-indigo-600 dark:text-indigo-400" bg="bg-indigo-50 dark:bg-indigo-900/20" />
+        <StatCard label={t('reports.col.balance')} value={formatCurrency(data.netBalance)}   icon={BarChart2}    color="text-teal-600 dark:text-teal-400" bg="bg-teal-50 dark:bg-teal-900/20" />
       </div>
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 space-y-3">
         {[
@@ -286,7 +433,7 @@ function EODReport({ data, t }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label={t('reports.eod.orders')}   value={data.totalOrders}             icon={BarChart2}   color="text-indigo-600 dark:text-indigo-400" bg="bg-indigo-50 dark:bg-indigo-900/20" />
+        <StatCard label={t('reports.eod.orders')}   value={data.totalOrders}             icon={BarChart2}   color="text-teal-600 dark:text-teal-400" bg="bg-teal-50 dark:bg-teal-900/20" />
         <StatCard label={t('reports.eod.revenue')}  value={formatCurrency(data.total)}   icon={TrendingUp}  color="text-green-600 dark:text-green-400"   bg="bg-green-50 dark:bg-green-900/20"   />
         <StatCard label={t('reports.eod.discount')} value={formatCurrency(data.discount)}icon={DollarSign}  color="text-amber-600 dark:text-amber-400"   bg="bg-amber-50 dark:bg-amber-900/20"   />
         <StatCard label={t('reports.eod.net')}      value={formatCurrency(data.netBalance)} icon={DollarSign} color="text-blue-600 dark:text-blue-400"  bg="bg-blue-50 dark:bg-blue-900/20"     />
@@ -358,8 +505,8 @@ function ChannelReport({ data, t }) {
             label={r.channel.charAt(0).toUpperCase() + r.channel.slice(1)}
             value={formatCurrency(r.revenue)}
             icon={DollarSign}
-            color="text-indigo-600 dark:text-indigo-400"
-            bg="bg-indigo-50 dark:bg-indigo-900/20"
+            color="text-teal-600 dark:text-teal-400"
+            bg="bg-teal-50 dark:bg-teal-900/20"
           />
         ))}
       </div>
@@ -387,7 +534,7 @@ function ChannelReport({ data, t }) {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full max-w-[80px]">
-                      <div className="h-1.5 bg-indigo-500 rounded-full" style={{ width: `${(r.revenue / total) * 100}%` }} />
+                      <div className="h-1.5 bg-teal-500 rounded-full" style={{ width: `${(r.revenue / total) * 100}%` }} />
                     </div>
                     <span className="text-xs text-gray-500 dark:text-gray-400">{((r.revenue / total) * 100).toFixed(1)}%</span>
                   </div>

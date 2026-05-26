@@ -1,6 +1,6 @@
 const router = require('express').Router()
 const { body } = require('express-validator')
-const { login, getMe, refresh } = require('../controllers/authController')
+const { login, getMe, refresh, updateProfile, changePassword } = require('../controllers/authController')
 const authenticate = require('../middleware/auth')
 
 router.post(
@@ -19,5 +19,8 @@ router.post(
   [body('refreshToken').notEmpty().withMessage('refreshToken required')],
   refresh
 )
+
+router.put('/profile',         authenticate, updateProfile)
+router.post('/change-password', authenticate, changePassword)
 
 module.exports = router

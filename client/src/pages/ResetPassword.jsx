@@ -58,9 +58,9 @@ export default function ResetPassword() {
   // ── Loading token check ──────────────────────────────────────────────────────
   if (tokenValid === null) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-indigo-950 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-teal-950 flex items-center justify-center">
         <div className="flex items-center gap-3 text-gray-400">
-          <span className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <span className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
           <span className="text-sm">Validating link…</span>
         </div>
       </div>
@@ -70,7 +70,7 @@ export default function ResetPassword() {
   // ── Invalid / expired token ──────────────────────────────────────────────────
   if (!tokenValid) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-indigo-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-teal-950 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-10 text-center space-y-4">
           <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto">
             <AlertCircle size={32} className="text-red-500" />
@@ -81,7 +81,7 @@ export default function ResetPassword() {
           </p>
           <Link
             to="/forgot-password"
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold rounded-xl transition-colors"
           >
             Request a New Link
           </Link>
@@ -91,17 +91,17 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-indigo-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-teal-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-black/30 overflow-hidden">
 
           {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-8 py-8 text-center">
+          <div className="bg-gradient-to-r from-teal-600 to-violet-600 px-8 py-8 text-center">
             <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Lock size={28} className="text-white" />
             </div>
             <h1 className="text-xl font-bold text-white">Set New Password</h1>
-            <p className="text-sm text-indigo-200 mt-1">Choose a strong, secure password</p>
+            <p className="text-sm text-teal-200 mt-1">Choose a strong, secure password</p>
           </div>
 
           <div className="px-8 py-8">
@@ -115,7 +115,7 @@ export default function ResetPassword() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Your password has been changed successfully. Redirecting you to sign in…
                 </p>
-                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
               </div>
             ) : (
               /* ── Form ────────────────────────────────────────────────── */
@@ -140,7 +140,7 @@ export default function ResetPassword() {
                       onChange={e => setPassword(e.target.value)}
                       placeholder="Min. 6 characters"
                       autoFocus
-                      className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition placeholder-gray-400"
+                      className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition placeholder-gray-400"
                     />
                     <button
                       type="button"
@@ -176,7 +176,7 @@ export default function ResetPassword() {
                       value={confirm}
                       onChange={e => setConfirm(e.target.value)}
                       placeholder="Re-enter password"
-                      className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition placeholder-gray-400"
+                      className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition placeholder-gray-400"
                     />
                     <button
                       type="button"
@@ -199,7 +199,7 @@ export default function ResetPassword() {
                 <button
                   type="submit"
                   disabled={loading || password !== confirm || password.length < 6}
-                  className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/30 text-sm"
+                  className="w-full py-3 bg-gradient-to-r from-teal-600 to-violet-600 hover:from-teal-500 hover:to-violet-500 disabled:opacity-50 text-white font-semibold rounded-xl transition-all shadow-lg shadow-teal-500/30 text-sm"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
@@ -212,7 +212,7 @@ export default function ResetPassword() {
                 <div className="text-center">
                   <Link
                     to="/login"
-                    className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-teal-500 transition-colors"
                   >
                     <ArrowLeft size={13} /> Back to Sign In
                   </Link>

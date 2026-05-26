@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del schema.sql migration_multitenancy.sql migration_keivi_features.sql runMigration.js runMigrationKeivi.js)",
+      "Bash(dir /b)",
+      "Bash(grep -r \"recharts\\\\|chart\\\\|graph\" /c/Users/souka/OneDrive/Desktop/POS/PosSystem/client/src/pages/*.jsx)",
+      "Bash(node -e ':*)",
+      "Bash(node -e \"require\\('dotenv'\\).config\\(\\); console.log\\('DB_PASSWORD type:', typeof process.env.DB_PASSWORD, '| DB_URL:', process.env.DATABASE_URL ? 'set' : 'not set', '| DB_HOST:', process.env.DB_HOST\\)\")"
+    ]
+  }
+}

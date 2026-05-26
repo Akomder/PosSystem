@@ -1,15 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Users, ClipboardList } from 'lucide-react'
+import { X, Users, ClipboardList, PlusCircle, Trash2, Layers, Pencil } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useSettings } from '../context/SettingsContext'
+import { useAuth } from '../context/AuthContext'
 import TableCard from '../components/tables/TableCard'
 import QRCodeModal from '../components/tables/QRCodeModal'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
+import Modal from '../components/ui/Modal'
+import Input from '../components/ui/Input'
 import { getOccupancyStats, getTableStatusVariant } from '../utils/tableHelpers'
+import { zonesApi, tablesApi } from '../services/api'
+import PlanLimitBanner from '../components/ui/PlanLimitBanner'
+
+const PLAN_TABLE_LIMITS = { basic: 10, pro: 50, enterprise: Infinity }
 
 const FILTERS = ['All', 'Available', 'Occupied', 'Reserved']
 
@@ -19,23 +26,98 @@ const STATUS_OPTIONS = [
   { value: 'Reserved',  label: 'Reserved'  },
 ]
 
+const ZONE_COLORS = ['#14b8a6','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
+
 export default function Tables() {
-  const { tables, updateTableStatus } = useApp()
+  const { tables, updateTableStatus, addTableToContext, removeTableFromContext } = useApp()
   const { t } = useSettings()
+  const { user } = useAuth()
   const navigate = useNavigate()
+  const isAdmin = user?.role === 'Admin'
 
   const [filter,       setFilter]       = useState('All')
+  const [zoneFilter,   setZoneFilter]   = useState('all')
+  const [zones,        setZones]        = useState([])
   const [selected,     setSelected]     = useState(null)
   const [drawerOpen,   setDrawerOpen]   = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [saving,       setSaving]       = useState(false)
   const [qrTable,      setQrTable]      = useState(null)
 
+  // Add table modal
+  const [addTableOpen, setAddTableOpen] = useState(false)
+  const [tableForm,    setTableForm]    = useState({ number: '', capacity: '2', section: 'Main Hall' })
+  const [tableFormSaving, setTableFormSaving] = useState(false)
+
+  // Zone management modal
+  const [zoneModalOpen, setZoneModalOpen] = useState(false)
+  const [zoneForm,      setZoneForm]      = useState({ name: '', color: '#14b8a6', description: '' })
+  const [editingZone,   setEditingZone]   = useState(null)
+  const [zoneSaving,    setZoneSaving]    = useState(false)
+
+  useEffect(() => {
+    zonesApi.getAll().then(setZones).catch(() => {})
+  }, [])
+
+  async function handleAddTable() {
+    if (!tableForm.number) return
+    setTableFormSaving(true)
+    try {
+      const created = await tablesApi.create({
+        number: parseInt(tableForm.number),
+        capacity: parseInt(tableForm.capacity) || 2,
+        section: tableForm.section || 'Main Hall',
+      })
+      // Optimistically add to context if function exists, else reload page
+      if (typeof addTableToContext === 'function') addTableToContext(created)
+      setAddTableOpen(false)
+      setTableForm({ number: '', capacity: '2', section: 'Main Hall' })
+    } catch (e) { alert(e.message || 'Failed to add table') }
+    setTableFormSaving(false)
+  }
+
+  async function handleDeleteTable(tbl) {
+    if (!window.confirm(`Delete Table ${tbl.tableNumber}?`)) return
+    const rawId = parseInt(String(tbl.id).replace('T-', ''))
+    try {
+      await tablesApi.delete(rawId)
+      if (typeof removeTableFromContext === 'function') removeTableFromContext(tbl.id)
+      if (selected?.id === tbl.id) closeDrawer()
+    } catch (e) { alert(e.message || 'Failed to delete table') }
+  }
+
+  async function handleZoneSave() {
+    setZoneSaving(true)
+    try {
+      if (editingZone) {
+        const updated = await zonesApi.update(editingZone.id, zoneForm)
+        setZones(prev => prev.map(z => z.id === updated.id ? updated : z))
+      } else {
+        const created = await zonesApi.create(zoneForm)
+        setZones(prev => [...prev, created])
+      }
+      setZoneForm({ name: '', color: '#14b8a6', description: '' })
+      setEditingZone(null)
+    } catch (e) { alert(e.message || 'Failed to save zone') }
+    setZoneSaving(false)
+  }
+
+  async function handleZoneDelete(zone) {
+    if (!window.confirm(`Delete zone "${zone.name}"?`)) return
+    try {
+      await zonesApi.delete(zone.id)
+      setZones(prev => prev.filter(z => z.id !== zone.id))
+      if (zoneFilter === String(zone.id)) setZoneFilter('all')
+    } catch (e) { alert(e.message || 'Failed to delete zone') }
+  }
+
   const occ = getOccupancyStats(tables)
 
-  const filteredTables = tables.filter(tbl =>
-    filter === 'All' ? true : tbl.status === filter
-  )
+  const filteredTables = tables.filter(tbl => {
+    const matchStatus = filter === 'All' || tbl.status === filter
+    const matchZone = zoneFilter === 'all' || String(tbl.zoneId) === String(zoneFilter)
+    return matchStatus && matchZone
+  })
 
   const filterCount = (f) =>
     f === 'All' ? tables.length : tables.filter(tbl => tbl.status === f).length
@@ -77,15 +159,34 @@ export default function Tables() {
     ? { id: selected.currentOrderId }
     : null
 
+  const plan       = user?.restaurantPlan || 'basic'
+  const tableLimit = PLAN_TABLE_LIMITS[plan] ?? 10
+
   return (
     <div className="relative">
+      <PlanLimitBanner used={tables.length} limit={tableLimit} resource="tables" plan={plan} />
       {/* Header */}
-      <div className="flex items-start justify-between mb-5">
+      <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('dash.floorPlan')}</h2>
           <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{t('tables.subtitle')}</p>
         </div>
-        {/* Counts */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && (
+            <>
+              <Button size="sm" variant="secondary" icon={Layers} onClick={() => { setZoneModalOpen(true); setEditingZone(null); setZoneForm({ name: '', color: '#14b8a6', description: '' }) }}>
+                Manage Zones
+              </Button>
+              <Button size="sm" icon={PlusCircle} onClick={() => setAddTableOpen(true)}>
+                Add Table
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Counts row */}
+      <div className="flex items-center gap-2 flex-wrap mb-5">
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {[
             { label: `${occ.total} ${t('tables.tables')}`,  color: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'       },
@@ -109,14 +210,14 @@ export default function Tables() {
             className={clsx(
               'px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
               filter === f
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-teal-600 text-white shadow-sm'
                 : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700',
             )}
           >
             {f}
             <span className={clsx(
               'ml-1.5 text-xs px-1.5 py-0.5 rounded-full',
-              filter === f ? 'bg-indigo-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
+              filter === f ? 'bg-teal-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
             )}>
               {filterCount(f)}
             </span>
@@ -124,16 +225,54 @@ export default function Tables() {
         ))}
       </div>
 
+      {/* Zone filter */}
+      {zones.length > 0 && (
+        <div className="flex gap-2 mb-5 flex-wrap">
+          <button
+            onClick={() => setZoneFilter('all')}
+            className={clsx(
+              'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+              zoneFilter === 'all'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+            )}
+          >All Zones</button>
+          {zones.map(z => (
+            <button
+              key={z.id}
+              onClick={() => setZoneFilter(String(z.id))}
+              className={clsx(
+                'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                zoneFilter === String(z.id)
+                  ? 'text-white'
+                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+              )}
+              style={zoneFilter === String(z.id) ? { backgroundColor: z.color || '#14b8a6' } : {}}
+            >{z.name}</button>
+          ))}
+        </div>
+      )}
+
       {/* Grid */}
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
         {filteredTables.map((table) => (
-          <TableCard
-            key={table.id}
-            table={table}
-            onClick={openDrawer}
-            isSelected={selected?.id === table.id && drawerOpen}
-            onQRClick={setQrTable}
-          />
+          <div key={table.id} className="relative group">
+            <TableCard
+              table={table}
+              onClick={openDrawer}
+              isSelected={selected?.id === table.id && drawerOpen}
+              onQRClick={setQrTable}
+            />
+            {isAdmin && (
+              <button
+                onClick={e => { e.stopPropagation(); handleDeleteTable(table) }}
+                className="absolute top-1 right-1 p-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-300 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                title="Delete table"
+              >
+                <Trash2 size={11} />
+              </button>
+            )}
+          </div>
         ))}
       </div>
 
@@ -213,10 +352,10 @@ export default function Tables() {
                   <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                     {t('tables.currentOrder')}
                   </p>
-                  <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl border border-indigo-100 dark:border-indigo-700">
+                  <div className="flex items-center justify-between p-3 bg-teal-50 dark:bg-teal-900/30 rounded-xl border border-teal-100 dark:border-teal-700">
                     <div className="flex items-center gap-2">
-                      <ClipboardList size={16} className="text-indigo-600 dark:text-indigo-400" />
-                      <span className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">{linkedOrder.id}</span>
+                      <ClipboardList size={16} className="text-teal-600 dark:text-teal-400" />
+                      <span className="text-sm font-semibold text-teal-800 dark:text-teal-300">{linkedOrder.id}</span>
                     </div>
                     <Button
                       size="sm"
@@ -239,6 +378,14 @@ export default function Tables() {
                     {t('tables.assignedWaiter')}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-300">{selected.waiter}</p>
+                </div>
+              )}
+
+              {/* Zone info */}
+              {selected.zoneId && zones.find(z => z.id === selected.zoneId) && (
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Zone</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{zones.find(z => z.id === selected.zoneId)?.name}</p>
                 </div>
               )}
 
@@ -277,6 +424,130 @@ export default function Tables() {
           </div>
         </>
       )}
+      {/* ── Add Table Modal ──────────────────────────────────── */}
+      <Modal
+        isOpen={addTableOpen}
+        onClose={() => setAddTableOpen(false)}
+        title="Add New Table"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAddTableOpen(false)}>Cancel</Button>
+            <Button loading={tableFormSaving} onClick={handleAddTable}>Add Table</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Table Number"
+            required
+            type="number"
+            min={1}
+            value={tableForm.number}
+            onChange={e => setTableForm(f => ({...f, number: e.target.value}))}
+            placeholder="e.g. 10"
+          />
+          <Input
+            label="Capacity (seats)"
+            type="number"
+            min={1}
+            value={tableForm.capacity}
+            onChange={e => setTableForm(f => ({...f, capacity: e.target.value}))}
+            placeholder="2"
+          />
+          <Input
+            label="Section"
+            value={tableForm.section}
+            onChange={e => setTableForm(f => ({...f, section: e.target.value}))}
+            placeholder="Main Hall"
+          />
+        </div>
+      </Modal>
+
+      {/* ── Zone Management Modal ────────────────────────────── */}
+      <Modal
+        isOpen={zoneModalOpen}
+        onClose={() => setZoneModalOpen(false)}
+        title="Manage Zones"
+        size="lg"
+        footer={<Button variant="secondary" onClick={() => setZoneModalOpen(false)}>Close</Button>}
+      >
+        <div className="space-y-4">
+          {/* Zone form */}
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-3">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{editingZone ? 'Edit Zone' : 'New Zone'}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Zone Name"
+                value={zoneForm.name}
+                onChange={e => setZoneForm(f => ({...f, name: e.target.value}))}
+                placeholder="e.g. Terrace"
+              />
+              <Input
+                label="Description"
+                value={zoneForm.description}
+                onChange={e => setZoneForm(f => ({...f, description: e.target.value}))}
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Color</p>
+              <div className="flex gap-2 flex-wrap">
+                {ZONE_COLORS.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setZoneForm(f => ({...f, color: c}))}
+                    className={clsx('w-7 h-7 rounded-full transition-all', zoneForm.color === c ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : '')}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleZoneSave} loading={zoneSaving} size="sm">
+                {editingZone ? 'Update Zone' : 'Add Zone'}
+              </Button>
+              {editingZone && (
+                <Button variant="secondary" size="sm" onClick={() => { setEditingZone(null); setZoneForm({ name: '', color: '#14b8a6', description: '' }) }}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Zone list */}
+          {zones.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">No zones yet</p>
+          ) : (
+            <div className="space-y-2">
+              {zones.map(z => (
+                <div key={z.id} className="flex items-center justify-between px-3 py-2.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: z.color || '#14b8a6' }} />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{z.name}</p>
+                      {z.description && <p className="text-xs text-gray-400">{z.description}</p>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => { setEditingZone(z); setZoneForm({ name: z.name, color: z.color || '#14b8a6', description: z.description || '' }) }}
+                      className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded-lg transition-colors"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={() => handleZoneDelete(z)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }
