@@ -1,11 +1,16 @@
 const { query, pool }      = require('../config/db')
 const { checkValidation }  = require('../middleware/errorHandler')
-const { emitOrderCreated } = require('../config/socket')
+const { emitOrderCreated, emitOrderUpdated, emitTableUpdated } = require('../config/socket')
 const { ORDER_SELECT, fmtOrder } = require('./ordersController')
 
-// ─── Helper: parse "T-01" or "1" or 1 → raw integer ─────────────────────────
+// ─── Helpers: parse formatted IDs → raw integers ─────────────────────────────
 function parseRawTableId(v) {
   const m = String(v).trim().match(/^(?:T-)?0*(\d+)$/i)
+  return m ? parseInt(m[1], 10) : null
+}
+
+function parseOrderId(v) {
+  const m = String(v).trim().match(/^(?:ORD-)?0*(\d+)$/i)
   return m ? parseInt(m[1], 10) : null
 }
 
@@ -160,4 +165,80 @@ async function createPublicOrder(req, res, next) {
   }
 }
 
-module.exports = { getPublicTable, getPublicMenu, createPublicOrder }
+// ─── PATCH /api/public/orders/:id/cancel ─────────────────────────────────────
+// Lets a customer cancel their own order — only while it is still "Pending".
+// Security: orderId + tableId together prove ownership (no auth token needed).
+async function cancelPublicOrder(req, res, next) {
+  try {
+    const { tableId } = req.body
+    if (!tableId) return res.status(400).json({ error: 'tableId is required' })
+
+    const rawOrderId = parseOrderId(req.params.id)
+    if (!rawOrderId) return res.status(400).json({ error: 'Invalid order id' })
+
+    const rawTableId = parseRawTableId(tableId)
+    if (!rawTableId) return res.status(400).json({ error: 'Invalid tableId format' })
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      // Verify ownership and lock the row
+      const chk = await client.query(
+        `SELECT id, status FROM orders WHERE id=$1 AND table_id=$2 FOR UPDATE`,
+        [rawOrderId, rawTableId]
+      )
+      if (!chk.rows.length) {
+        await client.query('ROLLBACK')
+        return res.status(404).json({ error: 'Order not found for this table' })
+      }
+
+      const { status } = chk.rows[0]
+      if (status === 'Cancelled') {
+        await client.query('ROLLBACK')
+        return res.status(400).json({ error: 'Order is already cancelled' })
+      }
+      if (status !== 'Pending') {
+        await client.query('ROLLBACK')
+        return res.status(400).json({
+          error: 'Order cannot be cancelled — the kitchen has already started preparing it',
+        })
+      }
+
+      // Mark cancelled
+      await client.query(
+        `UPDATE orders
+            SET status='Cancelled', cancel_reason='Cancelled by customer', updated_at=NOW()
+          WHERE id=$1`,
+        [rawOrderId]
+      )
+
+      // Free the table
+      await client.query(
+        `UPDATE restaurant_tables
+            SET status='Available', current_order_id=NULL, waiter=NULL
+          WHERE current_order_id=$1`,
+        [rawOrderId]
+      )
+
+      await client.query('COMMIT')
+
+      // Emit real-time events so kitchen + admin see the update instantly
+      const fullRes = await query(`${ORDER_SELECT} WHERE o.id=$1 GROUP BY o.id`, [rawOrderId])
+      if (fullRes.rows.length) {
+        const fullOrder = fmtOrder(fullRes.rows[0])
+        emitOrderUpdated(fullOrder.id, 'Cancelled', fullOrder)
+      }
+      emitTableUpdated(rawTableId, 'Available', null)
+
+      res.json({ message: 'Order cancelled successfully' })
+    } catch (err) {
+      await client.query('ROLLBACK')
+      next(err)
+    } finally {
+      client.release()
+    }
+  } catch (err) { next(err) }
+}
+
+module.exports = { getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder }

@@ -1,6 +1,6 @@
 const router  = require('express').Router()
 const { body } = require('express-validator')
-const { getPublicTable, getPublicMenu, createPublicOrder } = require('../controllers/publicController')
+const { getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder } = require('../controllers/publicController')
 
 // No authentication on any of these routes
 
@@ -17,6 +17,14 @@ router.post(
     body('items.*.quantity').isInt({ min: 1 }).withMessage('Each item needs quantity >= 1'),
   ],
   createPublicOrder
+)
+
+// Cancel a Pending order — customer self-service, no auth token required.
+// Security: orderId (URL) + tableId (body) together prove ownership.
+router.patch(
+  '/orders/:id/cancel',
+  [body('tableId').notEmpty().withMessage('tableId is required')],
+  cancelPublicOrder
 )
 
 module.exports = router

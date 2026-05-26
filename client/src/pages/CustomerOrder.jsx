@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { ShoppingCart, Plus, Minus, X, ChefHat, UtensilsCrossed } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChefHat, UtensilsCrossed, XCircle } from 'lucide-react'
 import { publicApi } from '../services/api'
 
 // ── Cart total helpers ────────────────────────────────────────────────────────
@@ -31,9 +31,12 @@ export default function CustomerOrder() {
   const [activeCategory, setActiveCategory] = useState('All')
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState(null)
-  const [cartOpen,     setCartOpen]     = useState(false)
-  const [submitting,   setSubmitting]   = useState(false)
-  const [confirmation, setConfirmation] = useState(null)  // { orderId }
+  const [cartOpen,      setCartOpen]      = useState(false)
+  const [submitting,    setSubmitting]    = useState(false)
+  const [confirmation,  setConfirmation]  = useState(null)  // { orderId }
+  const [cancelled,     setCancelled]     = useState(null)  // { orderId }
+  const [cancelConfirm, setCancelConfirm] = useState(false)
+  const [cancelling,    setCancelling]    = useState(false)
 
   // ── Load table info + restaurant-scoped menu on mount ─────────────────────
   useEffect(() => {
@@ -97,6 +100,23 @@ export default function CustomerOrder() {
     }
   }
 
+  // ── Cancel order ──────────────────────────────────────────────────────────
+  const handleCancelOrder = async () => {
+    setCancelling(true)
+    try {
+      await publicApi.cancelOrder(confirmation.orderId, tableId)
+      const orderId = confirmation.orderId
+      setConfirmation(null)
+      setCancelConfirm(false)
+      setCancelled({ orderId })
+    } catch (err) {
+      setCancelConfirm(false)
+      alert(err.message || 'Could not cancel. Please ask a staff member.')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   // ── Group menu by category ────────────────────────────────────────────────
   const grouped = menu.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = []
@@ -137,10 +157,34 @@ export default function CustomerOrder() {
     </div>
   )
 
+  // ── Cancelled screen ──────────────────────────────────────────────────────
+  if (cancelled) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+      <div className="text-center max-w-xs">
+        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+          <XCircle size={34} className="text-red-400" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Cancelled</h1>
+        <p className="text-sm text-gray-500 mb-1">
+          Order{' '}
+          <span className="font-semibold text-gray-700">{cancelled.orderId}</span>{' '}
+          has been cancelled.
+        </p>
+        <p className="text-xs text-gray-400 mb-6">No charges will be made.</p>
+        <button
+          onClick={() => setCancelled(null)}
+          className="px-6 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors shadow-sm"
+        >
+          Order something else
+        </button>
+      </div>
+    </div>
+  )
+
   // ── Confirmation screen ───────────────────────────────────────────────────
   if (confirmation) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-      <div className="text-center max-w-xs">
+      <div className="text-center max-w-xs w-full">
         <div className="w-20 h-20 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
           <ChefHat size={34} className="text-teal-600" />
         </div>
@@ -151,12 +195,48 @@ export default function CustomerOrder() {
           is being prepared.
         </p>
         <p className="text-xs text-gray-400 mb-6">A staff member will be with you shortly.</p>
+
         <button
-          onClick={() => setConfirmation(null)}
+          onClick={() => { setConfirmation(null); setCancelConfirm(false) }}
           className="text-sm text-teal-600 underline underline-offset-2 hover:text-teal-700"
         >
           Order more items
         </button>
+
+        {/* ── Cancel order ── */}
+        {!cancelConfirm ? (
+          <div className="mt-5">
+            <button
+              onClick={() => setCancelConfirm(true)}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors underline underline-offset-2"
+            >
+              Cancel this order
+            </button>
+          </div>
+        ) : (
+          <div className="mt-5 bg-red-50 border border-red-100 rounded-2xl p-4 text-left">
+            <p className="text-sm font-semibold text-red-700 mb-1">Cancel your order?</p>
+            <p className="text-xs text-red-400 mb-4">
+              This only works while the kitchen hasn't started yet.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCancelConfirm(false)}
+                disabled={cancelling}
+                className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                Keep it
+              </button>
+              <button
+                onClick={handleCancelOrder}
+                disabled={cancelling}
+                className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50 transition-colors"
+              >
+                {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

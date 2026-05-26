@@ -318,4 +318,6 @@ export const publicApi = {
   // tableId scopes the menu to the correct restaurant in multi-tenant setups
   getMenu:     (tableId)  => publicRequest('GET',  `/public/menu${tableId ? `?tableId=${encodeURIComponent(tableId)}` : ''}`),
   createOrder: (body)     => publicRequest('POST', '/public/orders', body),
+  // Cancel a Pending order — only works before the kitchen starts preparing
+  cancelOrder: (orderId, tableId) => publicRequest('PATCH', `/public/orders/${encodeURIComponent(orderId)}/cancel`, { tableId }),
 }
