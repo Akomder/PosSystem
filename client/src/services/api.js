@@ -314,7 +314,8 @@ async function publicRequest(method, path, body) {
 }
 
 export const publicApi = {
-  getTable:    (id)   => publicRequest('GET',  `/public/tables/${id}`),
-  getMenu:     ()     => publicRequest('GET',  '/public/menu'),
-  createOrder: (body) => publicRequest('POST', '/public/orders', body),
+  getTable:    (id)       => publicRequest('GET',  `/public/tables/${id}`),
+  // tableId scopes the menu to the correct restaurant in multi-tenant setups
+  getMenu:     (tableId)  => publicRequest('GET',  `/public/menu${tableId ? `?tableId=${encodeURIComponent(tableId)}` : ''}`),
+  createOrder: (body)     => publicRequest('POST', '/public/orders', body),
 }

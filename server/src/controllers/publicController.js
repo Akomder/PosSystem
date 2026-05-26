@@ -15,28 +15,55 @@ async function getPublicTable(req, res, next) {
     const rawId = parseRawTableId(req.params.id)
     if (!rawId) return res.status(400).json({ error: 'Invalid table id' })
     const { rows } = await query(
-      'SELECT id, number, capacity, status, section FROM restaurant_tables WHERE id = $1',
+      `SELECT t.id, t.number, t.capacity, t.status, t.section, t.restaurant_id,
+              r.name AS restaurant_name, r.currency
+       FROM restaurant_tables t
+       LEFT JOIN restaurants r ON r.id = t.restaurant_id
+       WHERE t.id = $1`,
       [rawId]
     )
     if (!rows.length) return res.status(404).json({ error: 'Table not found' })
     const r = rows[0]
     res.json({
-      id:       `T-${String(r.id).padStart(2, '0')}`,
-      number:   r.number,
-      capacity: r.capacity,
-      status:   r.status,
-      section:  r.section,
+      id:             `T-${String(r.id).padStart(2, '0')}`,
+      number:         r.number,
+      capacity:       r.capacity,
+      status:         r.status,
+      section:        r.section,
+      restaurantId:   r.restaurant_id,
+      restaurantName: r.restaurant_name || 'Restaurant',
+      currency:       r.currency || 'LAK',
     })
   } catch (err) { next(err) }
 }
 
-// ─── GET /api/public/menu ─────────────────────────────────────────────────────
+// ─── GET /api/public/menu?tableId=T-01 ───────────────────────────────────────
+// Scopes the menu to the restaurant that owns the given table.
 async function getPublicMenu(req, res, next) {
   try {
-    const { rows } = await query(
-      `SELECT id, name, category, price, description, prep_time
-       FROM menu_items WHERE available = true ORDER BY category, name`
-    )
+    const { tableId } = req.query
+
+    let sql, params
+    if (tableId) {
+      const rawId = parseRawTableId(tableId)
+      if (!rawId) return res.status(400).json({ error: 'Invalid tableId format' })
+      // Join through restaurant_tables to scope to the correct restaurant
+      sql = `
+        SELECT m.id, m.name, m.category, m.price, m.description, m.prep_time
+        FROM menu_items m
+        JOIN restaurant_tables t ON t.restaurant_id = m.restaurant_id
+        WHERE t.id = $1 AND m.available = true
+        ORDER BY m.category, m.name
+      `
+      params = [rawId]
+    } else {
+      // Fallback (single-restaurant or test environments)
+      sql = `SELECT id, name, category, price, description, prep_time
+             FROM menu_items WHERE available = true ORDER BY category, name`
+      params = []
+    }
+
+    const { rows } = await query(sql, params)
     res.json(rows.map(r => ({
       id:          r.id,
       name:        r.name,
@@ -60,18 +87,20 @@ async function createPublicOrder(req, res, next) {
   try {
     await client.query('BEGIN')
 
-    // Lock table row
+    // Lock table row — also fetches restaurant_id for proper scoping
     const tRes = await client.query(
       'SELECT * FROM restaurant_tables WHERE id = $1 FOR UPDATE', [rawId]
     )
     if (!tRes.rows.length) throw Object.assign(new Error('Table not found'), { status: 404 })
     const table = tRes.rows[0]
+    const restaurantId = table.restaurant_id
 
-    // Fetch menu prices (available items only)
+    // Fetch menu prices — scope to the same restaurant to prevent cross-tenant injection
     const menuIds = items.map(i => i.menuItemId)
     const mRes = await client.query(
-      'SELECT id, name, price FROM menu_items WHERE id = ANY($1) AND available = true',
-      [menuIds]
+      `SELECT id, name, price FROM menu_items
+       WHERE id = ANY($1) AND available = true AND restaurant_id = $2`,
+      [menuIds, restaurantId]
     )
     const menuMap = {}
     mRes.rows.forEach(m => { menuMap[m.id] = m })
@@ -91,19 +120,20 @@ async function createPublicOrder(req, res, next) {
     const total = Math.round((subtotal + tax) * 100) / 100
 
     // Insert order — waiter = 'Guest' for customer self-orders
+    // IMPORTANT: include restaurant_id so the order appears in the admin's Orders view
     const oRes = await client.query(
-      `INSERT INTO orders (table_id, table_number, waiter, notes, subtotal, tax, total)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [table.id, table.number, 'Guest', notes || '', subtotal, tax, total]
+      `INSERT INTO orders (restaurant_id, table_id, table_number, waiter, notes, subtotal, tax, total)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [restaurantId, table.id, table.number, 'Guest', notes || '', subtotal, tax, total]
     )
     const order = oRes.rows[0]
 
-    // Insert order items
+    // Insert order items — also scoped to the restaurant
     for (const item of enriched) {
       await client.query(
-        `INSERT INTO order_items (order_id, menu_item_id, name, quantity, unit_price)
-         VALUES ($1,$2,$3,$4,$5)`,
-        [order.id, item.menuItemId, item.name, item.quantity, item.unitPrice]
+        `INSERT INTO order_items (restaurant_id, order_id, menu_item_id, name, quantity, unit_price)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [restaurantId, order.id, item.menuItemId, item.name, item.quantity, item.unitPrice]
       )
     }
 
