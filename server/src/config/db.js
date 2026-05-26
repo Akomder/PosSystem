@@ -7,9 +7,11 @@ const pool = new Pool({
   user:               process.env.DB_USER     || 'posuser',
   password:           process.env.DB_PASSWORD || 'pospassword',
   database:           process.env.DB_NAME     || 'posdb',
+  // Set DB_SSL=true in production when connecting to cloud-hosted PostgreSQL
+  ssl:                process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   max:                10,
   idleTimeoutMillis:  30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
 })
 
 pool.on('error', (err) => {

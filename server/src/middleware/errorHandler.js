@@ -18,17 +18,19 @@ function checkValidation(req, res) {
  * Must be registered LAST in app.js via app.use(errorHandler).
  */
 function errorHandler(err, req, res, next) {
+  const isProd = process.env.NODE_ENV === 'production'
+
   // PostgreSQL unique-constraint violation
   if (err.code === '23505') {
-    return res.status(409).json({ error: 'Duplicate entry', detail: err.detail })
+    return res.status(409).json({ error: 'Duplicate entry', ...(!isProd && { detail: err.detail }) })
   }
   // PostgreSQL foreign-key violation
   if (err.code === '23503') {
-    return res.status(400).json({ error: 'Referenced record not found', detail: err.detail })
+    return res.status(400).json({ error: 'Referenced record not found', ...(!isProd && { detail: err.detail }) })
   }
   // PostgreSQL check-constraint violation
   if (err.code === '23514') {
-    return res.status(400).json({ error: 'Value violates a check constraint', detail: err.detail })
+    return res.status(400).json({ error: 'Value violates a check constraint', ...(!isProd && { detail: err.detail }) })
   }
   // JWT errors
   if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {

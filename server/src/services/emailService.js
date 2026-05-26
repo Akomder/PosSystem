@@ -1,6 +1,7 @@
 /**
  * emailService.js
  * Nodemailer-based email service with:
+ *  - DB-persisted SMTP config (system_settings table), falls back to .env
  *  - Auto Ethereal test account when SMTP_HOST is not configured (dev)
  *  - Real SMTP / Gmail in production
  *  - Beautiful HTML templates for every email type
@@ -11,22 +12,66 @@ const nodemailer = require('nodemailer')
 // ─── Transporter singleton ────────────────────────────────────────────────────
 let _transporter = null
 let _previewBase = null   // Ethereal URL prefix for dev preview
+let _dbConfig    = null   // Cached config from system_settings
+
+/** Load SMTP config from DB (system_settings), returns null if not configured there */
+async function loadDbConfig() {
+  try {
+    const { query } = require('../config/db')
+    const { rows } = await query(
+      `SELECT key, value FROM system_settings WHERE key LIKE 'smtp.%' OR key LIKE 'email.%'`
+    )
+    if (!rows.length) return null
+    const cfg = {}
+    rows.forEach(r => { cfg[r.key] = r.value })
+    // Only consider DB config valid if smtp.host is set there
+    if (!cfg['smtp.host']) return null
+    return cfg
+  } catch {
+    return null
+  }
+}
+
+/** Return merged config: DB values take priority over .env */
+async function getConfig() {
+  const db = await loadDbConfig()
+  if (db) return {
+    host:      db['smtp.host'],
+    port:      parseInt(db['smtp.port']   || '587', 10),
+    secure:    db['smtp.secure'] === 'true',
+    user:      db['smtp.user']   || '',
+    pass:      db['smtp.pass']   || '',
+    fromName:  db['email.fromName']  || process.env.EMAIL_FROM_NAME    || 'POS System',
+    fromEmail: db['email.fromEmail'] || process.env.EMAIL_FROM_ADDRESS || 'noreply@pos.system',
+    source:    'db',
+  }
+  if (process.env.SMTP_HOST) return {
+    host:      process.env.SMTP_HOST,
+    port:      parseInt(process.env.SMTP_PORT || '587', 10),
+    secure:    process.env.SMTP_SECURE === 'true',
+    user:      process.env.SMTP_USER || '',
+    pass:      process.env.SMTP_PASS || '',
+    fromName:  process.env.EMAIL_FROM_NAME    || 'POS System',
+    fromEmail: process.env.EMAIL_FROM_ADDRESS || 'noreply@pos.system',
+    source:    'env',
+  }
+  return null
+}
 
 async function getTransporter() {
   if (_transporter) return _transporter
 
-  if (process.env.SMTP_HOST) {
-    // ── Real SMTP ──────────────────────────────────────────────────────────
+  const cfg = await getConfig()
+
+  if (cfg) {
+    // ── Real SMTP (DB or env) ──────────────────────────────────────────────
     _transporter = nodemailer.createTransport({
-      host:   process.env.SMTP_HOST,
-      port:   parseInt(process.env.SMTP_PORT  || '587', 10),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+      host:   cfg.host,
+      port:   cfg.port,
+      secure: cfg.secure,
+      auth: { user: cfg.user, pass: cfg.pass },
     })
-    console.log(`📧 SMTP connected → ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`)
+    console.log(`📧 SMTP connected → ${cfg.host}:${cfg.port} (source: ${cfg.source})`)
   } else {
     // ── Ethereal (dev fake inbox) ──────────────────────────────────────────
     const testAccount = await nodemailer.createTestAccount()
@@ -34,10 +79,7 @@ async function getTransporter() {
       host:   'smtp.ethereal.email',
       port:   587,
       secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
+      auth: { user: testAccount.user, pass: testAccount.pass },
     })
     _previewBase = 'https://ethereal.email'
     console.log(`📧 Ethereal test inbox: ${testAccount.user} / ${testAccount.pass}`)
@@ -47,10 +89,19 @@ async function getTransporter() {
   return _transporter
 }
 
+/** Call after updating system_settings to rebuild the transporter */
+async function reloadConfig() {
+  _transporter = null
+  _previewBase = null
+  _dbConfig    = null
+  return getTransporter()
+}
+
 // ─── From header ─────────────────────────────────────────────────────────────
-function fromAddress() {
-  const name    = process.env.EMAIL_FROM_NAME    || 'POS System'
-  const address = process.env.EMAIL_FROM_ADDRESS || 'noreply@pos.system'
+async function fromAddress() {
+  const cfg = await getConfig()
+  const name    = cfg?.fromName  || process.env.EMAIL_FROM_NAME    || 'POS System'
+  const address = cfg?.fromEmail || process.env.EMAIL_FROM_ADDRESS || 'noreply@pos.system'
   return `"${name}" <${address}>`
 }
 
@@ -58,7 +109,7 @@ function fromAddress() {
 async function sendMail({ to, subject, html, text }) {
   const transport = await getTransporter()
   const info = await transport.sendMail({
-    from:    fromAddress(),
+    from:    await fromAddress(),
     to,
     subject,
     text:    text || subject,
@@ -267,6 +318,54 @@ async function sendRestaurantWelcome({ to, adminName, restaurantName, plan, pass
 }
 
 /**
+ * Send EOD shift summary email to restaurant admin(s)
+ * @param {{ to: string|string[], restaurantName: string, shift: object }} opts
+ */
+async function sendShiftSummary({ to, restaurantName, shift }) {
+  const fmt = (n) => new Intl.NumberFormat('lo-LA', { style: 'currency', currency: 'LAK', maximumFractionDigits: 0 }).format(n)
+  const fmtDate = (d) => d ? new Date(d).toLocaleString('en', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+
+  const variance    = parseFloat(shift.cashVariance || 0)
+  const varianceAbs = Math.abs(variance)
+  const varianceOk  = varianceAbs <= 1000
+  const varColour   = varianceOk ? '#22c55e' : '#ef4444'
+  const varLabel    = variance >= 0 ? `+${fmt(varianceAbs)} surplus` : `-${fmt(varianceAbs)} shortage`
+  const varIcon     = varianceOk ? '✅' : '⚠️'
+
+  const body = `
+    <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6;">
+      The shift at <strong>${restaurantName}</strong> has been closed. Here is the summary:
+    </p>
+    ${infoTable([
+      infoRow('Opened',          fmtDate(shift.openedAt)),
+      infoRow('Closed',          fmtDate(shift.closedAt)),
+      infoRow('Opened By',       shift.openedBy  || '—'),
+      infoRow('Closed By',       shift.closedBy  || '—'),
+      infoRow('Total Orders',    shift.totalOrders),
+      infoRow('Total Revenue',   fmt(shift.totalSales)),
+      infoRow('Opening Cash',    fmt(shift.openingCash)),
+      infoRow('Expected Closing', fmt(shift.expectedCash)),
+      infoRow('Actual Closing',  fmt(shift.closingCash)),
+      infoRow('Cash Variance',   `<span style="color:${varColour};font-weight:600;">${varIcon} ${varLabel}</span>`),
+    ])}
+    ${shift.notes ? `<p style="margin:16px 0 0;font-size:13px;color:#6b7280;"><strong>Notes:</strong> ${shift.notes}</p>` : ''}
+    <p style="margin:16px 0 0;font-size:13px;color:#6b7280;">
+      Log in to the POS dashboard to view the full report.
+    </p>`
+
+  return sendMail({
+    to,
+    subject: `Shift Closed — ${restaurantName} · ${fmt(shift.totalSales)} revenue`,
+    html: baseTemplate({
+      title:     `Shift Summary — ${restaurantName}`,
+      preheader: `${shift.totalOrders} orders · ${fmt(shift.totalSales)} revenue · Cash variance: ${varLabel}`,
+      body,
+      footer:    `This summary was automatically sent when a shift was closed at ${restaurantName}.`,
+    }),
+  })
+}
+
+/**
  * Send a plain test email (for verifying SMTP config)
  * @param {{ to: string }} opts
  */
@@ -282,7 +381,6 @@ async function sendTestEmail({ to }) {
     ${infoTable([
       infoRow('Sent at',  now),
       infoRow('SMTP Host', process.env.SMTP_HOST || 'Ethereal (dev)'),
-      infoRow('From',     process.env.EMAIL_FROM_ADDRESS || 'noreply@pos.system'),
       infoRow('To',       to),
     ])}
     <p style="margin:16px 0 0;font-size:13px;color:#22c55e;font-weight:600;">
@@ -306,5 +404,8 @@ module.exports = {
   sendPasswordReset,
   sendStaffWelcome,
   sendRestaurantWelcome,
+  sendShiftSummary,
   sendTestEmail,
+  reloadConfig,
+  getConfig,
 }
