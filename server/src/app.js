@@ -104,7 +104,8 @@ if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../../client/dist')
   app.use(express.static(distPath))
   // SPA fallback — React Router handles all non-API client routes
-  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')))
+  // Express 5 requires named wildcards: '/{*path}' instead of bare '*'
+  app.get('/{*path}', (_req, res) => res.sendFile(path.join(distPath, 'index.html')))
 } else {
   // ─── 404 (dev only — production falls through to SPA) ─────────────────────
   app.use((_req, res) => res.status(404).json({ error: 'Not found' }))
