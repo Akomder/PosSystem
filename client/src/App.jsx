@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
 import { SettingsProvider } from './context/SettingsContext'
+import { NotificationsProvider } from './context/NotificationsContext'
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
@@ -170,9 +171,11 @@ export default function App() {
       <SettingsProvider>
         <AuthProvider>
           <AppProvider>
-            <OfflineBanner />
-            <StockLowToast />
-            <AppRoutes />
+            <NotificationsProvider>
+              <OfflineBanner />
+              <StockLowToast />
+              <AppRoutes />
+            </NotificationsProvider>
           </AppProvider>
         </AuthProvider>
       </SettingsProvider>
