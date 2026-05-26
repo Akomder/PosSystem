@@ -10,6 +10,7 @@ import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { formatDate } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
+import { useSettings } from '../context/SettingsContext'
 import PlanLimitBanner from '../components/ui/PlanLimitBanner'
 
 const PLAN_STAFF_LIMITS = { basic: 5, pro: 20, enterprise: Infinity }
@@ -36,6 +37,7 @@ const ROLE_TABS = ['All', 'Admin', 'Waiter', 'Cashier']
 
 export default function Staff() {
   const { user } = useAuth()
+  const { t } = useSettings()
   const isAdmin = user?.role === 'Admin'
 
   const [staff,     setStaff]     = useState([])
@@ -125,11 +127,11 @@ export default function Staff() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Staff</h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Manage team members and their access</p>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('staff.title')}</h2>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{t('staff.subtitle')}</p>
         </div>
         {isAdmin && (
-          <Button icon={PlusCircle} onClick={openInvite}>Invite Staff</Button>
+          <Button icon={PlusCircle} onClick={openInvite}>{t('staff.invite')}</Button>
         )}
       </div>
       <PlanLimitBanner used={staff.length} limit={limit} resource="staff members" plan={plan} />
@@ -146,14 +148,14 @@ export default function Staff() {
                 ? 'bg-teal-600 text-white'
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
             )}
-          >{r}</button>
+          >{r === 'All' ? t('staff.role.all') : r === 'Admin' ? t('staff.role.admin') : r === 'Waiter' ? t('staff.role.waiter') : t('staff.role.cashier')}</button>
         ))}
         <div className="ml-auto relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search staff…"
+            placeholder={t('staff.search')}
             className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
@@ -164,17 +166,17 @@ export default function Staff() {
         {loading ? (
           <div className="flex justify-center py-16"><div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : filtered.length === 0 ? (
-          <div className="py-12"><EmptyState icon={UserCheck} title="No staff members" description="Invite your first team member to get started" /></div>
+          <div className="py-12"><EmptyState icon={UserCheck} title={t('staff.noStaff')} description={t('staff.noStaffDesc')} /></div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase">
-                <th className="px-5 py-3 text-left">Name</th>
-                <th className="px-5 py-3 text-left">Role</th>
-                <th className="px-5 py-3 text-left">Email</th>
-                <th className="px-5 py-3 text-left">Status</th>
-                <th className="px-5 py-3 text-left">Joined</th>
-                {isAdmin && <th className="px-5 py-3 text-right">Actions</th>}
+                <th className="px-5 py-3 text-left">{t('staff.col.name')}</th>
+                <th className="px-5 py-3 text-left">{t('staff.col.role')}</th>
+                <th className="px-5 py-3 text-left">{t('staff.col.email')}</th>
+                <th className="px-5 py-3 text-left">{t('staff.col.status')}</th>
+                <th className="px-5 py-3 text-left">{t('staff.col.joined')}</th>
+                {isAdmin && <th className="px-5 py-3 text-right">{t('staff.col.actions')}</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
@@ -219,11 +221,11 @@ export default function Staff() {
       <Modal
         isOpen={inviteOpen}
         onClose={() => setInviteOpen(false)}
-        title="Invite Staff Member"
+        title={t('staff.inviteTitle')}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button loading={saving} onClick={handleInvite}>Send Invite</Button>
+            <Button variant="secondary" onClick={() => setInviteOpen(false)}>{t('common.cancel')}</Button>
+            <Button loading={saving} onClick={handleInvite}>{t('staff.sendInvite')}</Button>
           </>
         }
       >
@@ -231,10 +233,10 @@ export default function Staff() {
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-2.5 text-sm text-red-700 dark:text-red-400">{error}</div>
           )}
-          <Input label="Full Name" required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="e.g. John Doe" />
-          <Select label="Role" required value={form.role} onChange={e => setForm(f => ({...f, role: e.target.value}))} options={ROLE_OPTIONS} />
-          <Input label="Email" required type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="staff@example.com" />
-          <Input label="Password" type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} placeholder="Leave blank for default (changeme123)" />
+          <Input label={t('staff.form.name')} required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="e.g. John Doe" />
+          <Select label={t('staff.form.role')} required value={form.role} onChange={e => setForm(f => ({...f, role: e.target.value}))} options={ROLE_OPTIONS} />
+          <Input label={t('staff.form.email')} required type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="staff@example.com" />
+          <Input label={t('staff.form.password')} type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} placeholder="Leave blank for default (changeme123)" />
         </div>
       </Modal>
 
@@ -242,11 +244,11 @@ export default function Staff() {
       <Modal
         isOpen={!!editItem}
         onClose={() => setEditItem(null)}
-        title="Edit Staff Member"
+        title={t('staff.editTitle')}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setEditItem(null)}>Cancel</Button>
-            <Button loading={saving} onClick={handleEdit}>Save Changes</Button>
+            <Button variant="secondary" onClick={() => setEditItem(null)}>{t('common.cancel')}</Button>
+            <Button loading={saving} onClick={handleEdit}>{t('common.save')}</Button>
           </>
         }
       >
@@ -254,9 +256,9 @@ export default function Staff() {
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-2.5 text-sm text-red-700 dark:text-red-400">{error}</div>
           )}
-          <Input label="Full Name" value={editForm.name} onChange={e => setEditForm(f => ({...f, name: e.target.value}))} />
-          <Select label="Role" value={editForm.role} onChange={e => setEditForm(f => ({...f, role: e.target.value}))} options={ROLE_OPTIONS} />
-          <Select label="Status" value={editForm.status} onChange={e => setEditForm(f => ({...f, status: e.target.value}))} options={STATUS_OPTIONS} />
+          <Input label={t('staff.form.name')} value={editForm.name} onChange={e => setEditForm(f => ({...f, name: e.target.value}))} />
+          <Select label={t('staff.form.role')} value={editForm.role} onChange={e => setEditForm(f => ({...f, role: e.target.value}))} options={ROLE_OPTIONS} />
+          <Select label={t('staff.form.status')} value={editForm.status} onChange={e => setEditForm(f => ({...f, status: e.target.value}))} options={STATUS_OPTIONS} />
         </div>
       </Modal>
     </div>

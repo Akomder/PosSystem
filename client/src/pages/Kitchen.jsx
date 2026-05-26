@@ -3,6 +3,7 @@ import { ChefHat, Clock, CheckCircle2, Flame, Bell, RefreshCw, Utensils, Check }
 import clsx from 'clsx'
 import { ordersApi } from '../services/api'
 import { onOrderCreated, onOrderUpdated } from '../services/socket'
+import { useSettings } from '../context/SettingsContext'
 
 // ─── Audio alert (Web Audio API — no deps) ───────────────────────────────────
 function playAlert() {
@@ -50,36 +51,37 @@ function urgencyStyle(createdAt) {
 
 // ─── Lane config (matches DB CHECK constraint) ────────────────────────────────
 // Valid statuses: 'Pending' | 'In Progress' | 'Served' | 'Closed' | 'Cancelled'
+// Labels use translation keys — resolved at render time via useSettings()
 const LANES = [
   {
-    key:        'Pending',
-    label:      'New Orders',
-    Icon:       Bell,
-    color:      'text-amber-400',
-    headerBg:   'bg-amber-500/10 border-amber-500/30',
-    nextStatus: 'In Progress',
-    nextLabel:  'Start Cooking',
-    nextCls:    'bg-emerald-600 hover:bg-emerald-500',
+    key:          'Pending',
+    labelKey:     'kitchen.lane.new',
+    Icon:         Bell,
+    color:        'text-amber-400',
+    headerBg:     'bg-amber-500/10 border-amber-500/30',
+    nextStatus:   'In Progress',
+    nextLabelKey: 'kitchen.action.startCooking',
+    nextCls:      'bg-emerald-600 hover:bg-emerald-500',
   },
   {
-    key:        'In Progress',
-    label:      'Cooking',
-    Icon:       Flame,
-    color:      'text-orange-400',
-    headerBg:   'bg-orange-500/10 border-orange-500/30',
-    nextStatus: 'Served',
-    nextLabel:  'Mark Served',
-    nextCls:    'bg-sky-600 hover:bg-sky-500',
+    key:          'In Progress',
+    labelKey:     'kitchen.lane.cooking',
+    Icon:         Flame,
+    color:        'text-orange-400',
+    headerBg:     'bg-orange-500/10 border-orange-500/30',
+    nextStatus:   'Served',
+    nextLabelKey: 'kitchen.action.markServed',
+    nextCls:      'bg-sky-600 hover:bg-sky-500',
   },
   {
-    key:        'Served',
-    label:      'Served',
-    Icon:       CheckCircle2,
-    color:      'text-emerald-400',
-    headerBg:   'bg-emerald-500/10 border-emerald-500/30',
-    nextStatus: null,
-    nextLabel:  null,
-    nextCls:    null,
+    key:          'Served',
+    labelKey:     'kitchen.lane.served',
+    Icon:         CheckCircle2,
+    color:        'text-emerald-400',
+    headerBg:     'bg-emerald-500/10 border-emerald-500/30',
+    nextStatus:   null,
+    nextLabelKey: null,
+    nextCls:      null,
   },
 ]
 
@@ -87,6 +89,7 @@ const ACTIVE_STATUSES = new Set(['Pending', 'In Progress', 'Served'])
 
 // ─── Order card ───────────────────────────────────────────────────────────────
 function OrderCard({ order, onAdvance, onItemDone, selectedStation, isNew }) {
+  const { t } = useSettings()
   const lane = LANES.find(l => l.key === order.status)
   const urg  = urgencyStyle(order.createdAt)
   const [, forceRender] = useState(0)
@@ -119,7 +122,7 @@ function OrderCard({ order, onAdvance, onItemDone, selectedStation, isNew }) {
             </span>
             {isNew && (
               <span className="px-1.5 py-0.5 bg-amber-500 text-amber-950 text-[10px] font-black rounded-full animate-pulse">
-                NEW
+                {t('kitchen.new')}
               </span>
             )}
           </div>
@@ -154,7 +157,7 @@ function OrderCard({ order, onAdvance, onItemDone, selectedStation, isNew }) {
       {/* Items list */}
       <div className="space-y-2 mb-3">
         {visibleItems.length === 0 ? (
-          <p className="text-xs text-gray-500 italic">No items for this station</p>
+          <p className="text-xs text-gray-500 italic">{t('kitchen.noItemsForStation')}</p>
         ) : visibleItems.map((item) => {
           const done = !!item.completedAt
           return (
@@ -223,12 +226,12 @@ function OrderCard({ order, onAdvance, onItemDone, selectedStation, isNew }) {
             lane.nextCls,
           )}
         >
-          {lane.nextLabel}
+          {t(lane.nextLabelKey)}
         </button>
       ) : (
         <div className="flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-emerald-400">
           <CheckCircle2 size={13} />
-          Waiting for pickup
+          {t('kitchen.waitingForPickup')}
         </div>
       )}
     </div>
@@ -237,6 +240,7 @@ function OrderCard({ order, onAdvance, onItemDone, selectedStation, isNew }) {
 
 // ─── Kitchen page ─────────────────────────────────────────────────────────────
 export default function Kitchen() {
+  const { t } = useSettings()
   const [orders,          setOrders]          = useState([])
   const [loading,         setLoading]         = useState(true)
   const [newIds,          setNewIds]          = useState(new Set())
@@ -348,9 +352,9 @@ export default function Kitchen() {
             <ChefHat size={22} className="text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-extrabold text-white tracking-tight">Kitchen Display</h1>
+            <h1 className="text-lg font-extrabold text-white tracking-tight">{t('kitchen.title')}</h1>
             <p className="text-xs text-gray-400">
-              {loading ? 'Loading…' : `${totalActive} order${totalActive !== 1 ? 's' : ''} in queue`}
+              {loading ? t('common.loading') : `${totalActive} ${t('kitchen.inQueue')}`}
             </p>
           </div>
         </div>
@@ -362,7 +366,7 @@ export default function Kitchen() {
           {/* Live dot */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 rounded-full border border-gray-700">
             <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            <span className="text-xs text-gray-300 font-medium">Live</span>
+            <span className="text-xs text-gray-300 font-medium">{t('kitchen.live')}</span>
           </div>
         </div>
       </header>
@@ -394,7 +398,7 @@ export default function Kitchen() {
         </div>
       ) : (
         <div className="flex-1 grid grid-cols-3 gap-4 p-5 min-h-0">
-          {LANES.map(({ key, label, Icon, color, headerBg, nextStatus, nextLabel, nextCls }) => {
+          {LANES.map(({ key, labelKey, Icon, color, headerBg, nextStatus, nextLabelKey, nextCls }) => {
             const cards = laneOrders(key)
             return (
               <div key={key} className="flex flex-col min-h-0">
@@ -406,7 +410,7 @@ export default function Kitchen() {
                 )}>
                   <div className="flex items-center gap-2">
                     <Icon size={16} className={color} />
-                    <span className="font-bold text-sm text-white">{label}</span>
+                    <span className="font-bold text-sm text-white">{t(labelKey)}</span>
                   </div>
                   <span className={clsx(
                     'w-6 h-6 flex items-center justify-center rounded-full text-xs font-black',
@@ -421,7 +425,7 @@ export default function Kitchen() {
                   {cards.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-40 text-gray-700">
                       <Icon size={30} className="mb-2 opacity-25" />
-                      <p className="text-sm opacity-50">Empty</p>
+                      <p className="text-sm opacity-50">{t('kitchen.empty')}</p>
                     </div>
                   ) : cards.map(order => (
                     <OrderCard
