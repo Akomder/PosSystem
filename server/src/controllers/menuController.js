@@ -18,6 +18,7 @@ function fmt(r) {
     costPrice:      parseFloat(r.cost_price || 0),
     productGroup:   r.product_group || '',
     department:     r.department || '',
+    imageUrl:       r.image_url || '',
     minStock:          r.min_stock ?? 0,
     maxStock:          r.max_stock ?? 9999,
     station:           r.station || 'Kitchen',
@@ -127,7 +128,7 @@ async function createItem(req, res, next) {
   if (!checkValidation(req, res)) return
   const { name, category, price, description, tags, stock,
           productCode, costPrice, productGroup, department, minStock, maxStock, station,
-          stockQuantity, lowStockThreshold } = req.body
+          stockQuantity, lowStockThreshold, imageUrl } = req.body
   try {
     // ── Plan limit check ────────────────────────────────────────────────────
     const rid = req.restaurantId
@@ -149,12 +150,13 @@ async function createItem(req, res, next) {
       `INSERT INTO menu_items
          (restaurant_id, name, category, price, description, tags, stock,
           product_code, cost_price, product_group, department, min_stock, max_stock, station,
-          stock_quantity, low_stock_threshold)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+          stock_quantity, low_stock_threshold, image_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
       [req.restaurantId, name, category, price, description || '', tags || [], stock ?? 0,
        productCode || null, costPrice ?? 0, productGroup || '', department || '',
        minStock ?? 0, maxStock ?? 9999, station || 'Kitchen',
-       stockQuantity != null ? stockQuantity : null, lowStockThreshold ?? 10]
+       stockQuantity != null ? stockQuantity : null, lowStockThreshold ?? 10,
+       imageUrl || '']
     )
     const { rows } = await query(`${MENU_SELECT} WHERE mi.id = $1`, [ins.rows[0].id])
     res.status(201).json(fmt(rows[0]))
@@ -169,6 +171,7 @@ async function updateItem(req, res, next) {
     description: 'description', tags: 'tags', stock: 'stock', available: 'available',
     productCode: 'product_code', costPrice: 'cost_price',
     productGroup: 'product_group', department: 'department',
+    imageUrl: 'image_url',
     minStock: 'min_stock', maxStock: 'max_stock',
     station: 'station',
     stockQuantity: 'stock_quantity', lowStockThreshold: 'low_stock_threshold',

@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
   product_code   VARCHAR(50),
   product_group  VARCHAR(100)   NOT NULL DEFAULT '',
   department     VARCHAR(100)   NOT NULL DEFAULT '',
+  image_url      TEXT           NOT NULL DEFAULT '',
   created_at     TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
@@ -677,6 +678,9 @@ ALTER TABLE order_items ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS station             VARCHAR(50)    NOT NULL DEFAULT 'Kitchen';
 ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS stock_quantity      NUMERIC(10,2)  DEFAULT NULL;
 ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS low_stock_threshold NUMERIC(10,2)  NOT NULL DEFAULT 10;
+
+-- menu_items — image support
+ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
 
 -- shifts — cash reconciliation columns (Phase 3 Step 6)
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS expected_cash NUMERIC(10,2) NOT NULL DEFAULT 0;

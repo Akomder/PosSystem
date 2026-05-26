@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { PlusCircle, Search, Pencil, Package, Settings2, Trash2, ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import { PlusCircle, Search, Pencil, Package, Settings2, Trash2, ChevronDown, ChevronRight, Plus, ImageIcon, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
@@ -30,6 +30,7 @@ const EMPTY_FORM = {
   productCode: '', costPrice: '', productGroup: '', department: '',
   minStock: '', maxStock: '', station: 'Kitchen',
   stockQuantity: null, lowStockThreshold: '10',
+  imageUrl: '',
 }
 
 export default function Menu() {
@@ -104,6 +105,7 @@ export default function Menu() {
       station:           item.station || 'Kitchen',
       stockQuantity:     item.stockQuantity != null ? String(item.stockQuantity) : null,
       lowStockThreshold: item.lowStockThreshold != null ? String(item.lowStockThreshold) : '10',
+      imageUrl:          item.imageUrl || '',
     })
     // Pre-select already-assigned modifier groups
     setItemGroupIds((item.modifierGroups || []).map(g => g.id))
@@ -153,6 +155,7 @@ export default function Menu() {
                            ? parseFloat(form.stockQuantity)
                            : null,
       lowStockThreshold: form.lowStockThreshold !== '' ? parseFloat(form.lowStockThreshold) : 10,
+      imageUrl:          form.imageUrl || '',
     }
     try {
       if (editItem) {
@@ -180,6 +183,18 @@ export default function Menu() {
       ...f,
       tags: f.tags.includes(tag) ? f.tags.filter((tg) => tg !== tag) : [...f.tags, tag],
     }))
+  }
+
+  // ── Image upload ──────────────────────────────────────────
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5 MB'); return }
+    const reader = new FileReader()
+    reader.onload = (ev) => setForm(f => ({ ...f, imageUrl: ev.target.result }))
+    reader.readAsDataURL(file)
+    // Reset input so the same file can be re-selected after removal
+    e.target.value = ''
   }
 
   // ── Modifier group helpers ─────────────────────────────────
@@ -310,14 +325,25 @@ export default function Menu() {
                   !item.available && 'opacity-60',
                 )}
               >
-                {/* Image placeholder */}
-                <div
-                  className="h-36 flex items-center justify-center relative"
-                  style={{ backgroundColor: bgColor }}
-                >
-                  <span className="text-3xl font-black" style={{ color: textColor }}>
-                    {item.name.slice(0, 2).toUpperCase()}
-                  </span>
+                {/* Image / placeholder */}
+                <div className="h-36 relative overflow-hidden flex-shrink-0">
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                      onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex' }}
+                    />
+                  ) : null}
+                  {/* Fallback shown when no image OR image fails to load */}
+                  <div
+                    className="w-full h-full items-center justify-center"
+                    style={{ backgroundColor: bgColor, display: item.imageUrl ? 'none' : 'flex' }}
+                  >
+                    <span className="text-3xl font-black" style={{ color: textColor }}>
+                      {item.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  </div>
                   {/* Stock badge */}
                   <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-medium ${stock.cls}`}>
                     {stock.label}
@@ -560,6 +586,53 @@ export default function Menu() {
               {saveError}
             </div>
           )}
+
+          {/* ── Image upload ── */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">
+              Item Image <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            {form.imageUrl ? (
+              <div className="relative w-full h-44 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
+                <img src={form.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, imageUrl: '' }))}
+                  className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                  title="Remove image"
+                >
+                  <X size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('imgUpload').click()}
+                  className="absolute bottom-2 right-2 px-2.5 py-1 bg-black/50 hover:bg-black/70 text-white text-xs font-medium rounded-full transition-colors"
+                >
+                  Replace
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => document.getElementById('imgUpload').click()}
+                className="w-full h-32 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:border-teal-400 dark:hover:border-teal-500 hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-colors cursor-pointer"
+              >
+                <ImageIcon size={24} className="text-gray-300 dark:text-gray-500" />
+                <p className="text-sm text-gray-400 dark:text-gray-500">Click to upload photo</p>
+                <p className="text-xs text-gray-300 dark:text-gray-600">PNG, JPG up to 5 MB</p>
+              </button>
+            )}
+            <input id="imgUpload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            {/* URL alternative */}
+            <input
+              type="url"
+              value={form.imageUrl.startsWith('data:') ? '' : form.imageUrl}
+              onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
+              placeholder="Or paste an image URL…"
+              className="mt-2 w-full text-sm border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-300 dark:placeholder:text-gray-500 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+          </div>
+
           <Input
             label={t('menu.itemName')}
             required

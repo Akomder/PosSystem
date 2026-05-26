@@ -54,7 +54,7 @@ async function getPublicMenu(req, res, next) {
       if (!rawId) return res.status(400).json({ error: 'Invalid tableId format' })
       // Join through restaurant_tables to scope to the correct restaurant
       sql = `
-        SELECT m.id, m.name, m.category, m.price, m.description, m.prep_time
+        SELECT m.id, m.name, m.category, m.price, m.description, m.prep_time, m.image_url
         FROM menu_items m
         JOIN restaurant_tables t ON t.restaurant_id = m.restaurant_id
         WHERE t.id = $1 AND m.available = true
@@ -63,7 +63,7 @@ async function getPublicMenu(req, res, next) {
       params = [rawId]
     } else {
       // Fallback (single-restaurant or test environments)
-      sql = `SELECT id, name, category, price, description, prep_time
+      sql = `SELECT id, name, category, price, description, prep_time, image_url
              FROM menu_items WHERE available = true ORDER BY category, name`
       params = []
     }
@@ -76,6 +76,7 @@ async function getPublicMenu(req, res, next) {
       price:       parseFloat(r.price),
       description: r.description,
       prepTime:    r.prep_time,
+      imageUrl:    r.image_url || '',
     })))
   } catch (err) { next(err) }
 }

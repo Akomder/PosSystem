@@ -449,38 +449,53 @@ function MenuItemList({ items, getQty, addItem, removeItem }) {
         return (
           <div
             key={item.id}
-            className="bg-white rounded-xl p-4 border border-gray-100 flex items-start justify-between gap-3 shadow-sm"
+            className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex"
           >
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 text-sm">{item.name}</p>
-              {item.description && (
-                <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{item.description}</p>
-              )}
-              {item.prepTime > 0 && (
-                <p className="text-[11px] text-gray-300 mt-0.5">~{item.prepTime} min</p>
-              )}
-              <p className="text-sm font-bold text-teal-600 mt-1.5">
-                {item.price.toLocaleString()}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
-              {qty > 0 && (
-                <>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="w-7 h-7 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-100 transition-colors"
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className="w-4 text-center text-sm font-bold text-gray-900">{qty}</span>
-                </>
-              )}
-              <button
-                onClick={() => addItem(item)}
-                className="w-7 h-7 rounded-full bg-teal-600 text-white flex items-center justify-center hover:bg-teal-700 transition-colors shadow-sm"
-              >
-                <Plus size={12} />
-              </button>
+            {/* Image */}
+            {item.imageUrl && (
+              <div className="w-24 flex-shrink-0 bg-gray-100">
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                  style={{ minHeight: '80px' }}
+                />
+              </div>
+            )}
+
+            {/* Details */}
+            <div className="flex flex-1 items-start justify-between gap-3 p-3 min-w-0">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 text-sm">{item.name}</p>
+                {item.description && (
+                  <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{item.description}</p>
+                )}
+                {item.prepTime > 0 && (
+                  <p className="text-[11px] text-gray-300 mt-0.5">~{item.prepTime} min</p>
+                )}
+                <p className="text-sm font-bold text-teal-600 mt-1.5">
+                  {item.price.toLocaleString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+                {qty > 0 && (
+                  <>
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      className="w-7 h-7 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-100 transition-colors"
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span className="w-4 text-center text-sm font-bold text-gray-900">{qty}</span>
+                  </>
+                )}
+                <button
+                  onClick={() => addItem(item)}
+                  className="w-7 h-7 rounded-full bg-teal-600 text-white flex items-center justify-center hover:bg-teal-700 transition-colors shadow-sm"
+                >
+                  <Plus size={12} />
+                </button>
+              </div>
             </div>
           </div>
         )
