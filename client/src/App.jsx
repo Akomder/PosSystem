@@ -5,6 +5,7 @@ import { SettingsProvider } from './context/SettingsContext'
 import { NotificationsProvider } from './context/NotificationsContext'
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
+import TenantLogin from './pages/TenantLogin'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
@@ -60,6 +61,7 @@ function SuperAdminRoute({ children }) {
 
 function RootRedirect() {
   const { user } = useAuth()
+  // Not logged in → SuperAdmin login page (restaurant staff use /{slug})
   if (!user) return <Navigate to="/login" replace />
   return <Navigate to={user.isSuperAdmin ? '/superadmin' : '/dashboard'} replace />
 }
@@ -72,6 +74,8 @@ function AppRoutes() {
 
       {/* Root redirect */}
       <Route path="/" element={<RootRedirect />} />
+
+      {/* SuperAdmin-only login (/login) */}
       <Route path="/login"           element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password"  element={<ResetPassword />} />
@@ -159,6 +163,11 @@ function AppRoutes() {
 
       {/* Kitchen display — full screen, no layout */}
       <Route path="/kitchen" element={<ProtectedRoute><Kitchen /></ProtectedRoute>} />
+
+      {/* Tenant login — /{restaurant_slug} (e.g. /bella-vista)
+          Must come after all named routes so static paths (/login, /dashboard …)
+          are matched first. React Router v6 always prefers static over dynamic. */}
+      <Route path="/:slug" element={<TenantLogin />} />
 
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

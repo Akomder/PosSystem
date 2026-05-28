@@ -14,6 +14,22 @@ function parseOrderId(v) {
   return m ? parseInt(m[1], 10) : null
 }
 
+// ─── GET /api/public/restaurant/:slug ────────────────────────────────────────
+// Lets the tenant login page verify the slug and get the restaurant name/branding.
+async function getPublicRestaurant(req, res, next) {
+  try {
+    const slug = req.params.slug.toLowerCase().trim()
+    const { rows } = await query(
+      `SELECT id, name, slug, currency, settings FROM restaurants WHERE slug = $1`,
+      [slug]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Restaurant not found' })
+    const r = rows[0]
+    const logo = r.settings?.receipt?.logoBase64 || null
+    res.json({ id: r.id, name: r.name, slug: r.slug, currency: r.currency, logo })
+  } catch (err) { next(err) }
+}
+
 // ─── GET /api/public/tables/:id ───────────────────────────────────────────────
 async function getPublicTable(req, res, next) {
   try {
@@ -250,4 +266,4 @@ async function cancelPublicOrder(req, res, next) {
   } catch (err) { next(err) }
 }
 
-module.exports = { getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder }
+module.exports = { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder }

@@ -458,6 +458,17 @@ export default function Restaurants() {
                     <div>
                       <p className="font-medium text-gray-100">{r.name}</p>
                       <p className="text-xs text-gray-600">{r.phone || r.email || r.address || '—'}</p>
+                      {r.slug && (
+                        <button
+                          type="button"
+                          onClick={() => navigator.clipboard.writeText(`${window.location.origin}/${r.slug}`)}
+                          className="text-xs text-violet-500 hover:text-violet-300 mt-0.5 flex items-center gap-1"
+                          title="Click to copy login URL"
+                        >
+                          <span className="font-mono">/{r.slug}</span>
+                          <span className="text-gray-600 text-[10px]">copy</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </td>

@@ -1,8 +1,11 @@
 const router  = require('express').Router()
 const { body } = require('express-validator')
-const { getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder } = require('../controllers/publicController')
+const { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder } = require('../controllers/publicController')
 
 // No authentication on any of these routes
+
+// Tenant login — resolve slug → restaurant name + branding
+router.get('/restaurant/:slug', getPublicRestaurant)
 
 router.get('/tables/:id', getPublicTable)
 

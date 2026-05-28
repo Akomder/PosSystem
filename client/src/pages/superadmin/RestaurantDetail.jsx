@@ -260,6 +260,17 @@ export default function RestaurantDetail() {
             </span>
           </div>
           <p className="text-sm text-gray-500 mt-0.5">{r.address || r.phone || r.email || r.id}</p>
+          {r.slug && (
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(`${window.location.origin}/${r.slug}`)}
+              className="mt-1 text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1.5 font-mono"
+              title="Click to copy staff login URL"
+            >
+              Staff login: {window.location.origin}/{r.slug}
+              <span className="text-gray-600 text-[10px] font-sans">copy</span>
+            </button>
+          )}
         </div>
         <button
           onClick={() => setAddStaff(true)}

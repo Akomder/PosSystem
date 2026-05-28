@@ -314,6 +314,8 @@ async function publicRequest(method, path, body) {
 }
 
 export const publicApi = {
+  // Tenant login — resolve slug to restaurant branding
+  getRestaurant: (slug)   => publicRequest('GET',  `/public/restaurant/${encodeURIComponent(slug)}`),
   getTable:    (id)       => publicRequest('GET',  `/public/tables/${id}`),
   // tableId scopes the menu to the correct restaurant in multi-tenant setups
   getMenu:     (tableId)  => publicRequest('GET',  `/public/menu${tableId ? `?tableId=${encodeURIComponent(tableId)}` : ''}`),

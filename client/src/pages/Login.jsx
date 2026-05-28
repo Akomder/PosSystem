@@ -1,45 +1,28 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
-  UtensilsCrossed,
-  ShieldCheck,
-  ClipboardList,
-  CreditCard,
+  Shield,
   Eye,
   EyeOff,
   AlertCircle,
-  Shield,
 } from 'lucide-react'
-import clsx from 'clsx'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../context/SettingsContext'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 
-const ROLES = [
-  { id: 'SuperAdmin', icon: Shield,       email: 'superadmin@pos.com', hintKey: 'login.roles.superadmin.hint' },
-  { id: 'Admin',      icon: ShieldCheck,  email: 'admin@pos.com',      hintKey: 'login.roles.admin.hint'      },
-  { id: 'Waiter',     icon: ClipboardList,email: 'waiter@pos.com',     hintKey: 'login.roles.waiter.hint'     },
-  { id: 'Cashier',    icon: CreditCard,   email: 'cashier@pos.com',    hintKey: 'login.roles.cashier.hint'    },
-]
-
+// /login is SuperAdmin-only.
+// Restaurant staff must use /{restaurant_slug} to log in.
 export default function Login() {
-  const { login } = useAuth()
-  const { t } = useSettings()
-  const navigate = useNavigate()
+  const { login }    = useAuth()
+  const { t }        = useSettings()
+  const navigate     = useNavigate()
 
-  const [selectedRole, setSelectedRole] = useState('Admin')
-  const [email, setEmail]               = useState('admin@pos.com')
-  const [password, setPassword]         = useState('')
-  const [showPass, setShowPass]         = useState(false)
-  const [loading, setLoading]           = useState(false)
-  const [error, setError]               = useState('')
-
-  const handleRoleSelect = (role) => {
-    setSelectedRole(role.id)
-    setEmail(role.email)
-    setError('')
-  }
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -51,7 +34,13 @@ export default function Login() {
     setLoading(true)
     try {
       const userData = await login(email, password)
-      navigate(userData.isSuperAdmin ? '/superadmin' : '/dashboard')
+      if (!userData.isSuperAdmin) {
+        // Non-superadmin authenticated but used the wrong URL — reject & clear session
+        setError("This login is for SuperAdmin only. Please use your restaurant's login URL.")
+        localStorage.removeItem('pos_user')
+        return
+      }
+      navigate('/superadmin')
     } catch (err) {
       setError(err.message || t('login.errorFailed'))
     } finally {
@@ -60,47 +49,18 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
         {/* Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-8">
+
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 dark:shadow-teal-900/50 mb-4">
-              <UtensilsCrossed size={26} className="text-white" />
+            <div className="w-14 h-14 bg-slate-700 dark:bg-slate-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
+              <Shield size={26} className="text-white" />
             </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Bella Vista POS</h1>
-            <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">{t('login.subtitle')}</p>
-          </div>
-
-          {/* Role selector */}
-          <div className="mb-6">
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-              {t('login.signInAs')}
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              {ROLES.map((role) => {
-                const Icon = role.icon
-                const active = selectedRole === role.id
-                return (
-                  <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => handleRoleSelect(role)}
-                    className={clsx(
-                      'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-150',
-                      'text-center text-xs font-medium',
-                      active
-                        ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300'
-                        : 'border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-gray-500 hover:bg-white dark:hover:bg-gray-600',
-                    )}
-                  >
-                    <Icon size={20} className={active ? 'text-teal-600 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'} />
-                    <span>{role.id}</span>
-                  </button>
-                )
-              })}
-            </div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">POS System</h1>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">SuperAdmin Login</p>
           </div>
 
           {/* Form */}
@@ -126,7 +86,7 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t('login.placeholder.password')}
                   required
-                  className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 py-2.5 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 py-2.5 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 />
                 <button
                   type="button"
@@ -142,24 +102,16 @@ export default function Login() {
             <div className="text-right -mt-1">
               <Link
                 to="/forgot-password"
-                className="text-xs text-teal-500 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
               >
                 Forgot password?
               </Link>
             </div>
 
-            {/* Demo hint */}
-            <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-              {t('login.demoHint')}{' '}
-              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded text-gray-600 dark:text-gray-300">superadmin123</code>{' '}
-              / <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded text-gray-600 dark:text-gray-300">admin123</code>{' '}
-              / <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded text-gray-600 dark:text-gray-300">waiter123</code>
-            </p>
-
             {/* Error */}
             {error && (
-              <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
-                <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+              <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
+                <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
               </div>
             )}
@@ -168,6 +120,15 @@ export default function Login() {
               {loading ? t('login.signingIn') : t('login.signIn')}
             </Button>
           </form>
+
+          {/* Restaurant staff hint */}
+          <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-5 leading-relaxed">
+            Restaurant staff? Use{' '}
+            <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded text-gray-600 dark:text-gray-300">
+              /your-restaurant-name
+            </code>{' '}
+            to log in.
+          </p>
         </div>
 
         <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-4">
