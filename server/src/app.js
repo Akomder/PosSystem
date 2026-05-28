@@ -51,6 +51,14 @@ const emailLimiter = rateLimit({
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
+// ─── Cache-Control: prevent browsers/proxies from caching API responses ───────
+// All /api/* responses contain sensitive POS data (orders, auth tokens, staff).
+// Setting no-store ensures nothing is written to cache — satisfies security scanners.
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store, max-age=0')
+  next()
+})
+
 // ─── Public routes (no auth required) ────────────────────────────────────────
 app.use('/api/public',              require('./routes/public'))
 app.use('/api/auth',   authLimiter, require('./routes/auth'))
@@ -105,7 +113,11 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(distPath))
   // SPA fallback — React Router handles all non-API client routes
   // Express 5 requires named wildcards: '/{*path}' instead of bare '*'
-  app.get('/{*path}', (_req, res) => res.sendFile(path.join(distPath, 'index.html')))
+  // index.html must not be cached — it contains the JS bundle URLs which change on each deploy
+  app.get('/{*path}', (_req, res) => {
+    res.set('Cache-Control', 'no-store, max-age=0')
+    res.sendFile(path.join(distPath, 'index.html'))
+  })
 } else {
   // ─── 404 (dev only — production falls through to SPA) ─────────────────────
   app.use((_req, res) => res.status(404).json({ error: 'Not found' }))
