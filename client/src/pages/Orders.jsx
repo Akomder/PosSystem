@@ -51,7 +51,8 @@ export default function Orders() {
   const [tab,          setTab]          = useState('All')
   const [typeFilter,   setTypeFilter]   = useState('All')
   const [selectedId,   setSelectedId]   = useState(null)
-  const [receiptId,    setReceiptId]    = useState(null)  // numeric order id for receipt modal
+  const [receiptId,    setReceiptId]    = useState(null)   // numeric order id for receipt modal
+  const [receiptType,  setReceiptType]  = useState('receipt')
   const [newOrderOpen, setNewOrderOpen] = useState(false)
   const [creating,     setCreating]     = useState(false)
   const [createError,  setCreateError]  = useState(null)
@@ -455,6 +456,7 @@ export default function Orders() {
                     icon={Printer}
                     onClick={() => {
                       const rawId = parseInt(String(selectedOrder.id).replace(/\D/g, ''), 10)
+                      setReceiptType('receipt')
                       setReceiptId(rawId)
                     }}
                   >
@@ -479,10 +481,11 @@ export default function Orders() {
                     icon={Printer}
                     onClick={() => {
                       const rawId = parseInt(String(selectedOrder.id).replace(/\D/g, ''), 10)
+                      setReceiptType('draft')
                       setReceiptId(rawId)
                     }}
                   >
-                    {t('orders.printReceipt')}
+                    Draft
                   </Button>
                   <Button
                     variant="danger"
@@ -653,11 +656,11 @@ export default function Orders() {
         </div>
       </Modal>
 
-      {/* Receipt Modal */}
+      {/* Receipt / Draft Modal */}
       {receiptId && (
         <ReceiptModal
           orderId={receiptId}
-          type="receipt"
+          type={receiptType}
           onClose={() => setReceiptId(null)}
         />
       )}

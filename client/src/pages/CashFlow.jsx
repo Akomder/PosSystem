@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, BookOpen, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
+import { Plus, Search, BookOpen, TrendingUp, TrendingDown, Wallet, Printer } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
 import { cashflowApi } from '../services/api'
+import ReceiptModal from '../components/ReceiptModal'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
@@ -40,6 +41,7 @@ export default function CashFlow() {
   const [form,      setForm]      = useState(EMPTY_FORM)
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState('')
+  const [printId,   setPrintId]   = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -261,6 +263,13 @@ export default function CashFlow() {
                         </button>
                       )}
                       <button
+                        onClick={() => setPrintId(e.id)}
+                        className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
+                        title="Print cash receipt / payment slip"
+                      >
+                        <Printer size={14} />
+                      </button>
+                      <button
                         onClick={() => handleDelete(e.id)}
                         className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                       >
@@ -273,6 +282,15 @@ export default function CashFlow() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Print Modal */}
+      {printId && (
+        <ReceiptModal
+          entityId={printId}
+          type="cashflow"
+          onClose={() => setPrintId(null)}
+        />
       )}
 
       {/* Modal */}

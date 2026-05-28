@@ -239,8 +239,13 @@ export const promotionsApi = {
 
 // ─── Print / Receipts ─────────────────────────────────────────────────────────
 export const printApi = {
-  getReceiptUrl:       (orderId) => `${BASE}/print/${orderId}/receipt`,
-  getKitchenTicketUrl: (orderId) => `${BASE}/print/${orderId}/kitchen-ticket`,
+  getReceiptUrl:            (orderId)   => `${BASE}/print/${orderId}/receipt`,
+  getKitchenTicketUrl:      (orderId)   => `${BASE}/print/${orderId}/kitchen-ticket`,
+  getDraftUrl:              (orderId)   => `${BASE}/print/${orderId}/draft`,
+  getReturnUrl:             (returnId)  => `${BASE}/print/return/${returnId}`,
+  getPurchaseUrl:           (poId)      => `${BASE}/print/purchase/${poId}`,
+  getPurchaseReturnUrl:     (prId)      => `${BASE}/print/purchase-return/${prId}`,
+  getCashFlowUrl:           (entryId)   => `${BASE}/print/cashflow/${entryId}`,
 }
 
 // ─── Modifiers ────────────────────────────────────────────────────────────────

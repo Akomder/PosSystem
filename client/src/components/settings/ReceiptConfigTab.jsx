@@ -4,6 +4,7 @@ import {
   Store, FileText, Type, LayoutList, Tag,
   AlignLeft, AlignCenter, AlignRight, Upload, X,
   ChevronDown, ChevronUp, UtensilsCrossed,
+  RotateCcw, ShoppingBag, DollarSign, ArrowLeftRight,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { settingsApi } from '../../services/api'
@@ -475,7 +476,198 @@ function ConfigSection({ icon: Icon, title, defaultOpen = false, children }) {
   )
 }
 
+// ── Kitchen Template Panel ────────────────────────────────────────────────────
+function KitchenTemplatePanel({ config }) {
+  const fontSize = Math.max(8, Math.min(18, parseInt(config.fontSize) || 12))
+  const fontCss  = (FONT_OPTIONS.find(f => f.value === config.fontFamily) || FONT_OPTIONS[0]).css
+  const divStyle = { borderTop: '1px dashed #f97316', margin: '5px 0', opacity: 0.4 }
+  return (
+    <div style={{ width: 300, minHeight: 200, padding: '14px 12px', fontSize, fontFamily: fontCss, background: '#fff', color: '#111' }} className="shadow-2xl">
+      <div style={{ textAlign: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: fontSize + 2, fontWeight: 'bold' }}>— KITCHEN TICKET —</div>
+        <div style={{ fontSize: fontSize - 1, color: '#555', marginTop: 4, lineHeight: 1.8 }}>
+          Order: <VarTag label="order_id" /><br />
+          Table: <VarTag label="table_no" /><br />
+          <VarTag label="date_time" />
+        </div>
+      </div>
+      <div style={divStyle} />
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize }}>
+        <thead>
+          <tr style={{ fontSize: fontSize - 2, borderBottom: '1px solid #ccc', textTransform: 'uppercase' }}>
+            <th style={{ textAlign: 'left', paddingBottom: 3, width: '70%' }}>Item</th>
+            <th style={{ textAlign: 'center', paddingBottom: 3 }}>Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style={{ padding: '4px 0' }}><VarTag label="item_name" /></td><td style={{ textAlign: 'center' }}><VarTag label="qty" /></td></tr>
+          <tr style={{ opacity: 0.5 }}><td style={{ padding: '4px 0' }}><VarTag label="item_name" /></td><td style={{ textAlign: 'center' }}><VarTag label="qty" /></td></tr>
+          <tr style={{ opacity: 0.2 }}><td style={{ padding: '4px 0' }}><VarTag label="item_name" /></td><td style={{ textAlign: 'center' }}><VarTag label="qty" /></td></tr>
+        </tbody>
+      </table>
+      <div style={divStyle} />
+      <div style={{ textAlign: 'center', fontSize: fontSize - 2, color: '#aaa', marginTop: 4 }}>Waiter: <VarTag label="waiter_name" /></div>
+    </div>
+  )
+}
+
+function KitchenPreviewPanel() {
+  const now = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+  const kitchenItems = [
+    { name: 'Beef Pho', quantity: 2, notes: 'Less noodle' },
+    { name: 'Spring Rolls', quantity: 1, notes: '' },
+    { name: 'Coconut Juice', quantity: 2, notes: '' },
+  ]
+  return (
+    <div style={{ width: 300, minHeight: 200, padding: '14px 12px', fontFamily: "'Courier New', monospace", fontSize: 12, background: '#fff', color: '#111' }} className="shadow-2xl">
+      <div style={{ textAlign: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 'bold' }}>— KITCHEN TICKET —</div>
+        <div style={{ fontSize: 10, color: '#555', marginTop: 4, lineHeight: 1.8 }}>
+          Order: ORD-042<br />Table: 5<br />{now}
+        </div>
+      </div>
+      <div style={{ borderTop: '1px dashed #aaa', margin: '5px 0' }} />
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr style={{ fontSize: 10, borderBottom: '1px solid #ccc', textTransform: 'uppercase' }}>
+            <th style={{ textAlign: 'left', paddingBottom: 3, width: '70%' }}>Item</th>
+            <th style={{ textAlign: 'center', paddingBottom: 3 }}>Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          {kitchenItems.map((i, idx) => (
+            <tr key={idx}>
+              <td style={{ padding: '4px 0', lineHeight: 1.4 }}>
+                <strong>{i.name}</strong>
+                {i.notes && <div style={{ fontSize: 10, color: '#777', paddingLeft: 6 }}>↳ {i.notes}</div>}
+              </td>
+              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{i.quantity}×</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ borderTop: '1px dashed #aaa', margin: '5px 0' }} />
+      <div style={{ textAlign: 'center', fontSize: 10, color: '#aaa', marginTop: 4 }}>Waiter: Souphaphone</div>
+    </div>
+  )
+}
+
+// ── A5 Document info panel (for non-configurable A5 types) ────────────────────
+function A5InfoPanel({ type }) {
+  const info = {
+    draft: {
+      label: 'Draft Order',
+      color: '#dc2626',
+      description: 'Printed for open/pending orders. Same layout as the final receipt but marked with a red "DRAFT ORDER" banner and a diagonal DRAFT watermark. Uses your receipt font/layout settings.',
+      fields: [
+        ['Restaurant name, phone, address', 'From store settings'],
+        ['— DRAFT ORDER —', 'Red bordered banner'],
+        ['Order ID, Table, Waiter, Date', 'Order metadata'],
+        ['Items × Qty → Amount', 'Line items'],
+        ['Subtotal + TOTAL', 'Totals (no tax/payment)'],
+        ['"⚠ This is a draft"', 'Footer disclaimer'],
+      ],
+      format: '80mm thermal',
+    },
+    return: {
+      label: 'Return Invoice',
+      color: '#7c3aed',
+      description: 'Printed when a return/refund is processed. A5 format with item table, refund total, and two signature lines for staff and customer.',
+      fields: [
+        ['RETURN INVOICE', 'Document title'],
+        ['Return ID, Date', 'ID & timestamp'],
+        ['Order Ref, Processed By, Reason', 'Return metadata'],
+        ['Item / Qty / Unit Price / Total', 'Items table'],
+        ['Total Refund', 'Bold total'],
+        ['Processed By · Customer Signature', 'Signature lines'],
+      ],
+      format: 'A5 document',
+    },
+    purchase: {
+      label: 'Purchase Order Receipt',
+      color: '#0891b2',
+      description: 'Printed for purchase orders sent to suppliers. A5 format with supplier info, full items table (ordered/received/unit cost) and three signature lines.',
+      fields: [
+        ['PURCHASE ORDER RECEIPT', 'Document title'],
+        ['PO ID, Date', 'PO reference'],
+        ['Supplier name, Reference No, Status', 'Order info'],
+        ['Item / Ordered / Received / Unit Cost / Total', 'Items table'],
+        ['Order Total', 'Bold total'],
+        ['Created By · Supplier Rep · Approved By', 'Signature lines'],
+      ],
+      format: 'A5 document',
+    },
+    'purchase-return': {
+      label: 'Purchase Return',
+      color: '#d97706',
+      description: 'Printed when goods are returned to a supplier. A5 format with supplier, PO reference, reason, items, and two signature lines.',
+      fields: [
+        ['PURCHASE RETURN', 'Document title'],
+        ['Return ID, Date', 'Reference'],
+        ['Supplier, PO Reference, Reason', 'Return metadata'],
+        ['Item / Qty / Unit Cost / Total', 'Items table'],
+        ['Total Return Amount', 'Bold total'],
+        ['Created By · Supplier Received', 'Signature lines'],
+      ],
+      format: 'A5 document',
+    },
+    cashflow: {
+      label: 'Cash In / Cash Out',
+      color: '#16a34a',
+      description: 'PHIẾU THU (cash receipt) for income entries, PHIẾU CHI (payment slip) for expense entries. A5 format with large amount display and three signature lines.',
+      fields: [
+        ['PHIẾU THU · CASH RECEIPT  or  PHIẾU CHI · PAYMENT SLIP', 'Bilingual title'],
+        ['Entry ID, Date', 'Reference'],
+        ['Description / Paid to, Category, Reference', 'Details'],
+        ['Amount (large, green or red)', 'Amount display'],
+        ['Cashier · Payer/Recipient Signature · Accountant', 'Signature lines'],
+      ],
+      format: 'A5 document',
+    },
+  }
+  const t = info[type]
+  if (!t) return null
+  return (
+    <div style={{ maxWidth: 480 }} className="mx-auto w-full">
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,.07)' }}>
+        {/* Header bar */}
+        <div style={{ background: t.color, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>{t.label}</span>
+          <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,.2)', color: '#fff', fontSize: 10, borderRadius: 6, padding: '2px 8px', fontFamily: 'monospace' }}>
+            {t.format}
+          </span>
+        </div>
+        <div style={{ padding: '12px 16px' }}>
+          <p style={{ fontSize: 11, color: '#555', lineHeight: 1.6, marginBottom: 12 }}>{t.description}</p>
+          <div style={{ border: '1px solid #f3f4f6', borderRadius: 8, overflow: 'hidden' }}>
+            {t.fields.map(([field, desc], i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '6px 10px', background: i % 2 === 0 ? '#f9fafb' : '#fff', borderBottom: i < t.fields.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                <span style={{ fontSize: 10, fontFamily: 'monospace', color: t.color, whiteSpace: 'nowrap', fontWeight: 600 }}>{field}</span>
+                <span style={{ fontSize: 10, color: '#9ca3af', flexShrink: 0, marginLeft: 'auto' }}>{desc}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 10, color: '#9ca3af', marginTop: 10, fontStyle: 'italic' }}>
+            This template is auto-generated from database fields. No custom configuration needed.
+            {type === 'draft' && ' Font & layout uses your Receipt settings above.'}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
+const TEMPLATE_TABS = [
+  { id: 'receipt',          label: 'Receipt',          icon: FileText,        configurable: true  },
+  { id: 'kitchen',          label: 'Kitchen',          icon: UtensilsCrossed, configurable: false },
+  { id: 'draft',            label: 'Draft Order',      icon: FileText,        configurable: false },
+  { id: 'return',           label: 'Return Invoice',   icon: RotateCcw,       configurable: false },
+  { id: 'purchase',         label: 'Purchase',         icon: ShoppingBag,     configurable: false },
+  { id: 'purchase-return',  label: 'Purch. Return',    icon: ArrowLeftRight,  configurable: false },
+  { id: 'cashflow',         label: 'Cash In / Out',    icon: DollarSign,      configurable: false },
+]
+
 export default function ReceiptConfigTab({ isAdmin }) {
   const [config,    setConfig]    = useState(DEFAULT_CONFIG)
   const [original,  setOriginal]  = useState(DEFAULT_CONFIG)
@@ -483,6 +675,7 @@ export default function ReceiptConfigTab({ isAdmin }) {
   const [loading,   setLoading]   = useState(true)
   const [saving,    setSaving]    = useState(false)
   const [toast,     setToast]     = useState(null)
+  const [activeTab, setActiveTab] = useState('receipt')
   const logoInputRef = useRef(null)
 
   useEffect(() => {
@@ -559,7 +752,7 @@ export default function ReceiptConfigTab({ isAdmin }) {
             <p className="text-xs text-gray-400 dark:text-gray-500">Left = template structure · Right = live preview with sample data</p>
           </div>
         </div>
-        {isAdmin && (
+        {isAdmin && activeTab === 'receipt' && (
           <div className="flex items-center gap-2">
             {isDirty && (
               <button onClick={() => setConfig(original)}
@@ -575,61 +768,74 @@ export default function ReceiptConfigTab({ isAdmin }) {
       </div>
 
       {/* ── Template type tabs ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 border-b border-gray-200 dark:border-gray-700 mb-5">
-        {[
-          { id: 'receipt', label: 'Receipt / Invoice', icon: FileText },
-          { id: 'kitchen', label: 'Kitchen Ticket',    icon: UtensilsCrossed },
-        ].map(tab => (
+      <div className="flex items-center gap-0.5 border-b border-gray-200 dark:border-gray-700 mb-5 overflow-x-auto">
+        {TEMPLATE_TABS.map(tab => (
           <button key={tab.id}
-            className={clsx('flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
-              tab.id === 'receipt'
+            onClick={() => setActiveTab(tab.id)}
+            className={clsx('flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === tab.id
                 ? 'border-teal-500 text-teal-600 dark:text-teal-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
             )}>
-            <tab.icon size={13} />
+            <tab.icon size={12} />
             {tab.label}
-            {tab.id === 'kitchen' && (
-              <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-400 rounded">Soon</span>
-            )}
           </button>
         ))}
       </div>
 
-      {/* ── Two-panel receipt viewer ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 mb-6 shadow-sm">
-
-        {/* Left: Template */}
-        <div className="bg-gray-50 dark:bg-gray-900/60 border-r border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-orange-400" />
-              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Template</span>
+      {/* ── Two-panel viewer (receipt & kitchen) ────────────────────────── */}
+      {(activeTab === 'receipt' || activeTab === 'kitchen') && (
+        <div className="grid grid-cols-2 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 mb-6 shadow-sm">
+          {/* Left: Template */}
+          <div className="bg-gray-50 dark:bg-gray-900/60 border-r border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-orange-400" />
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Template</span>
+              </div>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-2 py-0.5 rounded">
+                {'{'} variables {'}'}
+              </span>
             </div>
-            <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-2 py-0.5 rounded">
-              {'{'} variables {'}'}
-            </span>
+            <div className="flex justify-center py-6 px-4 overflow-auto" style={{ minHeight: 400 }}>
+              {activeTab === 'receipt' ? <TemplatePanel config={config} /> : <KitchenTemplatePanel config={config} />}
+            </div>
           </div>
-          <div className="flex justify-center py-6 px-4 overflow-auto" style={{ minHeight: 400 }}>
-            <TemplatePanel config={config} />
+
+          {/* Right: Live Preview */}
+          <div className="bg-gray-100 dark:bg-gray-900">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-teal-400" />
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Live Preview</span>
+              </div>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500">sample data</span>
+            </div>
+            <div className="flex justify-center py-6 px-4 overflow-auto" style={{ minHeight: 400 }}>
+              {activeTab === 'receipt' ? <ReceiptPreview config={config} storeInfo={storeInfo} /> : <KitchenPreviewPanel />}
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Right: Live Preview */}
-        <div className="bg-gray-100 dark:bg-gray-900">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70">
+      {/* ── A5 document info panels (non-configurable types) ────────────── */}
+      {!['receipt', 'kitchen'].includes(activeTab) && (
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 mb-6 overflow-hidden shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-teal-400" />
-              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Live Preview</span>
+              <span className="w-2 h-2 rounded-full bg-blue-400" />
+              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Document Structure</span>
             </div>
-            <span className="text-[10px] text-gray-400 dark:text-gray-500">sample data</span>
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded">auto-generated</span>
           </div>
-          <div className="flex justify-center py-6 px-4 overflow-auto" style={{ minHeight: 400 }}>
-            <ReceiptPreview config={config} storeInfo={storeInfo} />
+          <div className="py-6 px-4 bg-gray-50 dark:bg-gray-900/60" style={{ minHeight: 300 }}>
+            <A5InfoPanel type={activeTab} />
           </div>
         </div>
-      </div>
+      )}
 
-      {/* ── Config accordion ─────────────────────────────────────────────── */}
+      {/* ── Config accordion (receipt tab only) ──────────────────────────── */}
+      {activeTab === 'receipt' && <>
       <div className="mb-2 flex items-center gap-2">
         <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
         <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-2">Template Settings</span>
@@ -818,6 +1024,7 @@ export default function ReceiptConfigTab({ isAdmin }) {
         </ConfigSection>
 
       </div>
+      </>}
     </div>
   )
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { PlusCircle, ShoppingBag, Plus, Trash2 } from 'lucide-react'
+import { PlusCircle, ShoppingBag, Plus, Trash2, Printer } from 'lucide-react'
 import clsx from 'clsx'
 import { purchaseOrdersApi, suppliersApi, menuApi } from '../services/api'
+import ReceiptModal from '../components/ReceiptModal'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
@@ -26,6 +27,7 @@ export default function PurchaseOrders() {
   const [saving, setSaving]         = useState(false)
   const [form, setForm]             = useState({ supplierId: '', referenceNo: '', expectedAt: '', notes: '', items: [] })
   const [detail, setDetail]         = useState(null)
+  const [printId, setPrintId]       = useState(null)
 
   useEffect(() => { load() }, [statusFilter])
 
@@ -145,7 +147,7 @@ export default function PurchaseOrders() {
                   <p className="font-bold text-gray-900 dark:text-gray-100">{detail.id}</p>
                   <p className="text-xs text-gray-400 dark:text-gray-500">{detail.supplierName} · {formatDate(detail.createdAt)}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   {isAdmin && detail.status === 'draft' && (
                     <Button size="sm" onClick={() => updateStatus(detail.id, 'ordered')}>Mark Ordered</Button>
                   )}
@@ -155,6 +157,13 @@ export default function PurchaseOrders() {
                   {isAdmin && detail.status === 'draft' && (
                     <Button size="sm" variant="danger" onClick={() => updateStatus(detail.id, 'cancelled')}>Cancel</Button>
                   )}
+                  <button
+                    onClick={() => setPrintId(detail._id || detail.id)}
+                    className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
+                    title="Print purchase order"
+                  >
+                    <Printer size={16} />
+                  </button>
                 </div>
               </div>
               <table className="w-full text-sm">
@@ -250,6 +259,15 @@ export default function PurchaseOrders() {
           </div>
         </div>
       </Modal>
+
+      {/* Print Modal */}
+      {printId && (
+        <ReceiptModal
+          entityId={printId}
+          type="purchase"
+          onClose={() => setPrintId(null)}
+        />
+      )}
     </div>
   )
 }

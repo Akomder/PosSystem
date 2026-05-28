@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, RotateCcw } from 'lucide-react'
+import { Plus, Search, RotateCcw, Printer } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
 import { returnsApi, ordersApi } from '../services/api'
@@ -10,6 +10,7 @@ import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
 import Badge from '../components/ui/Badge'
 import { formatCurrency, formatDate } from '../utils/formatters'
+import ReceiptModal from '../components/ReceiptModal'
 
 const EMPTY_FORM = { orderId: '', reason: '', items: [] }
 
@@ -27,6 +28,7 @@ export default function Returns() {
   const [error,      setError]      = useState('')
   const [orderSearch, setOrderSearch] = useState('')
   const [orderResults, setOrderResults] = useState([])
+  const [printId,    setPrintId]    = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -197,6 +199,13 @@ export default function Returns() {
                         </>
                       )}
                       <button
+                        onClick={() => setPrintId(r.id)}
+                        className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
+                        title="Print return invoice"
+                      >
+                        <Printer size={14} />
+                      </button>
+                      <button
                         onClick={() => handleDelete(r.id)}
                         className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                       >
@@ -209,6 +218,15 @@ export default function Returns() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Print Modal */}
+      {printId && (
+        <ReceiptModal
+          entityId={printId}
+          type="return"
+          onClose={() => setPrintId(null)}
+        />
       )}
 
       {/* Create Modal */}
