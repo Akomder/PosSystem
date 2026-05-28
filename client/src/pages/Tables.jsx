@@ -14,10 +14,10 @@ import Select from '../components/ui/Select'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import { getOccupancyStats, getTableStatusVariant } from '../utils/tableHelpers'
-import { zonesApi, tablesApi } from '../services/api'
+import { zonesApi, tablesApi, settingsApi } from '../services/api'
 import PlanLimitBanner from '../components/ui/PlanLimitBanner'
 
-const PLAN_TABLE_LIMITS = { basic: 10, pro: 50, enterprise: Infinity }
+const PLAN_TABLE_LIMITS = { basic: Infinity, pro: Infinity, enterprise: Infinity }
 
 const FILTERS = ['All', 'Available', 'Occupied', 'Reserved']
 
@@ -57,8 +57,22 @@ export default function Tables() {
   const [editingZone,   setEditingZone]   = useState(null)
   const [zoneSaving,    setZoneSaving]    = useState(false)
 
+  // Floor plan settings (canvas size + decorations)
+  const [storeSettings, setStoreSettings] = useState({})
+  const [floorPlan,     setFloorPlan]     = useState({ cols: 20, rows: 14, decorations: [] })
+
   useEffect(() => {
     zonesApi.getAll().then(setZones).catch(() => {})
+    settingsApi.store.get().then(data => {
+      const s = data.settings || {}
+      setStoreSettings(s)
+      const fp = s.floorPlan || {}
+      setFloorPlan({
+        cols:        fp.cols        || 20,
+        rows:        fp.rows        || 14,
+        decorations: fp.decorations || [],
+      })
+    }).catch(() => {})
   }, [])
 
   async function handleAddTable() {
@@ -111,6 +125,20 @@ export default function Tables() {
       setZones(prev => prev.filter(z => z.id !== zone.id))
       if (zoneFilter === String(zone.id)) setZoneFilter('all')
     } catch (e) { alert(e.message || 'Failed to delete zone') }
+  }
+
+  // ── Floor plan handlers ──────────────────────────────────────────────────────
+  async function saveFloorPlanSettings(partialFp) {
+    const newFp = { ...floorPlan, ...partialFp }
+    setFloorPlan(newFp)
+    try {
+      await settingsApi.store.update({ settings: { ...storeSettings, floorPlan: newFp } })
+      setStoreSettings(prev => ({ ...prev, floorPlan: newFp }))
+    } catch (e) { console.error('Failed to save floor plan settings:', e) }
+  }
+
+  function handleTableCreated(table) {
+    if (typeof addTableToContext === 'function') addTableToContext(table)
   }
 
   const occ = getOccupancyStats(tables)
@@ -312,10 +340,16 @@ export default function Tables() {
         /* Floor Plan Map View */
         <TableMapEditor
           tables={tables}
+          zones={zones}
           isAdmin={isAdmin}
           onTableClick={openDrawer}
           onQRClick={setQrTable}
           selectedId={selected?.id && drawerOpen ? selected.id : null}
+          canvasSize={{ cols: floorPlan.cols, rows: floorPlan.rows }}
+          onCanvasSizeChange={({ cols, rows }) => saveFloorPlanSettings({ cols, rows })}
+          decorations={floorPlan.decorations}
+          onSaveDecorations={decs => saveFloorPlanSettings({ decorations: decs })}
+          onTableCreated={handleTableCreated}
         />
       )}
 

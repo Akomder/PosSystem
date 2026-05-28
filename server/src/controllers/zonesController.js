@@ -8,6 +8,10 @@ function fmt(r) {
     description:  r.description,
     color:        r.color,
     restaurantId: r.restaurant_id,
+    mapX:         r.map_x ?? 0,
+    mapY:         r.map_y ?? 0,
+    mapW:         r.map_w ?? 0,
+    mapH:         r.map_h ?? 0,
     createdAt:    r.created_at,
     updatedAt:    r.updated_at,
   }
@@ -49,7 +53,10 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   if (!checkValidation(req, res)) return
-  const bodyMap = { name: 'name', description: 'description', color: 'color' }
+  const bodyMap = {
+    name: 'name', description: 'description', color: 'color',
+    mapX: 'map_x', mapY: 'map_y', mapW: 'map_w', mapH: 'map_h',
+  }
   const sets = [], params = []
   for (const [k, col] of Object.entries(bodyMap)) {
     if (req.body[k] !== undefined) { params.push(req.body[k]); sets.push(`${col} = $${params.length}`) }

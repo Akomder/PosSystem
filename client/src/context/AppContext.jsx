@@ -16,6 +16,8 @@ const A = {
   ADD_ORDER:            'ADD_ORDER',
   UPDATE_ORDER:         'UPDATE_ORDER',
   UPDATE_TABLE:         'UPDATE_TABLE',
+  ADD_TABLE:            'ADD_TABLE',
+  REMOVE_TABLE:         'REMOVE_TABLE',
   ADD_MENU_ITEM:        'ADD_MENU_ITEM',
   UPDATE_MENU_ITEM:     'UPDATE_MENU_ITEM',
   TOGGLE_SIDEBAR:       'TOGGLE_SIDEBAR',
@@ -49,6 +51,12 @@ function appReducer(state, action) {
           t.id === action.payload.id ? { ...t, ...action.payload } : t
         ),
       }
+
+    case A.ADD_TABLE:
+      return { ...state, tables: [...state.tables, action.payload] }
+
+    case A.REMOVE_TABLE:
+      return { ...state, tables: state.tables.filter(t => t.id !== action.payload) }
 
     case A.ADD_MENU_ITEM:
       return { ...state, menuItems: [action.payload, ...state.menuItems] }
@@ -174,6 +182,12 @@ export function AppProvider({ children }) {
   const updateTable = useCallback((tableData) =>
     dispatch({ type: A.UPDATE_TABLE, payload: tableData }), [])
 
+  const addTableToContext = useCallback((table) =>
+    dispatch({ type: A.ADD_TABLE, payload: table }), [])
+
+  const removeTableFromContext = useCallback((id) =>
+    dispatch({ type: A.REMOVE_TABLE, payload: id }), [])
+
   const addMenuItem = useCallback((item) =>
     dispatch({ type: A.ADD_MENU_ITEM, payload: item }), [])
 
@@ -202,6 +216,8 @@ export function AppProvider({ children }) {
         updateOrderStatus,
         updateTableStatus,
         updateTable,
+        addTableToContext,
+        removeTableFromContext,
         addMenuItem,
         updateMenuItem,
         toggleMenuItemAvailability,
