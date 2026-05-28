@@ -16,7 +16,14 @@ function fmt(r) {
     currentOrderId: fmtOrderId(r.current_order_id),
     waiter:         r.waiter || null,
     section:        r.section,
+    zoneId:         r.zone_id   || null,
     updatedAt:      r.updated_at,
+    // Floor-plan layout
+    mapX:           r.map_x     ?? 0,
+    mapY:           r.map_y     ?? 0,
+    mapW:           r.map_w     ?? 2,
+    mapH:           r.map_h     ?? 2,
+    mapShape:       r.map_shape || 'rect',
   }
 }
 
@@ -95,10 +102,15 @@ async function assignWaiter(req, res, next) {
 // ─── PUT /api/tables/:id ──────────────────────────────────────────────────────
 async function updateTable(req, res, next) {
   if (!checkValidation(req, res)) return
-  const { capacity, section } = req.body
+  const { capacity, section, mapX, mapY, mapW, mapH, mapShape } = req.body
   const sets = [], params = []
-  if (capacity !== undefined) { params.push(capacity); sets.push(`capacity = $${params.length}`) }
-  if (section  !== undefined) { params.push(section);  sets.push(`section  = $${params.length}`) }
+  if (capacity !== undefined) { params.push(capacity); sets.push(`capacity  = $${params.length}`) }
+  if (section  !== undefined) { params.push(section);  sets.push(`section   = $${params.length}`) }
+  if (mapX     !== undefined) { params.push(mapX);     sets.push(`map_x     = $${params.length}`) }
+  if (mapY     !== undefined) { params.push(mapY);     sets.push(`map_y     = $${params.length}`) }
+  if (mapW     !== undefined) { params.push(mapW);     sets.push(`map_w     = $${params.length}`) }
+  if (mapH     !== undefined) { params.push(mapH);     sets.push(`map_h     = $${params.length}`) }
+  if (mapShape !== undefined) { params.push(mapShape); sets.push(`map_shape = $${params.length}`) }
   if (!sets.length) return res.status(400).json({ error: 'Nothing to update' })
   const rid = req.restaurantId
   params.push(req.params.id, rid)

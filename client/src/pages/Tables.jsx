@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Users, ClipboardList, PlusCircle, Trash2, Layers, Pencil } from 'lucide-react'
+import { X, Users, ClipboardList, PlusCircle, Trash2, Layers, Pencil, LayoutGrid, Map } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useSettings } from '../context/SettingsContext'
 import { useAuth } from '../context/AuthContext'
 import TableCard from '../components/tables/TableCard'
+import TableMapEditor from '../components/tables/TableMapEditor'
 import QRCodeModal from '../components/tables/QRCodeModal'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -35,6 +36,7 @@ export default function Tables() {
   const navigate = useNavigate()
   const isAdmin = user?.role === 'Admin'
 
+  const [viewMode,     setViewMode]     = useState('grid') // 'grid' | 'map'
   const [filter,       setFilter]       = useState('All')
   const [zoneFilter,   setZoneFilter]   = useState('all')
   const [zones,        setZones]        = useState([])
@@ -182,6 +184,34 @@ export default function Tables() {
               </Button>
             </>
           )}
+
+          {/* Grid / Map view toggle */}
+          <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={clsx(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
+                viewMode === 'grid'
+                  ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+              )}
+            >
+              <LayoutGrid size={13} />
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={clsx(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
+                viewMode === 'map'
+                  ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+              )}
+            >
+              <Map size={13} />
+              Floor Plan
+            </button>
+          </div>
         </div>
       </div>
 
@@ -201,80 +231,93 @@ export default function Tables() {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="flex gap-2 mb-5 flex-wrap">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={clsx(
-              'px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
-              filter === f
-                ? 'bg-teal-600 text-white shadow-sm'
-                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700',
-            )}
-          >
-            {f}
-            <span className={clsx(
-              'ml-1.5 text-xs px-1.5 py-0.5 rounded-full',
-              filter === f ? 'bg-teal-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
-            )}>
-              {filterCount(f)}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Zone filter */}
-      {zones.length > 0 && (
-        <div className="flex gap-2 mb-5 flex-wrap">
-          <button
-            onClick={() => setZoneFilter('all')}
-            className={clsx(
-              'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-              zoneFilter === 'all'
-                ? 'bg-teal-600 text-white'
-                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-            )}
-          >All Zones</button>
-          {zones.map(z => (
-            <button
-              key={z.id}
-              onClick={() => setZoneFilter(String(z.id))}
-              className={clsx(
-                'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                zoneFilter === String(z.id)
-                  ? 'text-white'
-                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-              )}
-              style={zoneFilter === String(z.id) ? { backgroundColor: z.color || '#14b8a6' } : {}}
-            >{z.name}</button>
-          ))}
-        </div>
-      )}
-
-      {/* Grid */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-        {filteredTables.map((table) => (
-          <div key={table.id} className="relative group">
-            <TableCard
-              table={table}
-              onClick={openDrawer}
-              isSelected={selected?.id === table.id && drawerOpen}
-              onQRClick={setQrTable}
-            />
-            {isAdmin && (
+      {viewMode === 'grid' ? (
+        <>
+          {/* Filter Bar */}
+          <div className="flex gap-2 mb-5 flex-wrap">
+            {FILTERS.map((f) => (
               <button
-                onClick={e => { e.stopPropagation(); handleDeleteTable(table) }}
-                className="absolute top-1 right-1 p-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-300 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                title="Delete table"
+                key={f}
+                onClick={() => setFilter(f)}
+                className={clsx(
+                  'px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                  filter === f
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700',
+                )}
               >
-                <Trash2 size={11} />
+                {f}
+                <span className={clsx(
+                  'ml-1.5 text-xs px-1.5 py-0.5 rounded-full',
+                  filter === f ? 'bg-teal-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
+                )}>
+                  {filterCount(f)}
+                </span>
               </button>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+
+          {/* Zone filter */}
+          {zones.length > 0 && (
+            <div className="flex gap-2 mb-5 flex-wrap">
+              <button
+                onClick={() => setZoneFilter('all')}
+                className={clsx(
+                  'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                  zoneFilter === 'all'
+                    ? 'bg-teal-600 text-white'
+                    : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                )}
+              >All Zones</button>
+              {zones.map(z => (
+                <button
+                  key={z.id}
+                  onClick={() => setZoneFilter(String(z.id))}
+                  className={clsx(
+                    'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                    zoneFilter === String(z.id)
+                      ? 'text-white'
+                      : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  )}
+                  style={zoneFilter === String(z.id) ? { backgroundColor: z.color || '#14b8a6' } : {}}
+                >{z.name}</button>
+              ))}
+            </div>
+          )}
+
+          {/* Card Grid */}
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+            {filteredTables.map((table) => (
+              <div key={table.id} className="relative group">
+                <TableCard
+                  table={table}
+                  onClick={openDrawer}
+                  isSelected={selected?.id === table.id && drawerOpen}
+                  onQRClick={setQrTable}
+                />
+                {isAdmin && (
+                  <button
+                    onClick={e => { e.stopPropagation(); handleDeleteTable(table) }}
+                    className="absolute top-1 right-1 p-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-300 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                    title="Delete table"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        /* Floor Plan Map View */
+        <TableMapEditor
+          tables={tables}
+          isAdmin={isAdmin}
+          onTableClick={openDrawer}
+          onQRClick={setQrTable}
+          selectedId={selected?.id && drawerOpen ? selected.id : null}
+        />
+      )}
 
       {/* ── QR Code Modal ──────────────────────────────────── */}
       <QRCodeModal

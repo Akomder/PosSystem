@@ -127,6 +127,12 @@ CREATE TABLE IF NOT EXISTS restaurant_tables (
   section          VARCHAR(30)  NOT NULL CHECK (section IN ('Main Hall','Terrace','Private')),
   position_row     INTEGER      NOT NULL DEFAULT 0,
   position_col     INTEGER      NOT NULL DEFAULT 0,
+  -- Floor-plan layout (customisable via Map Editor)
+  map_x            INTEGER      NOT NULL DEFAULT 0,
+  map_y            INTEGER      NOT NULL DEFAULT 0,
+  map_w            INTEGER      NOT NULL DEFAULT 2,
+  map_h            INTEGER      NOT NULL DEFAULT 2,
+  map_shape        TEXT         NOT NULL DEFAULT 'rect',
   created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   UNIQUE (number, restaurant_id)
