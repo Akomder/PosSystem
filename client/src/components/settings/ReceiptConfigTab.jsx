@@ -268,7 +268,7 @@ export default function ReceiptConfigTab({ isAdmin }) {
   // Load store info + current receipt config
   useEffect(() => {
     setLoading(true)
-    settingsApi.getStore()
+    settingsApi.store.get()
       .then(data => {
         setStoreInfo({
           name:     data.name,
@@ -295,9 +295,9 @@ export default function ReceiptConfigTab({ isAdmin }) {
     setSaving(true)
     try {
       // Merge into existing store settings to avoid overwriting other settings
-      const storeData = await settingsApi.getStore()
+      const storeData = await settingsApi.store.get()
       const existingSettings = storeData.settings || {}
-      await settingsApi.updateStore({
+      await settingsApi.store.update({
         settings: { ...existingSettings, receipt: config },
       })
       setOriginal(config)

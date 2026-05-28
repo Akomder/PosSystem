@@ -126,8 +126,9 @@ async function createPublicOrder(req, res, next) {
       subtotal += line
       return { ...i, name: m.name, unitPrice: m.price, lineTotal: line }
     })
-    const tax   = Math.round(subtotal * 0.08 * 100) / 100
-    const total = Math.round((subtotal + tax) * 100) / 100
+    // Tax removed from customer QR ordering — price displayed is the final price
+    const tax   = 0
+    const total = Math.round(subtotal * 100) / 100
 
     // Insert order — waiter = 'Guest' for customer self-orders
     // IMPORTANT: include restaurant_id so the order appears in the admin's Orders view
