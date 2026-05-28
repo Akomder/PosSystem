@@ -21,7 +21,7 @@ async function getPublicTable(req, res, next) {
     if (!rawId) return res.status(400).json({ error: 'Invalid table id' })
     const { rows } = await query(
       `SELECT t.id, t.number, t.capacity, t.status, t.section, t.restaurant_id,
-              r.name AS restaurant_name, r.currency
+              r.name AS restaurant_name, r.currency, r.settings
        FROM restaurant_tables t
        LEFT JOIN restaurants r ON r.id = t.restaurant_id
        WHERE t.id = $1`,
@@ -29,15 +29,18 @@ async function getPublicTable(req, res, next) {
     )
     if (!rows.length) return res.status(404).json({ error: 'Table not found' })
     const r = rows[0]
+    const rSettings = r.settings || {}
     res.json({
-      id:             `T-${String(r.id).padStart(2, '0')}`,
-      number:         r.number,
-      capacity:       r.capacity,
-      status:         r.status,
-      section:        r.section,
-      restaurantId:   r.restaurant_id,
-      restaurantName: r.restaurant_name || 'Restaurant',
-      currency:       r.currency || 'LAK',
+      id:               `T-${String(r.id).padStart(2, '0')}`,
+      number:           r.number,
+      capacity:         r.capacity,
+      status:           r.status,
+      section:          r.section,
+      restaurantId:     r.restaurant_id,
+      restaurantName:   r.restaurant_name || 'Restaurant',
+      currency:         r.currency || 'LAK',
+      // Payment config — shown to customers on QR payment confirmation screen
+      qrImageBase64:    rSettings?.payment?.qrImageBase64 || null,
     })
   } catch (err) { next(err) }
 }

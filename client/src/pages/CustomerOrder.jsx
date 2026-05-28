@@ -208,24 +208,47 @@ export default function CustomerOrder() {
           </p>
 
           {/* Payment instruction card */}
-          <div className={`mt-4 mb-6 rounded-2xl p-4 border ${isQr ? 'bg-violet-50 border-violet-100' : 'bg-teal-50 border-teal-100'}`}>
+          <div className={`mt-4 mb-6 rounded-2xl border overflow-hidden ${isQr ? 'bg-violet-50 border-violet-100' : 'bg-teal-50 border-teal-100'}`}>
             {isQr ? (
               <>
-                <p className={`text-sm font-semibold mb-1 text-violet-700`}>📱 QR Payment Selected</p>
-                <p className="text-xs text-violet-600 leading-relaxed">
-                  Our cashier has been notified. They will bring a QR code for you to scan and pay.
-                </p>
-                <p className="text-xs text-violet-500 mt-2 font-semibold">
-                  Amount: {confirmation.total?.toLocaleString()} {confirmation.currency}
-                </p>
+                {/* QR image — show if the restaurant uploaded one */}
+                {table?.qrImageBase64 ? (
+                  <div className="flex flex-col items-center px-4 pt-5 pb-4 gap-3">
+                    <p className="text-sm font-semibold text-violet-700">📱 Scan to Pay</p>
+                    <div className="bg-white rounded-xl p-3 shadow-sm border border-violet-100">
+                      <img
+                        src={table.qrImageBase64}
+                        alt="QR Payment"
+                        className="w-52 h-52 object-contain"
+                      />
+                    </div>
+                    <p className="text-xs text-violet-600 text-center leading-relaxed">
+                      Open your banking app and scan this QR code to pay
+                    </p>
+                    <p className="text-sm font-bold text-violet-700">
+                      {confirmation.total?.toLocaleString()} {confirmation.currency}
+                    </p>
+                  </div>
+                ) : (
+                  /* Fallback if no QR image uploaded yet */
+                  <div className="px-4 py-4">
+                    <p className="text-sm font-semibold mb-1 text-violet-700">📱 QR Payment Selected</p>
+                    <p className="text-xs text-violet-600 leading-relaxed">
+                      Our cashier has been notified. They will bring a QR code for you to scan and pay.
+                    </p>
+                    <p className="text-xs text-violet-500 mt-2 font-semibold">
+                      Amount: {confirmation.total?.toLocaleString()} {confirmation.currency}
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
-              <>
+              <div className="px-4 py-4">
                 <p className="text-sm font-semibold mb-1 text-teal-700">💵 Cash Payment</p>
                 <p className="text-xs text-teal-600 leading-relaxed">
                   Please have your cash ready. Our staff will collect payment when your order is served.
                 </p>
-              </>
+              </div>
             )}
           </div>
 
