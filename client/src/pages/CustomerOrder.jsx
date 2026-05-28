@@ -597,6 +597,26 @@ export default function CustomerOrder() {
                   {t('qr_payment')}
                 </button>
               </div>
+
+              {/* QR image — shown immediately when customer picks QR payment */}
+              {payMethod === 'qr' && table?.qrImageBase64 && (
+                <div className="mt-3 flex flex-col items-center gap-2 bg-violet-50 border border-violet-100 rounded-2xl px-4 py-4">
+                  <p className="text-xs font-semibold text-violet-700">{t('scan_to_pay')}</p>
+                  <div className="bg-white rounded-xl p-2 shadow-sm border border-violet-100">
+                    <img
+                      src={table.qrImageBase64}
+                      alt="QR Payment"
+                      className="w-44 h-44 object-contain"
+                    />
+                  </div>
+                  <p className="text-xs text-violet-600 text-center leading-relaxed">
+                    {t('scan_instruction')}
+                  </p>
+                  <p className="text-sm font-bold text-violet-700">
+                    {total.toLocaleString()} {table?.currency || 'LAK'}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Place order button */}
