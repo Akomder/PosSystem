@@ -9,6 +9,7 @@ import { settingsApi, salesChannelsApi } from '../services/api'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import { useAuth } from '../context/AuthContext'
+import ReceiptConfigTab from '../components/settings/ReceiptConfigTab'
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 const TABS = [
@@ -18,6 +19,7 @@ const TABS = [
   { key: 'processing_sectors',label: 'Processing Sectors'},
   { key: 'print_templates',   label: 'Print Templates'   },
   { key: 'sales_channels',    label: 'Sales Channels'    },
+  { key: 'receipt_layout',    label: 'Receipt Layout'    },
 ]
 
 const API_MAP = {
@@ -319,7 +321,7 @@ export default function Settings() {
   const [saving,  setSaving]  = useState(false)
 
   useEffect(() => {
-    if (tab === 'store') return
+    if (tab === 'store' || tab === 'receipt_layout') return
     loadTab()
   }, [tab])
 
@@ -398,8 +400,11 @@ export default function Settings() {
       {/* ── Store tab ────────────────────────────────────────────────────── */}
       {tab === 'store' && <StoreTab isAdmin={isAdmin} />}
 
+      {/* ── Receipt layout tab ───────────────────────────────────────────── */}
+      {tab === 'receipt_layout' && <ReceiptConfigTab isAdmin={isAdmin} />}
+
       {/* ── Generic list tabs ─────────────────────────────────────────────── */}
-      {tab !== 'store' && (
+      {tab !== 'store' && tab !== 'receipt_layout' && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{TABS.find(t => t.key === tab)?.label}</p>
