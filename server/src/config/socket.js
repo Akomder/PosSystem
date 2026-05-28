@@ -55,4 +55,10 @@ function emitStockLow(items) {
   io.to('pos').emit('stock:low', { items })
 }
 
-module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow }
+// Fired when a QR-order customer selects "QR Payment" — alerts cashier/waiter immediately
+function emitQrPaymentAlert(order) {
+  if (!io) return
+  io.to('pos').emit('payment:qr_alert', { order })
+}
+
+module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow, emitQrPaymentAlert }

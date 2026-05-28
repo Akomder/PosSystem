@@ -59,3 +59,8 @@ export function onStockLow(cb) {
   socket?.on('stock:low', cb)
   return () => socket?.off('stock:low', cb)
 }
+
+export function onQrPaymentAlert(cb) {
+  socket?.on('payment:qr_alert', cb)
+  return () => socket?.off('payment:qr_alert', cb)
+}

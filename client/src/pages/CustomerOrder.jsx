@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { ShoppingCart, Plus, Minus, X, ChefHat, UtensilsCrossed, XCircle } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChefHat, UtensilsCrossed, XCircle, QrCode, Banknote } from 'lucide-react'
 import { publicApi } from '../services/api'
 
 // ── Cart total helpers ────────────────────────────────────────────────────────
@@ -28,6 +28,7 @@ export default function CustomerOrder() {
   const [menu,         setMenu]         = useState([])
   const [cart,         setCart]         = useState([])
   const [notes,        setNotes]        = useState('')
+  const [payMethod,    setPayMethod]    = useState('cash')   // 'cash' | 'qr'
   const [activeCategory, setActiveCategory] = useState('All')
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState(null)
@@ -86,10 +87,11 @@ export default function CustomerOrder() {
     try {
       const result = await publicApi.createOrder({
         tableId,
-        notes: notes.trim(),
-        items: cart.map(c => ({ menuItemId: c.id, quantity: c.quantity })),
+        notes:         notes.trim(),
+        items:         cart.map(c => ({ menuItemId: c.id, quantity: c.quantity })),
+        paymentMethod: payMethod,
       })
-      setConfirmation({ orderId: result.id })
+      setConfirmation({ orderId: result.id, payMethod, total, currency: table?.currency || 'LAK' })
       setCart([])
       setNotes('')
       setCartOpen(false)
@@ -182,64 +184,96 @@ export default function CustomerOrder() {
   )
 
   // ── Confirmation screen ───────────────────────────────────────────────────
-  if (confirmation) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-      <div className="text-center max-w-xs w-full">
-        <div className="w-20 h-20 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
-          <ChefHat size={34} className="text-teal-600" />
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Placed!</h1>
-        <p className="text-sm text-gray-500 mb-1">
-          Order{' '}
-          <span className="font-semibold text-teal-600">{confirmation.orderId}</span>{' '}
-          is being prepared.
-        </p>
-        <p className="text-xs text-gray-400 mb-6">A staff member will be with you shortly.</p>
+  if (confirmation) {
+    const isQr = confirmation.payMethod === 'qr'
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+        <div className="text-center max-w-xs w-full">
 
-        <button
-          onClick={() => { setConfirmation(null); setCancelConfirm(false) }}
-          className="text-sm text-teal-600 underline underline-offset-2 hover:text-teal-700"
-        >
-          Order more items
-        </button>
-
-        {/* ── Cancel order ── */}
-        {!cancelConfirm ? (
-          <div className="mt-5">
-            <button
-              onClick={() => setCancelConfirm(true)}
-              className="text-xs text-gray-400 hover:text-red-500 transition-colors underline underline-offset-2"
-            >
-              Cancel this order
-            </button>
+          {/* Icon */}
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner ${isQr ? 'bg-violet-50' : 'bg-teal-50'}`}>
+            {isQr
+              ? <QrCode size={34} className="text-violet-600" />
+              : <ChefHat size={34} className="text-teal-600" />
+            }
           </div>
-        ) : (
-          <div className="mt-5 bg-red-50 border border-red-100 rounded-2xl p-4 text-left">
-            <p className="text-sm font-semibold text-red-700 mb-1">Cancel your order?</p>
-            <p className="text-xs text-red-400 mb-4">
-              This only works while the kitchen hasn't started yet.
-            </p>
-            <div className="flex gap-2">
+
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Placed!</h1>
+          <p className="text-sm text-gray-500 mb-1">
+            Order{' '}
+            <span className={`font-semibold ${isQr ? 'text-violet-600' : 'text-teal-600'}`}>
+              {confirmation.orderId}
+            </span>{' '}
+            is being prepared.
+          </p>
+
+          {/* Payment instruction card */}
+          <div className={`mt-4 mb-6 rounded-2xl p-4 border ${isQr ? 'bg-violet-50 border-violet-100' : 'bg-teal-50 border-teal-100'}`}>
+            {isQr ? (
+              <>
+                <p className={`text-sm font-semibold mb-1 text-violet-700`}>📱 QR Payment Selected</p>
+                <p className="text-xs text-violet-600 leading-relaxed">
+                  Our cashier has been notified. They will bring a QR code for you to scan and pay.
+                </p>
+                <p className="text-xs text-violet-500 mt-2 font-semibold">
+                  Amount: {confirmation.total?.toLocaleString()} {confirmation.currency}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold mb-1 text-teal-700">💵 Cash Payment</p>
+                <p className="text-xs text-teal-600 leading-relaxed">
+                  Please have your cash ready. Our staff will collect payment when your order is served.
+                </p>
+              </>
+            )}
+          </div>
+
+          <button
+            onClick={() => { setConfirmation(null); setCancelConfirm(false) }}
+            className={`text-sm underline underline-offset-2 ${isQr ? 'text-violet-600 hover:text-violet-700' : 'text-teal-600 hover:text-teal-700'}`}
+          >
+            Order more items
+          </button>
+
+          {/* Cancel order */}
+          {!cancelConfirm ? (
+            <div className="mt-5">
               <button
-                onClick={() => setCancelConfirm(false)}
-                disabled={cancelling}
-                className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                onClick={() => setCancelConfirm(true)}
+                className="text-xs text-gray-400 hover:text-red-500 transition-colors underline underline-offset-2"
               >
-                Keep it
-              </button>
-              <button
-                onClick={handleCancelOrder}
-                disabled={cancelling}
-                className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50 transition-colors"
-              >
-                {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+                Cancel this order
               </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="mt-5 bg-red-50 border border-red-100 rounded-2xl p-4 text-left">
+              <p className="text-sm font-semibold text-red-700 mb-1">Cancel your order?</p>
+              <p className="text-xs text-red-400 mb-4">
+                This only works while the kitchen hasn't started yet.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCancelConfirm(false)}
+                  disabled={cancelling}
+                  className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                >
+                  Keep it
+                </button>
+                <button
+                  onClick={handleCancelOrder}
+                  disabled={cancelling}
+                  className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50 transition-colors"
+                >
+                  {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // ── Main menu page ────────────────────────────────────────────────────────
   return (
@@ -423,14 +457,52 @@ export default function CustomerOrder() {
               </div>
             </div>
 
+            {/* Payment method selection */}
+            <div className="px-5 pt-3 pb-2 flex-shrink-0 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 mb-2">How would you like to pay?</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPayMethod('cash')}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                    payMethod === 'cash'
+                      ? 'border-teal-500 bg-teal-50 text-teal-700'
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  <Banknote size={16} />
+                  Cash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayMethod('qr')}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                    payMethod === 'qr'
+                      ? 'border-violet-500 bg-violet-50 text-violet-700'
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  <QrCode size={16} />
+                  QR Payment
+                </button>
+              </div>
+            </div>
+
             {/* Place order button */}
             <div className="px-5 pb-8 pt-2 flex-shrink-0">
               <button
                 onClick={handleSubmit}
                 disabled={submitting || !cart.length}
-                className="w-full bg-teal-600 text-white font-semibold py-3.5 rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors"
+                className={`w-full text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 transition-colors ${
+                  payMethod === 'qr'
+                    ? 'bg-violet-600 hover:bg-violet-700'
+                    : 'bg-teal-600 hover:bg-teal-700'
+                }`}
               >
-                {submitting ? 'Placing Order…' : `Place Order · ${total.toLocaleString()} ${table?.currency || 'LAK'}`}
+                {submitting
+                  ? 'Placing Order…'
+                  : `Place Order · ${total.toLocaleString()} ${table?.currency || 'LAK'}`
+                }
               </button>
             </div>
           </div>

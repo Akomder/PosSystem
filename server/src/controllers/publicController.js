@@ -1,6 +1,6 @@
 const { query, pool }      = require('../config/db')
 const { checkValidation }  = require('../middleware/errorHandler')
-const { emitOrderCreated, emitOrderUpdated, emitTableUpdated } = require('../config/socket')
+const { emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitQrPaymentAlert } = require('../config/socket')
 const { ORDER_SELECT, fmtOrder } = require('./ordersController')
 
 // ─── Helpers: parse formatted IDs → raw integers ─────────────────────────────
@@ -84,7 +84,8 @@ async function getPublicMenu(req, res, next) {
 // ─── POST /api/public/orders ──────────────────────────────────────────────────
 async function createPublicOrder(req, res, next) {
   if (!checkValidation(req, res)) return
-  const { tableId, notes, items } = req.body
+  const { tableId, notes, items, paymentMethod = 'cash' } = req.body
+  const pmMethod = ['cash', 'qr'].includes(paymentMethod) ? paymentMethod : 'cash'
 
   const rawId = parseRawTableId(tableId)
   if (!rawId) return res.status(400).json({ error: 'Invalid tableId format' })
@@ -128,9 +129,10 @@ async function createPublicOrder(req, res, next) {
     // Insert order — waiter = 'Guest' for customer self-orders
     // IMPORTANT: include restaurant_id so the order appears in the admin's Orders view
     const oRes = await client.query(
-      `INSERT INTO orders (restaurant_id, table_id, table_number, waiter, notes, subtotal, tax, total)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [restaurantId, table.id, table.number, 'Guest', notes || '', subtotal, tax, total]
+      `INSERT INTO orders
+         (restaurant_id, table_id, table_number, waiter, notes, subtotal, tax, total, payment_method, payment_status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid') RETURNING *`,
+      [restaurantId, table.id, table.number, 'Guest', notes || '', subtotal, tax, total, pmMethod]
     )
     const order = oRes.rows[0]
 
@@ -156,6 +158,8 @@ async function createPublicOrder(req, res, next) {
     )
     const fullOrder = fmtOrder(fullRes.rows[0])
     emitOrderCreated(fullOrder)
+    // If customer chose QR payment, fire an immediate alert to cashier/waiter
+    if (pmMethod === 'qr') emitQrPaymentAlert(fullOrder)
     res.status(201).json(fullOrder)
   } catch (err) {
     await client.query('ROLLBACK')

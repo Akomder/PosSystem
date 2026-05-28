@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
-import { onOrderCreated, onOrderUpdated, onStockLow } from '../services/socket'
+import { onOrderCreated, onOrderUpdated, onStockLow, onQrPaymentAlert } from '../services/socket'
 
 const MAX_NOTIFS = 50
 const LS_KEY     = 'pos_notifications'
@@ -107,7 +107,38 @@ export function NotificationsProvider({ children }) {
       })
     })
 
-    return () => { offCreated?.(); offUpdated?.(); offStock?.() }
+    // QR payment request — customer chose QR pay, alert cashier immediately
+    const offQrPay = onQrPaymentAlert(({ order }) => {
+      if (!order) return
+      const amount = order.total?.toLocaleString?.() ?? order.total
+      const cur    = order.currency || 'LAK'
+      add({
+        type:   'payment_qr',
+        title:  '📱 QR Payment — Table ' + (order.tableNumber ?? ''),
+        body:   `${order.id} · ${amount} ${cur} — customer ready to pay`,
+        link:   '/orders',
+        urgent: true,
+      })
+      // Play a distinct beep to grab attention
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)()
+        const beep = (freq, start, duration) => {
+          const osc  = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.connect(gain); gain.connect(ctx.destination)
+          osc.frequency.value = freq
+          gain.gain.setValueAtTime(0.3, ctx.currentTime + start)
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration)
+          osc.start(ctx.currentTime + start)
+          osc.stop(ctx.currentTime + start + duration)
+        }
+        beep(880, 0,    0.12)
+        beep(1046, 0.14, 0.12)
+        beep(1318, 0.28, 0.20)
+      } catch (_) { /* audio not supported */ }
+    })
+
+    return () => { offCreated?.(); offUpdated?.(); offStock?.(); offQrPay?.() }
   }, [add])
 
   const unreadCount = notifications.filter(n => !n.read).length
