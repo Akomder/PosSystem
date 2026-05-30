@@ -7,6 +7,7 @@ const rateLimit  = require('express-rate-limit')
 const { errorHandler } = require('./middleware/errorHandler')
 const authenticate     = require('./middleware/auth')          // verifyToken
 const restaurantScope  = require('./middleware/restaurantScope')
+const auditMiddleware  = require('./middleware/auditMiddleware')
 
 // ─── Startup guards ───────────────────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
@@ -74,7 +75,7 @@ app.use('/api/superadmin', require('./routes/superadmin'))
 //  Without this, restaurantScope sets req.restaurantId = null for every
 //  request and all scoped DB queries return zero results.
 //
-const scoped = [authenticate, restaurantScope]
+const scoped = [authenticate, restaurantScope, auditMiddleware]
 
 app.use('/api/tables',           ...scoped, require('./routes/tables'))
 app.use('/api/menu',             ...scoped, require('./routes/menu'))
@@ -100,6 +101,7 @@ app.use('/api/promotions',       ...scoped, require('./routes/promotions'))
 app.use('/api/audit-logs',       ...scoped, require('./routes/auditLogs'))
 app.use('/api/modifiers',        ...scoped, require('./routes/modifiers'))
 app.use('/api/print',            ...scoped, require('./routes/print'))
+app.use('/api/notifications',    ...scoped, require('./routes/notifications'))
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date() }))

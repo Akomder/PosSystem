@@ -266,6 +266,15 @@ export const auditLogsApi = {
   getAll: (params={}) => get('/audit-logs?' + new URLSearchParams(params)),
 }
 
+// ─── Notifications ────────────────────────────────────────────────────────────
+export const notificationsApi = {
+  getAll:      ()        => get('/notifications'),
+  create:      (body)    => post('/notifications', body),
+  markRead:    (id)      => patch(`/notifications/${id}/read`),
+  markAllRead: ()        => patch('/notifications/mark-all-read'),
+  clearAll:    ()        => del('/notifications'),
+}
+
 // ─── Super Admin ──────────────────────────────────────────────────────────────
 export const superadminApi = {
   overview:             ()           => get('/superadmin/overview'),

@@ -561,48 +561,6 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS
   order_type VARCHAR(20) NOT NULL DEFAULT 'Dine In'
   CHECK (order_type IN ('Dine In','Takeaway','Delivery'));
 
-
--- ─── 7. Seed data ────────────────────────────────────────────────────────────
-
--- Default restaurant
-INSERT INTO restaurants (id, name, slug, status, plan)
-VALUES (1, 'Bella Vista', 'bella-vista', 'active', 'pro')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval('restaurants_id_seq', GREATEST((SELECT MAX(id) FROM restaurants), 1));
-
--- Default sales channels
-INSERT INTO sales_channels (restaurant_id, name, description) VALUES
-  (1, 'Dine-in',  'In-restaurant dining'),
-  (1, 'Takeaway', 'Customer picks up order'),
-  (1, 'Delivery', 'Delivered to customer'),
-  (1, 'Online',   'Online order platform')
-ON CONFLICT DO NOTHING;
-
--- Default cancel reasons
-INSERT INTO cancel_reasons (restaurant_id, name) VALUES
-  (1, 'Customer changed mind'),
-  (1, 'Item out of stock'),
-  (1, 'Wrong order'),
-  (1, 'Long wait time')
-ON CONFLICT DO NOTHING;
-
--- Default note templates
-INSERT INTO note_templates (restaurant_id, name, text) VALUES
-  (1, 'No spice',       'No spicy ingredients please'),
-  (1, 'Extra sauce',    'Extra sauce on the side'),
-  (1, 'Allergy note',   'Please check allergens before serving'),
-  (1, 'Birthday order', 'Birthday celebration – please add candle')
-ON CONFLICT DO NOTHING;
-
--- Default processing sectors
-INSERT INTO processing_sectors (restaurant_id, name, description) VALUES
-  (1, 'Main Kitchen',    'Primary food preparation area'),
-  (1, 'Bar',             'Beverages and cocktails'),
-  (1, 'Dessert Station', 'Desserts and pastries'),
-  (1, 'Grill',           'Grilled items')
-ON CONFLICT DO NOTHING;
-
 -- ─── 8. Phase 1–3 schema additions ───────────────────────────────────────────
 
 -- system_settings (SMTP config and other persistent settings)
@@ -691,3 +649,18 @@ ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT 
 -- shifts — cash reconciliation columns (Phase 3 Step 6)
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS expected_cash NUMERIC(10,2) NOT NULL DEFAULT 0;
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS cash_variance NUMERIC(10,2) NOT NULL DEFAULT 0;
+
+-- ─── Notifications (persisted per-user) ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS notifications (
+  id            SERIAL       PRIMARY KEY,
+  restaurant_id INTEGER      REFERENCES restaurants(id) ON DELETE CASCADE,
+  user_id       INTEGER      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type          VARCHAR(50)  NOT NULL,
+  title         TEXT         NOT NULL,
+  body          TEXT         NOT NULL,
+  link          TEXT         NOT NULL DEFAULT '',
+  urgent        BOOLEAN      NOT NULL DEFAULT FALSE,
+  read          BOOLEAN      NOT NULL DEFAULT FALSE,
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, created_at DESC);
