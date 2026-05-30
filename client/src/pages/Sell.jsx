@@ -26,6 +26,7 @@ const METHODS = [
 ]
 
 function SplitRow({ row, total, remaining, onChange, onRemove, canRemove }) {
+  const { t }     = useSettings()
   const isCash    = row.method === 'cash'
   const tendered  = parseFloat(row.tendered) || 0
   const amount    = parseFloat(row.amount)   || 0
@@ -36,7 +37,7 @@ function SplitRow({ row, total, remaining, onChange, onRemove, canRemove }) {
       {/* Method + amount row */}
       <div className="flex gap-2 items-end">
         <div className="flex-1">
-          <label className="text-[10px] font-medium text-gray-400 mb-1 block">Method</label>
+          <label className="text-[10px] font-medium text-gray-400 mb-1 block">{t('sell.method')}</label>
           <div className="flex gap-1">
             {METHODS.map(m => (
               <button key={m.key} onClick={() => onChange({ method: m.key })}
@@ -49,7 +50,7 @@ function SplitRow({ row, total, remaining, onChange, onRemove, canRemove }) {
           </div>
         </div>
         <div className="w-28">
-          <label className="text-[10px] font-medium text-gray-400 mb-1 block">Amount</label>
+          <label className="text-[10px] font-medium text-gray-400 mb-1 block">{t('sell.amount')}</label>
           <input type="number" step="1000" min="0" placeholder={formatCurrency(remaining)}
             value={row.amount}
             onChange={e => onChange({ amount: e.target.value })}
@@ -66,7 +67,7 @@ function SplitRow({ row, total, remaining, onChange, onRemove, canRemove }) {
       {isCash && amount > 0 && (
         <div className="flex gap-2 items-center">
           <div className="flex-1">
-            <label className="text-[10px] font-medium text-gray-400 mb-1 block">Cash Tendered</label>
+            <label className="text-[10px] font-medium text-gray-400 mb-1 block">{t('sell.cashTendered')}</label>
             <input type="number" step="1000" min="0" placeholder={String(amount)}
               value={row.tendered}
               onChange={e => onChange({ tendered: e.target.value })}
@@ -77,7 +78,7 @@ function SplitRow({ row, total, remaining, onChange, onRemove, canRemove }) {
             <div className={clsx('text-xs font-semibold px-2 py-1 rounded-lg mt-4',
               change >= 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
                           : 'bg-red-100 dark:bg-red-900/20 text-red-600')}>
-              {change >= 0 ? `Change: ${formatCurrency(change)}` : 'Short'}
+              {change >= 0 ? `${t('sell.change')}: ${formatCurrency(change)}` : t('sell.short')}
             </div>
           )}
         </div>
@@ -87,6 +88,7 @@ function SplitRow({ row, total, remaining, onChange, onRemove, canRemove }) {
 }
 
 function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving }) {
+  const { t }        = useSettings()
   const [splitMode,  setSplitMode]  = useState(false)
   const [currency,   setCurrency]   = useState('LAK')
   const [discount,   setDiscount]   = useState('')
@@ -183,7 +185,7 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
         {/* Header */}
         <div className="bg-teal-600 px-6 py-4 text-white flex items-center justify-between flex-shrink-0">
           <div>
-            <p className="text-xs opacity-70">Amount Due</p>
+            <p className="text-xs opacity-70">{t('sell.amountDue')}</p>
             <p className="text-3xl font-bold">{formatCurrency(total)}</p>
             {(discountAmt > 0 || pointsDisc > 0) && (
               <p className="text-xs opacity-70 mt-0.5">
@@ -217,14 +219,14 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
           {/* Discount + Voucher row */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Discount</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('sell.discount')}</label>
               <input type="number" min="0" step="1000" placeholder="0" value={discount}
                 onChange={e => setDiscount(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-100"
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Voucher Code</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('sell.voucherCode')}</label>
               <input placeholder="—" value={voucher} onChange={e => setVoucher(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-100"
               />
@@ -236,7 +238,7 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
             <label className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl cursor-pointer">
               <input type="checkbox" checked={usePoints} onChange={e => setUsePoints(e.target.checked)} className="rounded" />
               <span className="text-sm text-amber-800 dark:text-amber-300">
-                Use loyalty points ({customer.points} pts = -{formatCurrency(pointsDisc)})
+                {t('sell.usePoints')} ({customer.points} pts = -{formatCurrency(pointsDisc)})
               </span>
             </label>
           )}
@@ -257,7 +259,7 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
               {isCash && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Cash Tendered</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('sell.cashTendered')}</label>
                     <input autoFocus type="number" step="1000" min="0" placeholder="0" value={tendered}
                       onChange={e => setTendered(e.target.value)}
                       className="w-full text-xl font-bold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -277,8 +279,8 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
                     <div className={clsx('flex justify-between px-4 py-2.5 rounded-xl text-sm font-semibold',
                       change >= 0 ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
                                   : 'bg-red-50 dark:bg-red-900/20 text-red-600')}>
-                      <span>Change</span>
-                      <span>{change >= 0 ? formatCurrency(change) : 'Insufficient'}</span>
+                      <span>{t('sell.change')}</span>
+                      <span>{change >= 0 ? formatCurrency(change) : t('sell.insufficient')}</span>
                     </div>
                   )}
                 </>
@@ -293,7 +295,7 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
               <div className={clsx('flex justify-between px-3 py-2 rounded-xl text-sm font-semibold',
                 remaining === 0 ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
                                 : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400')}>
-                <span>{remaining === 0 ? '✓ Fully covered' : 'Remaining'}</span>
+                <span>{remaining === 0 ? t('sell.fullyCovered') : t('sell.remaining')}</span>
                 <span>{remaining === 0 ? '' : formatCurrency(remaining)}</span>
               </div>
 
@@ -314,7 +316,7 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
                   onClick={() => setRows(prev => [...prev, { method: 'cash', amount: String(remaining || ''), tendered: '' }])}
                   className="w-full py-2 text-xs font-semibold text-teal-600 dark:text-teal-400 border border-dashed border-teal-300 dark:border-teal-700 rounded-xl hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
                 >
-                  + Add payment method
+                  {t('sell.addPayment')}
                 </button>
               )}
             </div>
@@ -325,11 +327,11 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
         <div className="flex gap-2 px-5 pb-5 pt-3 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
           <button onClick={onClose}
             className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            Cancel
+            {t('common.cancel')}
           </button>
           <button onClick={handleConfirm} disabled={saving || !singleReady}
             className="flex-[2] py-3 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors">
-            {saving ? 'Processing…' : 'Confirm Payment'}
+            {saving ? t('sell.processing') : t('sell.confirmPayment')}
           </button>
         </div>
       </div>
@@ -691,12 +693,12 @@ export default function Sell() {
           {currentShift ? (
             <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-              Shift Open
+              {t('sell.shiftOpen')}
             </span>
           ) : (
             <span className="flex items-center gap-1 text-amber-500 font-medium">
               <Clock size={11} />
-              No Shift
+              {t('sell.noShift')}
             </span>
           )}
           <span>·</span>
@@ -842,7 +844,7 @@ export default function Sell() {
                   })}
                   {filteredMenu.length === 0 && (
                     <div className="col-span-4 text-center py-16 text-gray-400 text-sm">
-                      No items found
+                      {t('sell.noItemsFound')}
                     </div>
                   )}
                 </div>
@@ -891,30 +893,30 @@ export default function Sell() {
 
           {/* ── Order Type toggle ──────────────────────────────────────────── */}
           <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-50 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-900/30">
-            {['Dine In', 'Takeaway', 'Delivery'].map(type => (
+            {[
+              { key: 'Dine In',  label: t('sell.dineIn'),  active: 'bg-teal-600'   },
+              { key: 'Takeaway', label: t('sell.takeaway'), active: 'bg-orange-500' },
+              { key: 'Delivery', label: t('sell.delivery'), active: 'bg-blue-600'   },
+            ].map(({ key, label, active }) => (
               <button
-                key={type}
+                key={key}
                 onClick={() => {
                   setActiveOrder(o => ({
                     ...o,
-                    orderType:   type,
-                    tableId:     type === 'Dine In' ? o.tableId : null,
-                    tableNumber: type === 'Dine In' ? o.tableNumber : null,
+                    orderType:   key,
+                    tableId:     key === 'Dine In' ? o.tableId : null,
+                    tableNumber: key === 'Dine In' ? o.tableNumber : null,
                   }))
-                  if (type !== 'Dine In') setLeftTab('menu')
+                  if (key !== 'Dine In') setLeftTab('menu')
                 }}
                 className={clsx(
                   'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors',
-                  (activeOrder?.orderType || 'Dine In') === type
-                    ? type === 'Dine In'
-                      ? 'bg-teal-600 text-white shadow-sm'
-                      : type === 'Takeaway'
-                        ? 'bg-orange-500 text-white shadow-sm'
-                        : 'bg-blue-600 text-white shadow-sm'
+                  (activeOrder?.orderType || 'Dine In') === key
+                    ? `${active} text-white shadow-sm`
                     : 'bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600'
                 )}
               >
-                {type}
+                {label}
               </button>
             ))}
           </div>
@@ -923,11 +925,11 @@ export default function Sell() {
           <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-50 dark:border-gray-700 flex-shrink-0">
             <div className="flex-1">
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                {(activeOrder?.orderType || 'Dine In') === 'Dine In' ? t('common.table') : 'Order Type'}
+                {(activeOrder?.orderType || 'Dine In') === 'Dine In' ? t('common.table') : t('sell.orderType')}
               </p>
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 {(activeOrder?.orderType || 'Dine In') === 'Dine In'
-                  ? (activeOrder?.tableNumber ? `Table ${activeOrder.tableNumber}` : '— No table —')
+                  ? (activeOrder?.tableNumber ? `Table ${activeOrder.tableNumber}` : t('sell.noTable'))
                   : (activeOrder?.orderType)
                 }
               </p>
@@ -1002,7 +1004,7 @@ export default function Sell() {
                 onChange={e => setSelectedChannel(e.target.value)}
                 className="flex-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-teal-500"
               >
-                <option value="">Channel…</option>
+                <option value="">{t('sell.channel')}</option>
                 {channels.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
               </select>
             )}
@@ -1010,7 +1012,7 @@ export default function Sell() {
               <div className="relative flex-1">
                 <Tag size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
-                  placeholder="Promo code"
+                  placeholder={t('sell.promoCode')}
                   value={promoCode}
                   onChange={e => { setPromoCode(e.target.value); if (promoResult) setPromoResult(null) }}
                   onKeyDown={e => e.key === 'Enter' && applyPromo()}
@@ -1022,7 +1024,7 @@ export default function Sell() {
                 disabled={promoLoading}
                 className="px-2 py-1.5 text-xs bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors whitespace-nowrap"
               >
-                {promoLoading ? '…' : 'Apply'}
+                {promoLoading ? '…' : t('sell.apply')}
               </button>
             </div>
           </div>
@@ -1030,7 +1032,7 @@ export default function Sell() {
             <div className={clsx('px-4 py-1.5 text-xs flex items-center justify-between flex-shrink-0',
               promoResult.error ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
             )}>
-              <span>{promoResult.error || `${promoResult.name} applied`}</span>
+              <span>{promoResult.error || `${promoResult.name} ${t('sell.promoApplied')}`}</span>
               {!promoResult.error && <span className="font-semibold">-{formatCurrency(promoResult.discount)}</span>}
             </div>
           )}
@@ -1052,7 +1054,7 @@ export default function Sell() {
                       <div className="flex items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{item.name}</p>
-                          <p className="text-xs text-gray-400">{formatCurrency(item.unitPrice)} each</p>
+                          <p className="text-xs text-gray-400">{formatCurrency(item.unitPrice)} {t('sell.each')}</p>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <button
@@ -1107,12 +1109,12 @@ export default function Sell() {
               <span>{formatCurrency(subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
-              <span>Tax (10%)</span>
+              <span>{t('sell.tax')}</span>
               <span>{formatCurrency(tax)}</span>
             </div>
             {promoDiscount > 0 && (
               <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
-                <span>Promo Discount</span>
+                <span>{t('sell.promoDiscount')}</span>
                 <span>-{formatCurrency(promoDiscount)}</span>
               </div>
             )}
@@ -1154,7 +1156,7 @@ export default function Sell() {
       {offlineToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 bg-amber-500 text-white text-sm font-semibold rounded-2xl shadow-xl animate-bounce-once">
           <Wifi size={15} className="opacity-80" />
-          Order saved offline — will sync automatically when back online
+          {t('sell.offlineSaved')}
         </div>
       )}
 
