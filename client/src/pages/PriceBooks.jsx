@@ -9,9 +9,11 @@ import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
+import { useSettings } from '../context/SettingsContext'
 
 export default function PriceBooks() {
   const { user } = useAuth()
+  const { t } = useSettings()
   const isAdmin = user?.role === 'Admin'
   const [books, setBooks]         = useState([])
   const [loading, setLoading]     = useState(true)
@@ -61,7 +63,7 @@ export default function PriceBooks() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Delete this price book?')) return
+    if (!window.confirm(t('priceBook.deleteConfirm'))) return
     await priceBooksApi.delete(id)
     setBooks(prev => prev.filter(b => b.id !== id))
     if (detail?.id === id) setDetail(null)
@@ -85,10 +87,10 @@ export default function PriceBooks() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Price Books</h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Manage custom pricing tiers</p>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('priceBook.title')}</h2>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{t('priceBook.subtitle')}</p>
         </div>
-        {isAdmin && <Button icon={PlusCircle} onClick={openCreate}>New Price Book</Button>}
+        {isAdmin && <Button icon={PlusCircle} onClick={openCreate}>{t('priceBook.new')}</Button>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -99,7 +101,7 @@ export default function PriceBooks() {
               <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : books.length === 0 ? (
-            <EmptyState icon={BookMarked} title="No price books" description="Create pricing tiers for different scenarios" />
+            <EmptyState icon={BookMarked} title={t('priceBook.noBooks')} description={t('priceBook.noBooksDesc')} />
           ) : books.map(book => (
             <div
               key={book.id}
@@ -121,7 +123,7 @@ export default function PriceBooks() {
                     </p>
                   )}
                 </div>
-                <Badge variant={book.active ? 'green' : 'default'}>{book.active ? 'Active' : 'Inactive'}</Badge>
+                <Badge variant={book.active ? 'green' : 'default'}>{book.active ? t('priceBook.active') : t('priceBook.inactive')}</Badge>
               </div>
               {isAdmin && (
                 <div className="flex gap-1 mt-3" onClick={e => e.stopPropagation()}>
@@ -137,28 +139,28 @@ export default function PriceBooks() {
         <div className="lg:col-span-2">
           {!detail ? (
             <div className="flex items-center justify-center h-48 text-gray-400 dark:text-gray-500 text-sm">
-              Select a price book to view items
+              {t('priceBook.selectBook')}
             </div>
           ) : (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">{detail.name}</h3>
                 {isAdmin && (
-                  <Button size="sm" icon={Plus} onClick={() => setAddItemOpen(true)}>Add Item</Button>
+                  <Button size="sm" icon={Plus} onClick={() => setAddItemOpen(true)}>{t('priceBook.addItem')}</Button>
                 )}
               </div>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase">
-                    <th className="px-5 py-3 text-left">Item</th>
-                    <th className="px-5 py-3 text-right">Original Price</th>
-                    <th className="px-5 py-3 text-right">Custom Price</th>
+                    <th className="px-5 py-3 text-left">{t('priceBook.col.item')}</th>
+                    <th className="px-5 py-3 text-right">{t('priceBook.col.originalPrice')}</th>
+                    <th className="px-5 py-3 text-right">{t('priceBook.col.customPrice')}</th>
                     {isAdmin && <th className="px-5 py-3" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
                   {(detail.items || []).length === 0 && (
-                    <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400 text-sm">No items in this price book</td></tr>
+                    <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400 text-sm">{t('priceBook.noBookItems')}</td></tr>
                   )}
                   {(detail.items || []).map(i => (
                     <tr key={i.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -180,34 +182,34 @@ export default function PriceBooks() {
       </div>
 
       {/* Create/Edit Modal */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editBook ? 'Edit Price Book' : 'New Price Book'}
-        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button loading={saving} onClick={handleSave}>Save</Button></>}
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editBook ? t('priceBook.editModal') : t('priceBook.newModal')}
+        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>{t('common.cancel')}</Button><Button loading={saving} onClick={handleSave}>{t('common.save')}</Button></>}
       >
         <div className="space-y-4">
-          <Input label="Name" required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} />
-          <Input label="Description" value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} />
+          <Input label={t('priceBook.name')} required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} />
+          <Input label={t('priceBook.description')} value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} />
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Valid From" type="date" value={form.validFrom} onChange={e => setForm(f => ({...f, validFrom: e.target.value}))} />
-            <Input label="Valid To" type="date" value={form.validTo} onChange={e => setForm(f => ({...f, validTo: e.target.value}))} />
+            <Input label={t('priceBook.validFrom')} type="date" value={form.validFrom} onChange={e => setForm(f => ({...f, validFrom: e.target.value}))} />
+            <Input label={t('priceBook.validTo')} type="date" value={form.validTo} onChange={e => setForm(f => ({...f, validTo: e.target.value}))} />
           </div>
         </div>
       </Modal>
 
       {/* Add Item Modal */}
-      <Modal isOpen={addItemOpen} onClose={() => setAddItemOpen(false)} title="Add Item to Price Book"
-        footer={<><Button variant="secondary" onClick={() => setAddItemOpen(false)}>Cancel</Button><Button onClick={handleAddItem}>Add</Button></>}
+      <Modal isOpen={addItemOpen} onClose={() => setAddItemOpen(false)} title={t('priceBook.addItemModal')}
+        footer={<><Button variant="secondary" onClick={() => setAddItemOpen(false)}>{t('common.cancel')}</Button><Button onClick={handleAddItem}>{t('common.add')}</Button></>}
       >
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Menu Item</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">{t('priceBook.menuItem')}</label>
             <select value={addForm.menuItemId} onChange={e => setAddForm(f => ({...f, menuItemId: e.target.value}))}
               className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
-              <option value="">Select item…</option>
+              <option value="">{t('common.selectItem')}</option>
               {menuItems.map(m => <option key={m.id} value={m.id}>{m.name} — {formatCurrency(m.price)}</option>)}
             </select>
           </div>
-          <Input label="Custom Price" type="number" value={addForm.customPrice} onChange={e => setAddForm(f => ({...f, customPrice: e.target.value}))} placeholder="0.00" />
+          <Input label={t('priceBook.customPrice')} type="number" value={addForm.customPrice} onChange={e => setAddForm(f => ({...f, customPrice: e.target.value}))} placeholder="0.00" />
         </div>
       </Modal>
     </div>

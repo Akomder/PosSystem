@@ -11,11 +11,13 @@ import EmptyState from '../components/ui/EmptyState'
 import DateRangeFilter from '../components/ui/DateRangeFilter'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
+import { useSettings } from '../context/SettingsContext'
 
 const STATUS_VARIANT = { pending: 'amber', approved: 'teal', completed: 'green' }
 
 export default function PurchaseReturns() {
   const { user } = useAuth()
+  const { t } = useSettings()
   const isAdmin = user?.role === 'Admin'
   const [returns, setReturns]     = useState([])
   const [loading, setLoading]     = useState(true)
@@ -68,12 +70,12 @@ export default function PurchaseReturns() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Purchase Returns</h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Returns sent back to suppliers</p>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('pr.title')}</h2>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{t('pr.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <DateRangeFilter value={dateRange} onChange={setDateRange} />
-          {isAdmin && <Button icon={PlusCircle} onClick={openCreate}>New Return</Button>}
+          {isAdmin && <Button icon={PlusCircle} onClick={openCreate}>{t('pr.new')}</Button>}
         </div>
       </div>
 
@@ -82,7 +84,7 @@ export default function PurchaseReturns() {
           {loading ? (
             <div className="flex justify-center py-10"><div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>
           ) : display.length === 0 ? (
-            <EmptyState icon={RotateCcw} title="No purchase returns" description="Record returns sent back to suppliers" />
+            <EmptyState icon={RotateCcw} title={t('pr.noReturns')} description={t('pr.noReturnsDesc')} />
           ) : display.map(r => (
             <div key={r.id} onClick={async () => { const d = await purchaseReturnsApi.getOne(r.id); setDetail(d) }}
               className={clsx('p-4 rounded-xl border cursor-pointer transition-all',
@@ -94,7 +96,7 @@ export default function PurchaseReturns() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-semibold text-gray-900 dark:text-gray-100">{r.id}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{r.supplierName || 'No supplier'}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{r.supplierName || t('pr.noSupplier')}</p>
                   <p className="text-xs text-gray-400 dark:text-gray-500">{formatDate(r.createdAt)}</p>
                 </div>
                 <div className="text-right">
@@ -108,7 +110,7 @@ export default function PurchaseReturns() {
 
         <div className="lg:col-span-2">
           {!detail ? (
-            <div className="flex items-center justify-center h-48 text-sm text-gray-400">Select a return to view details</div>
+            <div className="flex items-center justify-center h-48 text-sm text-gray-400">{t('pr.selectReturn')}</div>
           ) : (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between flex-wrap gap-2">
@@ -120,8 +122,8 @@ export default function PurchaseReturns() {
                 <div className="flex gap-2 items-center">
                   {isAdmin && detail.status === 'pending' && (
                     <>
-                      <Button size="sm" onClick={() => updateStatus(detail.id, 'approved')}>Approve</Button>
-                      <Button size="sm" onClick={() => updateStatus(detail.id, 'completed')}>Complete</Button>
+                      <Button size="sm" onClick={() => updateStatus(detail.id, 'approved')}>{t('pr.approve')}</Button>
+                      <Button size="sm" onClick={() => updateStatus(detail.id, 'completed')}>{t('pr.complete')}</Button>
                     </>
                   )}
                   <button
@@ -136,10 +138,10 @@ export default function PurchaseReturns() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">
-                    <th className="px-5 py-3 text-left">Item</th>
-                    <th className="px-5 py-3 text-right">Qty</th>
-                    <th className="px-5 py-3 text-right">Unit Cost</th>
-                    <th className="px-5 py-3 text-right">Total</th>
+                    <th className="px-5 py-3 text-left">{t('pr.col.item')}</th>
+                    <th className="px-5 py-3 text-right">{t('pr.col.qty')}</th>
+                    <th className="px-5 py-3 text-right">{t('pr.col.unitCost')}</th>
+                    <th className="px-5 py-3 text-right">{t('pr.col.total')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
@@ -152,7 +154,7 @@ export default function PurchaseReturns() {
                     </tr>
                   ))}
                   <tr className="bg-gray-50 dark:bg-gray-700/30">
-                    <td colSpan={3} className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">Total</td>
+                    <td colSpan={3} className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">{t('common.total')}</td>
                     <td className="px-5 py-3 text-right font-bold text-teal-600 dark:text-teal-400">{formatCurrency(detail.total)}</td>
                   </tr>
                 </tbody>
@@ -162,27 +164,27 @@ export default function PurchaseReturns() {
         </div>
       </div>
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="New Purchase Return" size="lg"
-        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button loading={saving} onClick={handleCreate}>Create Return</Button></>}
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={t('pr.newModal')} size="lg"
+        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>{t('common.cancel')}</Button><Button loading={saving} onClick={handleCreate}>{t('pr.createReturn')}</Button></>}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Supplier</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">{t('pr.supplier')}</label>
               <select value={form.supplierId} onChange={e => setForm(f => ({...f, supplierId: e.target.value}))}
                 className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
-                <option value="">No supplier</option>
+                <option value="">{t('pr.noSupplier')}</option>
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
-            <Input label="Reference No." value={form.referenceNo} onChange={e => setForm(f => ({...f, referenceNo: e.target.value}))} />
+            <Input label={t('pr.referenceNo')} value={form.referenceNo} onChange={e => setForm(f => ({...f, referenceNo: e.target.value}))} />
           </div>
-          <Input label="Reason" value={form.reason} onChange={e => setForm(f => ({...f, reason: e.target.value}))} placeholder="e.g. Damaged goods" />
+          <Input label={t('pr.reason')} value={form.reason} onChange={e => setForm(f => ({...f, reason: e.target.value}))} placeholder={t('pr.reasonPlaceholder')} />
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Items</p>
-              <button onClick={addLine} className="text-xs text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"><Plus size={12} /> Add line</button>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('pr.items')}</p>
+              <button onClick={addLine} className="text-xs text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"><Plus size={12} /> {t('pr.addLine')}</button>
             </div>
             {form.items.map((line, i) => (
               <div key={i} className="grid grid-cols-12 gap-2 items-end mb-2">
@@ -192,7 +194,7 @@ export default function PurchaseReturns() {
                 <div className="col-span-2 flex justify-end"><button onClick={() => removeLine(i)} className="p-1.5 text-gray-400 hover:text-red-500 rounded transition-colors"><Trash2 size={14} /></button></div>
               </div>
             ))}
-            {form.items.length === 0 && <p className="text-sm text-gray-400 text-center py-3">No items added</p>}
+            {form.items.length === 0 && <p className="text-sm text-gray-400 text-center py-3">{t('pr.noItems')}</p>}
           </div>
         </div>
       </Modal>

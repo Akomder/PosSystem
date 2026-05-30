@@ -9,11 +9,13 @@ import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { formatDate } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
+import { useSettings } from '../context/SettingsContext'
 
 const STATUS_VARIANT = { draft: 'default', in_progress: 'amber', completed: 'green' }
 
 export default function StockTakes() {
   const { user } = useAuth()
+  const { t } = useSettings()
   const isAdmin = user?.role === 'Admin'
   const [items, setItems]           = useState([])
   const [loading, setLoading]       = useState(true)
@@ -76,11 +78,11 @@ export default function StockTakes() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Stock Takes</h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Inventory count reconciliation</p>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('stocktake.title')}</h2>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{t('stocktake.subtitle')}</p>
         </div>
         {isAdmin && (
-          <Button icon={PlusCircle} onClick={() => setCreateOpen(true)}>New Stock Take</Button>
+          <Button icon={PlusCircle} onClick={() => setCreateOpen(true)}>{t('stocktake.new')}</Button>
         )}
       </div>
 
@@ -89,7 +91,7 @@ export default function StockTakes() {
           <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : items.length === 0 ? (
-        <EmptyState icon={PackageSearch} title="No stock takes" description="Create a stock take to count your inventory" />
+        <EmptyState icon={PackageSearch} title={t('stocktake.noItems')} description={t('stocktake.noItemsDesc')} />
       ) : (
         <div className="space-y-2">
           {items.map(item => (
@@ -118,11 +120,11 @@ export default function StockTakes() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">
-                          <th className="pb-2 text-left">Item</th>
-                          <th className="pb-2 text-right">Expected</th>
-                          <th className="pb-2 text-right w-28">Actual</th>
-                          <th className="pb-2 text-right">Variance</th>
-                          <th className="pb-2 text-right">Value diff</th>
+                          <th className="pb-2 text-left">{t('stocktake.col.item')}</th>
+                          <th className="pb-2 text-right">{t('stocktake.col.expected')}</th>
+                          <th className="pb-2 text-right w-28">{t('stocktake.col.actual')}</th>
+                          <th className="pb-2 text-right">{t('stocktake.col.variance')}</th>
+                          <th className="pb-2 text-right">{t('stocktake.col.valueDiff')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
@@ -160,8 +162,8 @@ export default function StockTakes() {
                   </div>
                   {isAdmin && item.status === 'in_progress' && (
                     <div className="flex gap-2 mt-4 justify-end">
-                      <Button variant="danger" size="sm" icon={Trash2} onClick={() => remove(item.id)}>Delete</Button>
-                      <Button size="sm" icon={CheckCircle2} onClick={() => complete(item.id)}>Complete Stock Take</Button>
+                      <Button variant="danger" size="sm" icon={Trash2} onClick={() => remove(item.id)}>{t('common.delete')}</Button>
+                      <Button size="sm" icon={CheckCircle2} onClick={() => complete(item.id)}>{t('stocktake.complete')}</Button>
                     </div>
                   )}
                 </div>
@@ -171,18 +173,18 @@ export default function StockTakes() {
         </div>
       )}
 
-      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="New Stock Take"
-        footer={<><Button variant="secondary" onClick={() => setCreateOpen(false)}>Cancel</Button><Button loading={saving} onClick={handleCreate}>Create</Button></>}
+      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title={t('stocktake.newModal')}
+        footer={<><Button variant="secondary" onClick={() => setCreateOpen(false)}>{t('common.cancel')}</Button><Button loading={saving} onClick={handleCreate}>{t('stocktake.create')}</Button></>}
       >
         <div className="space-y-4">
-          <Input label="Name" required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="e.g. Weekly Count - Apr 2025" />
+          <Input label={t('stocktake.name')} required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="e.g. Weekly Count - Apr 2025" />
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Notes</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">{t('stocktake.notes')}</label>
             <textarea rows={2} value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))}
               className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500">All current menu items will be auto-added with their current stock as the expected quantity.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">{t('stocktake.autoAdd')}</p>
         </div>
       </Modal>
     </div>

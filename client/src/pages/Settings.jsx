@@ -9,6 +9,7 @@ import { settingsApi, salesChannelsApi } from '../services/api'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import { useAuth } from '../context/AuthContext'
+import { useSettings } from '../context/SettingsContext'
 import ReceiptConfigTab from '../components/settings/ReceiptConfigTab'
 import PaymentSettingsTab from '../components/settings/PaymentSettingsTab'
 
@@ -310,9 +311,21 @@ function StoreTab({ isAdmin }) {
   )
 }
 
+const TAB_I18N = {
+  store:              'settings.tab.store',
+  payments:           'settings.tab.payments',
+  receipt_layout:     'settings.tab.receiptLayout',
+  cancel_reasons:     'settings.tab.cancelReasons',
+  note_templates:     'settings.tab.noteTemplates',
+  processing_sectors: 'settings.tab.processingSectors',
+  print_templates:    'settings.tab.printTemplates',
+  sales_channels:     'settings.tab.salesChannels',
+}
+
 // ─── Main Settings page ───────────────────────────────────────────────────────
 export default function Settings() {
   const { user } = useAuth()
+  const { t } = useSettings()
   const isAdmin = user?.role === 'Admin'
   const [tab,     setTab]     = useState('store')
   const [items,   setItems]   = useState([])
@@ -381,21 +394,21 @@ export default function Settings() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Settings</h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Configure system-wide settings</p>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('nav.settings')}</h2>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{t('settings.tab.store')}</p>
         </div>
       </div>
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-gray-100 dark:border-gray-700 overflow-x-auto">
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
+        {TABS.map(tb => (
+          <button key={tb.key} onClick={() => setTab(tb.key)}
             className={clsx('px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
-              tab === t.key
+              tab === tb.key
                 ? 'border-teal-600 text-teal-600 dark:text-teal-400 dark:border-teal-400'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             )}
-          >{t.label}</button>
+          >{t(TAB_I18N[tb.key]) || tb.label}</button>
         ))}
       </div>
 

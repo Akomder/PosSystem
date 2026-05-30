@@ -10,14 +10,15 @@ import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
+import { useSettings } from '../context/SettingsContext'
 
-const TYPE_LABELS = { percent: '% Off', fixed: 'Fixed Off', buy_x_get_y: 'Buy X Get Y' }
 const TYPE_VARIANT = { percent: 'teal', fixed: 'amber', buy_x_get_y: 'green' }
 
 const EMPTY_FORM = { name: '', type: 'percent', value: '', minOrderValue: '', validFrom: '', validTo: '', usageLimit: '' }
 
 export default function Promotions() {
   const { user } = useAuth()
+  const { t } = useSettings()
   const isAdmin = user?.role === 'Admin'
   const [promos, setPromos]       = useState([])
   const [loading, setLoading]     = useState(true)
@@ -25,6 +26,12 @@ export default function Promotions() {
   const [editPromo, setEditPromo] = useState(null)
   const [form, setForm]           = useState(EMPTY_FORM)
   const [saving, setSaving]       = useState(false)
+
+  const TYPE_LABELS = {
+    percent:    t('promo.type.percent'),
+    fixed:      t('promo.type.fixed'),
+    buy_x_get_y: t('promo.type.buyXGetY'),
+  }
 
   useEffect(() => { load() }, [])
 
@@ -74,7 +81,7 @@ export default function Promotions() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Delete this promotion?')) return
+    if (!window.confirm(t('promo.deleteConfirm'))) return
     await promotionsApi.delete(id)
     setPromos(prev => prev.filter(p => p.id !== id))
   }
@@ -83,16 +90,16 @@ export default function Promotions() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Promotions</h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Manage discount campaigns and offers</p>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('promo.title')}</h2>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{t('promo.subtitle')}</p>
         </div>
-        {isAdmin && <Button icon={PlusCircle} onClick={openCreate}>New Promotion</Button>}
+        {isAdmin && <Button icon={PlusCircle} onClick={openCreate}>{t('promo.new')}</Button>}
       </div>
 
       {loading ? (
         <div className="flex justify-center py-16"><div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>
       ) : promos.length === 0 ? (
-        <EmptyState icon={Tag} title="No promotions" description="Create discount campaigns and special offers" />
+        <EmptyState icon={Tag} title={t('promo.noPromos')} description={t('promo.noPromosDesc')} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {promos.map(p => (
@@ -126,7 +133,7 @@ export default function Promotions() {
 
                 <div className="mt-3 space-y-1">
                   {p.minOrderValue > 0 && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500">Min order: {formatCurrency(p.minOrderValue)}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{t('promo.minOrder')}: {formatCurrency(p.minOrderValue)}</p>
                   )}
                   {(p.validFrom || p.validTo) && (
                     <p className="text-xs text-gray-400 dark:text-gray-500">
@@ -134,7 +141,7 @@ export default function Promotions() {
                     </p>
                   )}
                   {p.usageLimit && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500">{p.usageCount} / {p.usageLimit} used</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{p.usageCount} / {p.usageLimit} {t('promo.used')}</p>
                   )}
                 </div>
               </div>
@@ -158,24 +165,28 @@ export default function Promotions() {
         </div>
       )}
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editPromo ? 'Edit Promotion' : 'New Promotion'}
-        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button loading={saving} onClick={handleSave}>Save</Button></>}
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editPromo ? t('promo.editModal') : t('promo.newModal')}
+        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>{t('common.cancel')}</Button><Button loading={saving} onClick={handleSave}>{t('common.save')}</Button></>}
       >
         <div className="space-y-4">
-          <Input label="Name" required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="e.g. 10% Weekend Discount" />
+          <Input label={t('promo.name')} required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="e.g. 10% Weekend Discount" />
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Type" value={form.type} onChange={e => setForm(f => ({...f, type: e.target.value}))}
-              options={[{value:'percent',label:'Percentage'},{value:'fixed',label:'Fixed Amount'},{value:'buy_x_get_y',label:'Buy X Get Y'}]}
+            <Select label={t('promo.type')} value={form.type} onChange={e => setForm(f => ({...f, type: e.target.value}))}
+              options={[
+                {value:'percent',    label: t('promo.typePercent')},
+                {value:'fixed',      label: t('promo.typeFixed')},
+                {value:'buy_x_get_y',label: t('promo.typeBuyXGetY')},
+              ]}
             />
-            <Input label={form.type === 'percent' ? 'Percentage (%)' : 'Discount Amount'} type="number" value={form.value} onChange={e => setForm(f => ({...f, value: e.target.value}))} placeholder="0" />
+            <Input label={form.type === 'percent' ? t('promo.percentage') : t('promo.discountAmount')} type="number" value={form.value} onChange={e => setForm(f => ({...f, value: e.target.value}))} placeholder="0" />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Min Order Value" type="number" value={form.minOrderValue} onChange={e => setForm(f => ({...f, minOrderValue: e.target.value}))} placeholder="0.00" />
-            <Input label="Usage Limit" type="number" value={form.usageLimit} onChange={e => setForm(f => ({...f, usageLimit: e.target.value}))} placeholder="Unlimited" />
+            <Input label={t('promo.minOrderValue')} type="number" value={form.minOrderValue} onChange={e => setForm(f => ({...f, minOrderValue: e.target.value}))} placeholder="0.00" />
+            <Input label={t('promo.usageLimit')} type="number" value={form.usageLimit} onChange={e => setForm(f => ({...f, usageLimit: e.target.value}))} placeholder={t('promo.unlimited')} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Valid From" type="date" value={form.validFrom} onChange={e => setForm(f => ({...f, validFrom: e.target.value}))} />
-            <Input label="Valid To" type="date" value={form.validTo} onChange={e => setForm(f => ({...f, validTo: e.target.value}))} />
+            <Input label={t('promo.validFrom')} type="date" value={form.validFrom} onChange={e => setForm(f => ({...f, validFrom: e.target.value}))} />
+            <Input label={t('promo.validTo')} type="date" value={form.validTo} onChange={e => setForm(f => ({...f, validTo: e.target.value}))} />
           </div>
         </div>
       </Modal>

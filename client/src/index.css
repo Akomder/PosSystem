@@ -26,6 +26,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Lao language: switch to Poppins for better Lao script rendering */
+html.lang-lo body,
+html.lang-lo {
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
 #root {
   width: 100%;
   min-height: 100vh;

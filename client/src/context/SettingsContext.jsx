@@ -25,6 +25,16 @@ export function SettingsProvider({ children }) {
     localStorage.setItem('pos_dark', String(dark))
   }, [dark])
 
+  // Apply / remove lang-lo class on <html> for Poppins font
+  useEffect(() => {
+    const root = document.documentElement
+    if (lang === 'lo') {
+      root.classList.add('lang-lo')
+    } else {
+      root.classList.remove('lang-lo')
+    }
+  }, [lang])
+
   const toggleDark = useCallback(() => setDark((v) => !v), [])
 
   const setLang = useCallback((l) => {

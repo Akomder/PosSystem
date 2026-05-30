@@ -11,11 +11,13 @@ import EmptyState from '../components/ui/EmptyState'
 import DateRangeFilter from '../components/ui/DateRangeFilter'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
+import { useSettings } from '../context/SettingsContext'
 
 const STATUS_VARIANT = { draft: 'default', ordered: 'amber', received: 'green', cancelled: 'red' }
 
 export default function PurchaseOrders() {
   const { user } = useAuth()
+  const { t } = useSettings()
   const isAdmin = user?.role === 'Admin'
   const [orders, setOrders]         = useState([])
   const [loading, setLoading]       = useState(true)
@@ -28,6 +30,14 @@ export default function PurchaseOrders() {
   const [form, setForm]             = useState({ supplierId: '', referenceNo: '', expectedAt: '', notes: '', items: [] })
   const [detail, setDetail]         = useState(null)
   const [printId, setPrintId]       = useState(null)
+
+  const STATUS_TABS = [
+    { key: '',           label: t('po.status.all')       },
+    { key: 'draft',      label: t('po.status.draft')     },
+    { key: 'ordered',    label: t('po.status.ordered')   },
+    { key: 'received',   label: t('po.status.received')  },
+    { key: 'cancelled',  label: t('po.status.cancelled') },
+  ]
 
   useEffect(() => { load() }, [statusFilter])
 
@@ -82,26 +92,26 @@ export default function PurchaseOrders() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Purchase Orders</h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Orders placed to suppliers</p>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('po.title')}</h2>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{t('po.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <DateRangeFilter value={dateRange} onChange={setDateRange} />
-          {isAdmin && <Button icon={PlusCircle} onClick={openCreate}>New Order</Button>}
+          {isAdmin && <Button icon={PlusCircle} onClick={openCreate}>{t('po.new')}</Button>}
         </div>
       </div>
 
       {/* Status tabs */}
       <div className="flex gap-1">
-        {['', 'draft', 'ordered', 'received', 'cancelled'].map(s => (
-          <button key={s} onClick={() => setStatus(s)}
+        {STATUS_TABS.map(tab => (
+          <button key={tab.key} onClick={() => setStatus(tab.key)}
             className={clsx('px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-              statusFilter === s
+              statusFilter === tab.key
                 ? 'bg-teal-600 text-white'
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
             )}
           >
-            {s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -112,7 +122,7 @@ export default function PurchaseOrders() {
           {loading ? (
             <div className="flex justify-center py-10"><div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>
           ) : displayOrders.length === 0 ? (
-            <EmptyState icon={ShoppingBag} title="No purchase orders" description="Create purchase orders to track supplier orders" />
+            <EmptyState icon={ShoppingBag} title={t('po.noOrders')} description={t('po.noOrdersDesc')} />
           ) : displayOrders.map(o => (
             <div key={o.id} onClick={async () => { const d = await purchaseOrdersApi.getOne(o.id); setDetail(d) }}
               className={clsx('p-4 rounded-xl border cursor-pointer transition-all',
@@ -124,7 +134,7 @@ export default function PurchaseOrders() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-semibold text-gray-900 dark:text-gray-100">{o.id}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{o.supplierName || 'No supplier'}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{o.supplierName || t('po.noSupplier')}</p>
                   <p className="text-xs text-gray-400 dark:text-gray-500">{formatDate(o.createdAt)}</p>
                 </div>
                 <div className="text-right">
@@ -139,7 +149,7 @@ export default function PurchaseOrders() {
         {/* Detail */}
         <div className="lg:col-span-2">
           {!detail ? (
-            <div className="flex items-center justify-center h-48 text-sm text-gray-400">Select an order to view details</div>
+            <div className="flex items-center justify-center h-48 text-sm text-gray-400">{t('po.selectOrder')}</div>
           ) : (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between flex-wrap gap-2">
@@ -149,13 +159,13 @@ export default function PurchaseOrders() {
                 </div>
                 <div className="flex gap-2 items-center">
                   {isAdmin && detail.status === 'draft' && (
-                    <Button size="sm" onClick={() => updateStatus(detail.id, 'ordered')}>Mark Ordered</Button>
+                    <Button size="sm" onClick={() => updateStatus(detail.id, 'ordered')}>{t('po.markOrdered')}</Button>
                   )}
                   {isAdmin && detail.status === 'ordered' && (
-                    <Button size="sm" onClick={() => updateStatus(detail.id, 'received')}>Mark Received</Button>
+                    <Button size="sm" onClick={() => updateStatus(detail.id, 'received')}>{t('po.markReceived')}</Button>
                   )}
                   {isAdmin && detail.status === 'draft' && (
-                    <Button size="sm" variant="danger" onClick={() => updateStatus(detail.id, 'cancelled')}>Cancel</Button>
+                    <Button size="sm" variant="danger" onClick={() => updateStatus(detail.id, 'cancelled')}>{t('common.cancel')}</Button>
                   )}
                   <button
                     onClick={() => setPrintId(detail._id || detail.id)}
@@ -169,11 +179,11 @@ export default function PurchaseOrders() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">
-                    <th className="px-5 py-3 text-left">Item</th>
-                    <th className="px-5 py-3 text-right">Ordered</th>
-                    <th className="px-5 py-3 text-right">Received</th>
-                    <th className="px-5 py-3 text-right">Unit Cost</th>
-                    <th className="px-5 py-3 text-right">Total</th>
+                    <th className="px-5 py-3 text-left">{t('po.col.item')}</th>
+                    <th className="px-5 py-3 text-right">{t('po.col.ordered')}</th>
+                    <th className="px-5 py-3 text-right">{t('po.col.received')}</th>
+                    <th className="px-5 py-3 text-right">{t('po.col.unitCost')}</th>
+                    <th className="px-5 py-3 text-right">{t('po.col.total')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
@@ -187,14 +197,14 @@ export default function PurchaseOrders() {
                     </tr>
                   ))}
                   <tr className="bg-gray-50 dark:bg-gray-700/30">
-                    <td colSpan={4} className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">Total</td>
+                    <td colSpan={4} className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">{t('common.total')}</td>
                     <td className="px-5 py-3 text-right font-bold text-teal-600 dark:text-teal-400">{formatCurrency(detail.total)}</td>
                   </tr>
                 </tbody>
               </table>
               {detail.notes && (
                 <div className="px-5 py-3 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700">
-                  <span className="font-medium">Notes:</span> {detail.notes}
+                  <span className="font-medium">{t('po.notes')}:</span> {detail.notes}
                 </div>
               )}
             </div>
@@ -203,29 +213,29 @@ export default function PurchaseOrders() {
       </div>
 
       {/* Create Modal */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="New Purchase Order" size="lg"
-        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button loading={saving} onClick={handleCreate}>Create Order</Button></>}
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={t('po.newModal')} size="lg"
+        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>{t('common.cancel')}</Button><Button loading={saving} onClick={handleCreate}>{t('po.createOrder')}</Button></>}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Supplier</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">{t('po.supplier')}</label>
               <select value={form.supplierId} onChange={e => setForm(f => ({...f, supplierId: e.target.value}))}
                 className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
-                <option value="">No supplier</option>
+                <option value="">{t('po.noSupplier')}</option>
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
-            <Input label="Reference No." value={form.referenceNo} onChange={e => setForm(f => ({...f, referenceNo: e.target.value}))} placeholder="PO-2025-001" />
+            <Input label={t('po.referenceNo')} value={form.referenceNo} onChange={e => setForm(f => ({...f, referenceNo: e.target.value}))} placeholder="PO-2025-001" />
           </div>
-          <Input label="Expected Date" type="date" value={form.expectedAt} onChange={e => setForm(f => ({...f, expectedAt: e.target.value}))} />
+          <Input label={t('po.expectedDate')} type="date" value={form.expectedAt} onChange={e => setForm(f => ({...f, expectedAt: e.target.value}))} />
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Items</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('po.items')}</p>
               <button onClick={addLine} className="text-xs text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1">
-                <Plus size={12} /> Add line
+                <Plus size={12} /> {t('po.addLine')}
               </button>
             </div>
             <div className="space-y-2">
@@ -254,7 +264,7 @@ export default function PurchaseOrders() {
                   </div>
                 </div>
               ))}
-              {form.items.length === 0 && <p className="text-sm text-gray-400 text-center py-3">No items added yet</p>}
+              {form.items.length === 0 && <p className="text-sm text-gray-400 text-center py-3">{t('po.noItems')}</p>}
             </div>
           </div>
         </div>
