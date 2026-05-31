@@ -84,6 +84,12 @@ export const menuApi = {
   update:        (id, body)    => put(`/menu/${id}`, body),
   toggleAvail:   (id)          => patch(`/menu/${id}/availability`),
   delete:        (id)          => del(`/menu/${id}`),
+
+  // Category CRUD
+  createCategory:   (body)        => post('/menu/categories', body),
+  updateCategory:   (id, body)    => put(`/menu/categories/${id}`, body),
+  deleteCategory:   (id)          => del(`/menu/categories/${id}`),
+  reorderCategories:(order)       => patch('/menu/categories/reorder', { order }),
 }
 
 // ─── Staff ────────────────────────────────────────────────────────────────────

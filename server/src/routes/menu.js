@@ -3,6 +3,7 @@ const { body } = require('express-validator')
 const {
   getAllItems, getCategories, getItem,
   createItem, updateItem, toggleAvailability, deleteItem,
+  createCategory, updateCategory, deleteCategory, reorderCategories,
 } = require('../controllers/menuController')
 const authenticate = require('../middleware/auth')
 const requireRole  = require('../middleware/authorize')
@@ -11,6 +12,13 @@ router.use(authenticate)
 
 router.get('/',            getAllItems)
 router.get('/categories',  getCategories)
+
+// Category management (Admin only)
+router.post('/categories',          requireRole('Admin'), createCategory)
+router.put('/categories/:id',       requireRole('Admin'), updateCategory)
+router.delete('/categories/:id',    requireRole('Admin'), deleteCategory)
+router.patch('/categories/reorder', requireRole('Admin'), reorderCategories)
+
 router.get('/:id',         getItem)
 
 router.post(

@@ -124,7 +124,7 @@ export default function Login() {
 
           {/* Restaurant staff hint */}
           <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-5 leading-relaxed">
-            Contact your restaurant administrator if you are a staff member trying to log in.{' '}
+            Contact us.{' '}
             <a
               href="mailto:soukakom2018@gmail.com"
               className="text-slate-500 dark:text-slate-400 hover:underline"

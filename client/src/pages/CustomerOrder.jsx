@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { ShoppingCart, Plus, Minus, X, ChefHat, UtensilsCrossed, XCircle, QrCode, Banknote } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChefHat, UtensilsCrossed, XCircle } from 'lucide-react'
 import { publicApi } from '../services/api'
 
 // ── Translations ──────────────────────────────────────────────────────────────
@@ -17,18 +17,10 @@ const TR = {
     special_req_ph:        'e.g. No onions, extra spicy…',
     subtotal:              'Subtotal',
     total:                 'Total',
-    pay_how:               'How would you like to pay?',
-    cash:                  'Cash',
-    qr_payment:            'QR Payment',
     place_order:           (total, cur) => `Place Order · ${total.toLocaleString()} ${cur}`,
     placing:               'Placing Order…',
     order_placed:          'Order Placed!',
     preparing:             'is being prepared.',
-    scan_to_pay:           '📱 Scan to Pay',
-    scan_instruction:      'Open your banking app and scan this QR code to pay',
-    amount:                'Amount',
-    qr_selected:           '📱 QR Payment Selected',
-    cashier_notified:      'Our cashier has been notified. They will bring a QR code for you to scan and pay.',
     cash_payment:          '💵 Cash Payment',
     cash_instruction:      'Please have your cash ready. Our staff will collect payment when your order is served.',
     order_more:            'Order more items',
@@ -57,18 +49,10 @@ const TR = {
     special_req_ph:        'ເຊັ່ນ: ບໍ່ໃສ່ຜັກບົ່ວ, ເຜັດຫຼາຍ…',
     subtotal:              'ລວມ',
     total:                 'ລວມທັງໝົດ',
-    pay_how:               'ທ່ານຕ້ອງການຊຳລະດ້ວຍວິທີໃດ?',
-    cash:                  'ເງິນສົດ',
-    qr_payment:            'ຊຳລະ QR',
     place_order:           (total, cur) => `ສັ່ງອາຫານ · ${total.toLocaleString()} ${cur}`,
     placing:               'ກຳລັງສັ່ງ…',
     order_placed:          'ສັ່ງອາຫານສຳເລັດ!',
     preparing:             'ກຳລັງກຽມ.',
-    scan_to_pay:           '📱 ສະແກນເພື່ອຊຳລະ',
-    scan_instruction:      'ເປີດແອບທະນາຄານ ແລ້ວສະແກນ QR ເພື່ອຊຳລະ',
-    amount:                'ຈຳນວນ',
-    qr_selected:           '📱 ເລືອກຊຳລະ QR',
-    cashier_notified:      'ພະນັກງານໄດ້ຮັບການແຈ້ງເຕືອນແລ້ວ. ພວກເຂົາຈະນຳ QR ມາໃຫ້ທ່ານສະແກນ.',
     cash_payment:          '💵 ຊຳລະເງິນສົດ',
     cash_instruction:      'ກະລຸນາກຽມເງິນສົດ. ພະນັກງານຈະມາຮັບເງິນເມື່ອອາຫານຖືກເສີດ.',
     order_more:            'ສັ່ງເພີ່ມ',
@@ -110,7 +94,6 @@ export default function CustomerOrder() {
   const [menu,           setMenu]           = useState([])
   const [cart,           setCart]           = useState([])
   const [notes,          setNotes]          = useState('')
-  const [payMethod,      setPayMethod]      = useState('cash')
   const [activeCategory, setActiveCategory] = useState('All')
   const [loading,        setLoading]        = useState(true)
   const [error,          setError]          = useState(null)
@@ -183,9 +166,9 @@ export default function CustomerOrder() {
         tableId,
         notes:         notes.trim(),
         items:         cart.map(c => ({ menuItemId: c.id, quantity: c.quantity })),
-        paymentMethod: payMethod,
+        paymentMethod: 'cash',
       })
-      setConfirmation({ orderId: result.id, payMethod, total, currency: table?.currency || 'LAK' })
+      setConfirmation({ orderId: result.id, total, currency: table?.currency || 'LAK' })
       setCart([])
       setNotes('')
       setCartOpen(false)
@@ -284,72 +267,35 @@ export default function CustomerOrder() {
 
   // ── Confirmation screen ───────────────────────────────────────────────────
   if (confirmation) {
-    const isQr = confirmation.payMethod === 'qr'
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
         <div className="text-center max-w-xs w-full">
           <div className="flex justify-end mb-3"><LangBtn /></div>
 
           {/* Icon */}
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner ${isQr ? 'bg-violet-50' : 'bg-teal-50'}`}>
-            {isQr
-              ? <QrCode size={34} className="text-violet-600" />
-              : <ChefHat size={34} className="text-teal-600" />
-            }
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner bg-teal-50">
+            <ChefHat size={34} className="text-teal-600" />
           </div>
 
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('order_placed')}</h1>
           <p className="text-sm text-gray-500 mb-1">
-            <span className={`font-semibold ${isQr ? 'text-violet-600' : 'text-teal-600'}`}>
+            <span className="font-semibold text-teal-600">
               {confirmation.orderId}
             </span>{' '}
             {t('preparing')}
           </p>
 
           {/* Payment instruction card */}
-          <div className={`mt-4 mb-6 rounded-2xl border overflow-hidden ${isQr ? 'bg-violet-50 border-violet-100' : 'bg-teal-50 border-teal-100'}`}>
-            {isQr ? (
-              <>
-                {table?.qrImageBase64 ? (
-                  /* Restaurant has uploaded a QR image — show it directly */
-                  <div className="flex flex-col items-center px-4 pt-5 pb-4 gap-3">
-                    <p className="text-sm font-semibold text-violet-700">{t('scan_to_pay')}</p>
-                    <div className="bg-white rounded-xl p-3 shadow-sm border border-violet-100">
-                      <img
-                        src={table.qrImageBase64}
-                        alt="QR Payment"
-                        className="w-52 h-52 object-contain"
-                      />
-                    </div>
-                    <p className="text-xs text-violet-600 text-center leading-relaxed">
-                      {t('scan_instruction')}
-                    </p>
-                    <p className="text-sm font-bold text-violet-700">
-                      {confirmation.total?.toLocaleString()} {confirmation.currency}
-                    </p>
-                  </div>
-                ) : (
-                  /* Fallback: no QR image uploaded yet */
-                  <div className="px-4 py-4">
-                    <p className="text-sm font-semibold mb-1 text-violet-700">{t('qr_selected')}</p>
-                    <p className="text-xs text-violet-600 leading-relaxed">{t('cashier_notified')}</p>
-                    <p className="text-xs text-violet-500 mt-2 font-semibold">
-                      {t('amount')}: {confirmation.total?.toLocaleString()} {confirmation.currency}
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="px-4 py-4">
-                <p className="text-sm font-semibold mb-1 text-teal-700">{t('cash_payment')}</p>
-                <p className="text-xs text-teal-600 leading-relaxed">{t('cash_instruction')}</p>
-              </div>
-            )}
+          <div className="mt-4 mb-6 rounded-2xl border overflow-hidden bg-teal-50 border-teal-100">
+            <div className="px-4 py-4">
+              <p className="text-sm font-semibold mb-1 text-teal-700">{t('cash_payment')}</p>
+              <p className="text-xs text-teal-600 leading-relaxed">{t('cash_instruction')}</p>
+            </div>
           </div>
 
           <button
             onClick={() => { setConfirmation(null); setCancelConfirm(false) }}
-            className={`text-sm underline underline-offset-2 ${isQr ? 'text-violet-600 hover:text-violet-700' : 'text-teal-600 hover:text-teal-700'}`}
+            className="text-sm underline underline-offset-2 text-teal-600 hover:text-teal-700"
           >
             {t('order_more')}
           </button>
@@ -568,67 +514,12 @@ export default function CustomerOrder() {
               </div>
             </div>
 
-            {/* Payment method selection */}
-            <div className="px-5 pt-3 pb-2 flex-shrink-0 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 mb-2">{t('pay_how')}</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPayMethod('cash')}
-                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                    payMethod === 'cash'
-                      ? 'border-teal-500 bg-teal-50 text-teal-700'
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  <Banknote size={16} />
-                  {t('cash')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPayMethod('qr')}
-                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                    payMethod === 'qr'
-                      ? 'border-violet-500 bg-violet-50 text-violet-700'
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  <QrCode size={16} />
-                  {t('qr_payment')}
-                </button>
-              </div>
-
-              {/* QR image — shown immediately when customer picks QR payment */}
-              {payMethod === 'qr' && table?.qrImageBase64 && (
-                <div className="mt-3 flex flex-col items-center gap-2 bg-violet-50 border border-violet-100 rounded-2xl px-4 py-4">
-                  <p className="text-xs font-semibold text-violet-700">{t('scan_to_pay')}</p>
-                  <div className="bg-white rounded-xl p-2 shadow-sm border border-violet-100">
-                    <img
-                      src={table.qrImageBase64}
-                      alt="QR Payment"
-                      className="w-44 h-44 object-contain"
-                    />
-                  </div>
-                  <p className="text-xs text-violet-600 text-center leading-relaxed">
-                    {t('scan_instruction')}
-                  </p>
-                  <p className="text-sm font-bold text-violet-700">
-                    {total.toLocaleString()} {table?.currency || 'LAK'}
-                  </p>
-                </div>
-              )}
-            </div>
-
             {/* Place order button */}
-            <div className="px-5 pb-8 pt-2 flex-shrink-0">
+            <div className="px-5 pb-8 pt-2 flex-shrink-0 border-t border-gray-100">
               <button
                 onClick={handleSubmit}
                 disabled={submitting || !cart.length}
-                className={`w-full text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 transition-colors ${
-                  payMethod === 'qr'
-                    ? 'bg-violet-600 hover:bg-violet-700'
-                    : 'bg-teal-600 hover:bg-teal-700'
-                }`}
+                className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 transition-colors"
               >
                 {submitting ? t('placing') : t('place_order', total, table?.currency || 'LAK')}
               </button>

@@ -101,13 +101,129 @@ async function getAllItems(req, res, next) {
 async function getCategories(req, res, next) {
   try {
     const { rows } = await query(
-      `SELECT category, COUNT(*) AS total,
-              SUM(CASE WHEN available THEN 1 ELSE 0 END) AS available
-       FROM menu_items WHERE restaurant_id = $1
-       GROUP BY category ORDER BY category`,
+      `SELECT mc.id, mc.name, mc.sort_order AS "sortOrder", mc.color,
+              COUNT(mi.id)::int                                           AS total,
+              COUNT(mi.id) FILTER (WHERE mi.available = TRUE)::int       AS available
+       FROM menu_categories mc
+       LEFT JOIN menu_items mi
+         ON mi.restaurant_id = mc.restaurant_id AND mi.category = mc.name
+       WHERE mc.restaurant_id = $1
+       GROUP BY mc.id, mc.name, mc.sort_order, mc.color
+       ORDER BY mc.sort_order, mc.name`,
       [req.restaurantId]
     )
     res.json(rows)
+  } catch (err) { next(err) }
+}
+
+// ─── POST /api/menu/categories ───────────────────────────────────────────────
+async function createCategory(req, res, next) {
+  const { name, color } = req.body
+  if (!name?.trim()) return res.status(400).json({ error: 'Name is required' })
+  try {
+    const maxRow = await query(
+      `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order
+       FROM menu_categories WHERE restaurant_id = $1`,
+      [req.restaurantId]
+    )
+    const nextOrder = maxRow.rows[0].next_order
+    const { rows } = await query(
+      `INSERT INTO menu_categories (restaurant_id, name, sort_order, color)
+       VALUES ($1, $2, $3, $4) RETURNING id, name, sort_order AS "sortOrder", color`,
+      [req.restaurantId, name.trim(), nextOrder, color || '#14b8a6']
+    )
+    res.status(201).json({ ...rows[0], total: 0, available: 0 })
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Category already exists' })
+    next(err)
+  }
+}
+
+// ─── PUT /api/menu/categories/:id ────────────────────────────────────────────
+async function updateCategory(req, res, next) {
+  const { name, color } = req.body
+  const sets = [], params = []
+  if (name?.trim()) { params.push(name.trim()); sets.push(`name = $${params.length}`) }
+  if (color)        { params.push(color);        sets.push(`color = $${params.length}`) }
+  if (!sets.length) return res.status(400).json({ error: 'Nothing to update' })
+
+  params.push(req.params.id, req.restaurantId)
+  try {
+    const old = await query(
+      `SELECT name FROM menu_categories WHERE id = $1 AND restaurant_id = $2`,
+      [req.params.id, req.restaurantId]
+    )
+    if (!old.rows.length) return res.status(404).json({ error: 'Category not found' })
+    const oldName = old.rows[0].name
+
+    await query(
+      `UPDATE menu_categories SET ${sets.join(', ')} WHERE id = $${params.length - 1} AND restaurant_id = $${params.length}`,
+      params
+    )
+    // Keep existing menu items in sync when renaming
+    if (name?.trim() && name.trim() !== oldName) {
+      await query(
+        `UPDATE menu_items SET category = $1 WHERE category = $2 AND restaurant_id = $3`,
+        [name.trim(), oldName, req.restaurantId]
+      )
+    }
+    const { rows } = await query(
+      `SELECT mc.id, mc.name, mc.sort_order AS "sortOrder", mc.color,
+              COUNT(mi.id)::int                                           AS total,
+              COUNT(mi.id) FILTER (WHERE mi.available = TRUE)::int       AS available
+       FROM menu_categories mc
+       LEFT JOIN menu_items mi ON mi.restaurant_id = mc.restaurant_id AND mi.category = mc.name
+       WHERE mc.id = $1 GROUP BY mc.id, mc.name, mc.sort_order, mc.color`,
+      [req.params.id]
+    )
+    res.json(rows[0])
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Category name already exists' })
+    next(err)
+  }
+}
+
+// ─── DELETE /api/menu/categories/:id ─────────────────────────────────────────
+async function deleteCategory(req, res, next) {
+  try {
+    const cat = await query(
+      `SELECT name FROM menu_categories WHERE id = $1 AND restaurant_id = $2`,
+      [req.params.id, req.restaurantId]
+    )
+    if (!cat.rows.length) return res.status(404).json({ error: 'Category not found' })
+    const name = cat.rows[0].name
+
+    const used = await query(
+      `SELECT COUNT(*) FROM menu_items WHERE category = $1 AND restaurant_id = $2`,
+      [name, req.restaurantId]
+    )
+    if (parseInt(used.rows[0].count) > 0) {
+      return res.status(409).json({
+        error: `Cannot delete — ${used.rows[0].count} item(s) still use this category. Move them first.`,
+        count: parseInt(used.rows[0].count),
+      })
+    }
+    await query(
+      `DELETE FROM menu_categories WHERE id = $1 AND restaurant_id = $2`,
+      [req.params.id, req.restaurantId]
+    )
+    res.status(204).end()
+  } catch (err) { next(err) }
+}
+
+// ─── PATCH /api/menu/categories/reorder ──────────────────────────────────────
+// Body: { order: [{ id, sortOrder }, ...] }
+async function reorderCategories(req, res, next) {
+  const { order } = req.body
+  if (!Array.isArray(order) || !order.length) return res.status(400).json({ error: 'order array required' })
+  try {
+    for (const { id, sortOrder } of order) {
+      await query(
+        `UPDATE menu_categories SET sort_order = $1 WHERE id = $2 AND restaurant_id = $3`,
+        [sortOrder, id, req.restaurantId]
+      )
+    }
+    res.json({ ok: true })
   } catch (err) { next(err) }
 }
 
@@ -225,4 +341,7 @@ async function deleteItem(req, res, next) {
   } catch (err) { next(err) }
 }
 
-module.exports = { getAllItems, getCategories, getItem, createItem, updateItem, toggleAvailability, deleteItem }
+module.exports = {
+  getAllItems, getCategories, getItem, createItem, updateItem, toggleAvailability, deleteItem,
+  createCategory, updateCategory, deleteCategory, reorderCategories,
+}

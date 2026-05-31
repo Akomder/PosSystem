@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { PlusCircle, Search, Pencil, Package, Settings2, Trash2, ChevronDown, ChevronRight, Plus, ImageIcon, X } from 'lucide-react'
+import { PlusCircle, Search, Pencil, Package, Settings2, Trash2, ChevronDown, ChevronRight, Plus, ImageIcon, X, Layers } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
@@ -13,12 +13,11 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import EmptyState from '../components/ui/EmptyState'
 import PlanLimitBanner from '../components/ui/PlanLimitBanner'
+import CategoryManager from '../components/CategoryManager'
 import { formatCurrency } from '../utils/formatters'
 import { getPlaceholderColor, getPlaceholderTextColor } from '../utils/tableHelpers'
 
 const PLAN_MENU_LIMITS = { basic: 50, pro: 200, enterprise: Infinity }
-
-const CATEGORIES = ['All', 'Starters', 'Mains', 'Drinks', 'Desserts']
 
 const TAG_OPTIONS = ['vegetarian', 'vegan', 'gluten-free', 'spicy', 'contains-nuts']
 
@@ -50,6 +49,16 @@ export default function Menu() {
   const [saving,     setSaving]     = useState(false)
   const [saveError,  setSaveError]  = useState(null)
 
+  // Dynamic categories
+  const [categories,    setCategories]    = useState([])
+  const [catMgrOpen,    setCatMgrOpen]    = useState(false)
+
+  const loadCategories = useCallback(() => {
+    menuApi.getCategories().then(data => setCategories(data)).catch(() => {})
+  }, [])
+
+  useEffect(() => { loadCategories() }, [loadCategories])
+
   // Modifier groups state
   const [modGroups,       setModGroups]       = useState([])
   const [modModalOpen,    setModModalOpen]    = useState(false)
@@ -78,6 +87,8 @@ export default function Menu() {
       (m.description || '').toLowerCase().includes(q)
     return matchCat && matchSearch
   })
+
+  const allCategoryTabs = [{ id: 'all', name: 'All', color: '#6b7280', sortOrder: -1 }, ...categories]
 
   const catCount = (cat) =>
     cat === 'All'
@@ -270,27 +281,43 @@ export default function Menu() {
 
       {/* Category Tabs + Search */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex gap-1 flex-wrap">
-          {CATEGORIES.map((cat) => (
+        <div className="flex gap-1 flex-wrap items-center">
+          {allCategoryTabs.map((cat) => {
+            const isActive = activeCategory === cat.name
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setCategory(cat.name)}
+                className={clsx(
+                  'px-4 py-2 text-sm font-medium rounded-full transition-colors flex items-center gap-1.5',
+                  isActive
+                    ? 'text-white shadow-sm'
+                    : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700',
+                )}
+                style={isActive ? { background: cat.color || '#14b8a6' } : {}}
+              >
+                {cat.id !== 'all' && (
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: isActive ? 'rgba(255,255,255,0.6)' : cat.color }} />
+                )}
+                {cat.name}
+                <span className={clsx(
+                  'ml-0.5 text-xs px-1.5 py-0.5 rounded-full',
+                  isActive ? 'bg-black/20 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
+                )}>
+                  {catCount(cat.name)}
+                </span>
+              </button>
+            )
+          })}
+          {isAdmin && (
             <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={clsx(
-                'px-4 py-2 text-sm font-medium rounded-full transition-colors',
-                activeCategory === cat
-                  ? 'bg-teal-600 text-white shadow-sm'
-                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700',
-              )}
+              onClick={() => setCatMgrOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded-full hover:border-teal-400 hover:text-teal-600 transition-colors"
             >
-              {cat}
-              <span className={clsx(
-                'ml-1.5 text-xs px-1.5 py-0.5 rounded-full',
-                activeCategory === cat ? 'bg-teal-500' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
-              )}>
-                {catCount(cat)}
-              </span>
+              <Layers size={12} />
+              Manage
             </button>
-          ))}
+          )}
         </div>
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
@@ -302,6 +329,13 @@ export default function Menu() {
           />
         </div>
       </div>
+
+      {/* Category Manager modal */}
+      <CategoryManager
+        open={catMgrOpen}
+        onClose={() => setCatMgrOpen(false)}
+        onChanged={() => { loadCategories() }}
+      />
 
       {/* Item Grid */}
       {filtered.length === 0 ? (
@@ -648,7 +682,7 @@ export default function Menu() {
               required
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              options={['Starters','Mains','Drinks','Desserts'].map((c) => ({ value: c, label: c }))}
+              options={categories.map((c) => ({ value: c.name, label: c.name }))}
             />
             <Input
               label={t('menu.price')}

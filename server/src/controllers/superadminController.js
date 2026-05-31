@@ -266,6 +266,21 @@ async function createRestaurant(req, res, next) {
       [adminName, userRes.rows[0].id, rest.id]
     )
 
+    // Seed default categories for the new restaurant
+    const defaultCategories = [
+      { name: 'Starters', order: 0, color: '#f97316' },
+      { name: 'Mains',    order: 1, color: '#14b8a6' },
+      { name: 'Drinks',   order: 2, color: '#3b82f6' },
+      { name: 'Desserts', order: 3, color: '#ec4899' },
+    ]
+    for (const cat of defaultCategories) {
+      await client.query(
+        `INSERT INTO menu_categories (restaurant_id, name, sort_order, color)
+         VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+        [rest.id, cat.name, cat.order, cat.color]
+      )
+    }
+
     await client.query('COMMIT')
 
     // Audit log

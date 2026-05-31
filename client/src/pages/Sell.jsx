@@ -9,7 +9,7 @@ import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../context/SettingsContext'
-import { ordersApi, customersApi, shiftsApi, salesChannelsApi, promotionsApi } from '../services/api'
+import { ordersApi, customersApi, shiftsApi, salesChannelsApi, promotionsApi, menuApi } from '../services/api'
 import { formatCurrency } from '../utils/formatters'
 import Badge from '../components/ui/Badge'
 import ModifierModal from '../components/ModifierModal'
@@ -351,6 +351,11 @@ export default function Sell() {
   const [tableFilter,   setTableFilter]   = useState('all')     // 'all' | 'free' | 'reserved'
   const [menuSearch,    setMenuSearch]    = useState('')
   const [menuCategory,  setMenuCategory]  = useState('All')
+  const [menuCategories, setMenuCategories] = useState([])
+
+  useEffect(() => {
+    menuApi.getCategories().then(data => setMenuCategories(data)).catch(() => {})
+  }, [])
 
   // Right panel — orders (tabs support multiple open orders)
   const [orderTabs, setOrderTabs]     = useState([newTab()])  // array of order objects
@@ -622,7 +627,10 @@ export default function Sell() {
     return true
   })
 
-  const categories = ['All', ...new Set(menuItems.map(m => m.category).filter(Boolean))]
+  const categories = [
+    { id: 'all', name: 'All', color: null },
+    ...menuCategories,
+  ]
   const filteredMenu = menuItems.filter(m => {
     if (!m.available) return false
     if (menuSearch && !m.name.toLowerCase().includes(menuSearch.toLowerCase())) return false
@@ -794,21 +802,28 @@ export default function Sell() {
           {leftTab === 'menu' && (
             <>
               {/* Category pills */}
-              <div className="flex gap-1.5 px-4 py-2.5 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 overflow-x-auto flex-shrink-0">
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setMenuCategory(cat)}
-                    className={clsx(
-                      'px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
-                      menuCategory === cat
-                        ? 'bg-teal-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    )}
-                  >
-                    {cat}
-                  </button>
-                ))}
+              <div className="flex gap-1.5 px-4 py-2.5 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 overflow-x-auto flex-shrink-0 scrollbar-none">
+                {categories.map(cat => {
+                  const isActive = menuCategory === cat.name
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setMenuCategory(cat.name)}
+                      className={clsx(
+                        'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0',
+                        isActive
+                          ? 'text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      )}
+                      style={isActive ? { background: cat.color || '#14b8a6' } : {}}
+                    >
+                      {cat.color && !isActive && (
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.color }} />
+                      )}
+                      {cat.name}
+                    </button>
+                  )
+                })}
               </div>
 
               {/* Menu grid */}

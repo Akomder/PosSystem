@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
   id             SERIAL PRIMARY KEY,
   restaurant_id  INTEGER        REFERENCES restaurants(id) ON DELETE CASCADE,
   name           VARCHAR(150)   NOT NULL,
-  category       VARCHAR(30)    NOT NULL CHECK (category IN ('Starters','Mains','Drinks','Desserts')),
+  category       VARCHAR(50)    NOT NULL,
   price          NUMERIC(10,2)  NOT NULL CHECK (price > 0),
   cost_price     NUMERIC(10,2)  NOT NULL DEFAULT 0,
   description    TEXT           NOT NULL DEFAULT '',
@@ -100,6 +100,19 @@ CREATE TABLE IF NOT EXISTS menu_items (
   created_at     TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
+
+-- MENU CATEGORIES (per restaurant, ordered)
+CREATE TABLE IF NOT EXISTS menu_categories (
+  id            SERIAL       PRIMARY KEY,
+  restaurant_id INTEGER      NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  name          VARCHAR(50)  NOT NULL,
+  sort_order    INTEGER      NOT NULL DEFAULT 0,
+  color         VARCHAR(20)  NOT NULL DEFAULT '#14b8a6',
+  UNIQUE (restaurant_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_menu_categories_restaurant
+  ON menu_categories(restaurant_id, sort_order);
 
 -- TABLE ZONES (must exist before restaurant_tables for FK)
 CREATE TABLE IF NOT EXISTS table_zones (
