@@ -156,18 +156,18 @@ const writeTransCache = c  => { try { localStorage.setItem(TRANS_CACHE_KEY, JSON
 async function batchTranslateLao(texts) {
   const result = {}
   if (!texts.length) return result
-  try {
-    const joined = texts.join('\n')
-    const res  = await fetch(
-      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=lo&tl=en&dt=t&q=${encodeURIComponent(joined)}`
-    )
-    const data = await res.json()
-    const raw  = data[0]?.map(s => s[0]).join('') || ''
-    const lines = raw.split('\n')
-    texts.forEach((t, i) => { result[t] = (lines[i] || t).trim() || t })
-  } catch {
-    texts.forEach(t => { result[t] = t })
-  }
+  // One request per text, all concurrent — more reliable than batching with \n
+  await Promise.all(texts.map(async text => {
+    try {
+      const res  = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=lo&tl=en&dt=t&q=${encodeURIComponent(text)}`
+      )
+      const data = await res.json()
+      result[text] = data[0]?.map(s => s[0]).join('').trim() || text
+    } catch {
+      result[text] = text
+    }
+  }))
   return result
 }
 
