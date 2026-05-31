@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS staff (
   restaurant_id    INTEGER      REFERENCES restaurants(id) ON DELETE CASCADE,
   user_id          INTEGER      REFERENCES users(id) ON DELETE SET NULL,
   name             VARCHAR(100) NOT NULL,
-  role             VARCHAR(20)  NOT NULL CHECK (role IN ('Admin','Waiter','Cashier')),
+  role             VARCHAR(20)  NOT NULL CHECK (role IN ('SuperAdmin','Admin','Waiter','Cashier')),
   status           VARCHAR(20)  NOT NULL DEFAULT 'active'
                      CHECK (status IN ('active','inactive','on-leave')),
   email            VARCHAR(255),
@@ -679,3 +679,11 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, created_at DESC);
+
+-- ─── Fix staff role constraint to include SuperAdmin ─────────────────────────
+DO $$ BEGIN
+  ALTER TABLE staff DROP CONSTRAINT IF EXISTS staff_role_check;
+  ALTER TABLE staff ADD CONSTRAINT staff_role_check
+    CHECK (role IN ('SuperAdmin','Admin','Waiter','Cashier'));
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
