@@ -1,7 +1,7 @@
 # Fly.io deployment configuration — POS System
 # Docs: https://fly.io/docs/reference/configuration/
 
-app            = "onemedscenter-pos"
+app            = "errorpos"
 primary_region = "sin"        # Singapore — closest to Southeast Asia
 
 [build]
