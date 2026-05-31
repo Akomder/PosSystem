@@ -41,6 +41,11 @@ const DEFAULT_CONFIG = {
   showPaymentDetails:  true,
   showSignatureLine:   false,
   signatureLabel:      'Signature: ____________________',
+  // ── QR Payment ──────────────────────────────────────────────────────────────
+  showQrPayment:       false,
+  qrPaymentLabel:      'Scan to Pay',
+  // ── Alt currencies ───────────────────────────────────────────────────────────
+  showAltCurrencies:   false,
   // ── Footer ──────────────────────────────────────────────────────────────────
   footerText:          'Thank you for dining with us!',
   footerAlign:         'center',

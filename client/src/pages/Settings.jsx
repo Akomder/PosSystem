@@ -85,11 +85,12 @@ function StoreTab({ isAdmin }) {
   const [toast,    setToast]    = useState(null)   // { type, msg }
   const [info,     setInfo]     = useState({
     name: '', phone: '', email: '', address: '',
-    taxRate: '', currency: 'USD', logoUrl: '',
+    taxRate: '', currency: 'LAK', logoUrl: '',
   })
-  const [posParams, setPosParams] = useState(
+  const [posParams,      setPosParams]      = useState(
     Object.fromEntries(POS_TOGGLES.map(t => [t.key, false]))
   )
+  const [exchangeRates,  setExchangeRates]  = useState({ USD: '', THB: '' })
 
   const showToast = useCallback((type, msg) => {
     setToast({ type, msg })
@@ -112,7 +113,11 @@ function StoreTab({ isAdmin }) {
           logoUrl:  data.logoUrl   || '',
         })
         const saved = data.settings || {}
-        setPosParams(prev => ({ ...prev, ...saved }))
+        setPosParams(Object.fromEntries(POS_TOGGLES.map(t => [t.key, saved[t.key] ?? false])))
+        setExchangeRates({
+          USD: saved.exchangeRates?.USD ?? '',
+          THB: saved.exchangeRates?.THB ?? '',
+        })
       })
       .catch(() => {})
       .finally(() => { if (mounted) setLoading(false) })
@@ -122,6 +127,12 @@ function StoreTab({ isAdmin }) {
   async function handleSave() {
     setSaving(true)
     try {
+      // Read existing settings first to preserve receipt/payment config
+      const current  = await settingsApi.store.get()
+      const existing = current.settings || {}
+      const rates    = {}
+      if (parseFloat(exchangeRates.USD)) rates.USD = parseFloat(exchangeRates.USD)
+      if (parseFloat(exchangeRates.THB)) rates.THB = parseFloat(exchangeRates.THB)
       await settingsApi.store.update({
         name:     info.name     || undefined,
         phone:    info.phone    || undefined,
@@ -130,7 +141,7 @@ function StoreTab({ isAdmin }) {
         taxRate:  info.taxRate  ? parseFloat(info.taxRate) : undefined,
         currency: info.currency || undefined,
         logoUrl:  info.logoUrl  || undefined,
-        settings: posParams,
+        settings: { ...existing, ...posParams, exchangeRates: rates },
       })
       showToast('success', 'Store settings saved')
     } catch (e) {
@@ -264,6 +275,65 @@ function StoreTab({ isAdmin }) {
             </select>
           </div>
 
+        </div>
+      </div>
+
+      {/* ── Currency Converter ────────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+          <DollarSign size={15} className="text-teal-600" />
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Currency Converter</p>
+          <span className="ml-auto text-xs text-gray-400">Shown on receipt when enabled</span>
+        </div>
+        <div className="px-5 py-5 space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Set exchange rates relative to your primary currency (<strong>{info.currency || 'LAK'}</strong>).
+            Leave blank to hide a currency on receipts.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* USD */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                1 {info.currency || 'LAK'} = ___ USD
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.000001"
+                value={exchangeRates.USD}
+                onChange={e => setExchangeRates(r => ({ ...r, USD: e.target.value }))}
+                disabled={!isAdmin}
+                placeholder="e.g. 0.000059"
+                className="w-full text-sm bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
+              />
+              {exchangeRates.USD && (
+                <p className="text-xs text-teal-600 mt-1">
+                  100,000 {info.currency || 'LAK'} ≈ {(100000 * parseFloat(exchangeRates.USD || 0)).toFixed(2)} USD
+                </p>
+              )}
+            </div>
+            {/* THB */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                1 {info.currency || 'LAK'} = ___ THB
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.000001"
+                value={exchangeRates.THB}
+                onChange={e => setExchangeRates(r => ({ ...r, THB: e.target.value }))}
+                disabled={!isAdmin}
+                placeholder="e.g. 0.0021"
+                className="w-full text-sm bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
+              />
+              {exchangeRates.THB && (
+                <p className="text-xs text-teal-600 mt-1">
+                  100,000 {info.currency || 'LAK'} ≈ {(100000 * parseFloat(exchangeRates.THB || 0)).toFixed(2)} THB
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

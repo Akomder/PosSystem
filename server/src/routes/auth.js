@@ -6,7 +6,7 @@ const authenticate = require('../middleware/auth')
 router.post(
   '/login',
   [
-    body('email').isEmail().withMessage('Valid email required'),
+    body('email').notEmpty().withMessage('Email or username required'),
     body('password').notEmpty().withMessage('Password required'),
   ],
   login

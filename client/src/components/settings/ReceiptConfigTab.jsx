@@ -45,6 +45,11 @@ const DEFAULT_CONFIG = {
   showPaymentDetails:  true,
   showSignatureLine:   false,
   signatureLabel:      'Signature: ____________________',
+  // ── QR Payment ──────────────────────────────────────────────────────────────
+  showQrPayment:       false,
+  qrPaymentLabel:      'Scan to Pay',
+  // ── Alt currencies on receipt ────────────────────────────────────────────────
+  showAltCurrencies:   false,
   footerText:          'Thank you for dining with us!',
   footerAlign:         'center',
   labelReceipt:        'RECEIPT',
@@ -322,11 +327,43 @@ function TemplatePanel({ config }) {
         </>
       )}
 
+      {/* Alt currency totals placeholder */}
+      {config.showAltCurrencies && (
+        <>
+          {config.showDividers && <div style={divStyle} />}
+          <div style={{ fontSize: fontSize - 2, color: '#555', textAlign: 'center', lineHeight: 1.8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+              <span style={{ color: '#888' }}>$ USD</span>
+              <span>≈ <VarTag label="usd_total" /></span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+              <span style={{ color: '#888' }}>฿ THB</span>
+              <span>≈ <VarTag label="thb_total" /></span>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Footer */}
       {config.showDividers && <div style={divStyle} />}
       <div style={{ textAlign: fAlign, fontSize: fontSize - 2, color: '#aaa', marginTop: 4, lineHeight: 1.5 }}>
         {config.footerText || <VarTag label="footer_text" />}
       </div>
+
+      {/* QR payment placeholder — always at the very bottom */}
+      {config.showQrPayment && (
+        <>
+          {config.showDividers && <div style={divStyle} />}
+          <div style={{ textAlign: 'center', marginTop: 6, marginBottom: 4 }}>
+            <div style={{ fontSize: fontSize - 2, color: '#555', marginBottom: 5, fontWeight: 600, letterSpacing: 0.3 }}>
+              {config.qrPaymentLabel || 'Scan to Pay'}
+            </div>
+            <div style={{ width: 80, height: 80, margin: '0 auto', background: '#f3f4f6', border: '1.5px dashed #d1d5db', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 9, color: '#9ca3af', textAlign: 'center', lineHeight: 1.4 }}>QR<br/>Code</span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -443,10 +480,58 @@ function ReceiptPreview({ config, storeInfo }) {
         </>
       )}
 
+      {/* Alt currency totals */}
+      {config.showAltCurrencies && !(storeInfo.exchangeRates?.USD || storeInfo.exchangeRates?.THB) && (
+        <>
+          {config.showDividers && <div style={divStyle} />}
+          <div style={{ fontSize: fontSize - 2, color: '#bbb', textAlign: 'center', fontStyle: 'italic' }}>
+            Set USD / THB rates in Store settings
+          </div>
+        </>
+      )}
+      {config.showAltCurrencies && (storeInfo.exchangeRates?.USD || storeInfo.exchangeRates?.THB) && (
+        <>
+          {config.showDividers && <div style={divStyle} />}
+          <div style={{ fontSize: fontSize - 2, color: '#555' }}>
+            {storeInfo.exchangeRates?.USD && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                <span style={{ color: '#888' }}>$ USD</span>
+                <span>≈ {(MOCK.total * storeInfo.exchangeRates.USD).toFixed(2)}</span>
+              </div>
+            )}
+            {storeInfo.exchangeRates?.THB && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                <span style={{ color: '#888' }}>฿ THB</span>
+                <span>≈ {(MOCK.total * storeInfo.exchangeRates.THB).toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       {config.showDividers && <div style={divStyle} />}
       <div style={{ textAlign: fAlign, fontSize: fontSize - 2, color: '#777', marginTop: 4, lineHeight: 1.5 }}>
         {config.footerText || 'Thank you for dining with us!'}
       </div>
+
+      {/* QR payment — always at the very bottom */}
+      {config.showQrPayment && (
+        <>
+          {config.showDividers && <div style={divStyle} />}
+          <div style={{ textAlign: 'center', margin: '6px 0 4px' }}>
+            <div style={{ fontSize: fontSize - 2, color: '#555', marginBottom: 5, fontWeight: 600, letterSpacing: 0.3 }}>
+              {config.qrPaymentLabel || 'Scan to Pay'}
+            </div>
+            {storeInfo.paymentQrImage ? (
+              <img src={storeInfo.paymentQrImage} alt="QR" style={{ width: 80, height: 80, objectFit: 'contain', margin: '0 auto', display: 'block' }} />
+            ) : (
+              <div style={{ width: 80, height: 80, margin: '0 auto', background: '#f3f4f6', border: '1.5px dashed #d1d5db', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 9, color: '#9ca3af', textAlign: 'center', lineHeight: 1.4 }}>Upload QR<br/>in Payments</span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -942,7 +1027,12 @@ export default function ReceiptConfigTab({ isAdmin }) {
     setLoading(true)
     settingsApi.store.get()
       .then(data => {
-        setStoreInfo({ name: data.name, phone: data.phone, email: data.email, address: data.address, currency: data.currency, logoUrl: data.logoUrl })
+        setStoreInfo({
+          name: data.name, phone: data.phone, email: data.email,
+          address: data.address, currency: data.currency, logoUrl: data.logoUrl,
+          exchangeRates:  data.settings?.exchangeRates  || {},
+          paymentQrImage: data.settings?.payment?.qrImageBase64 || '',
+        })
         const saved  = data.settings?.receipt || {}
         const merged = { ...DEFAULT_CONFIG, ...saved }
         setConfig(merged)
@@ -1189,6 +1279,10 @@ export default function ReceiptConfigTab({ isAdmin }) {
           <ToggleRow label="Payment details"  cfgKey="showPaymentDetails" config={config} onChange={handleChange} />
           <ToggleRow label="Signature line"   desc="Add a blank signature field at the bottom" cfgKey="showSignatureLine" config={config} onChange={handleChange}>
             <TextInput value={config.signatureLabel} onChange={v => handleChange('signatureLabel', v)} placeholder="Signature: ____________________" />
+          </ToggleRow>
+          <ToggleRow label="Alt currency totals (USD / THB)" desc="Show total in $ USD and ฿ Thai Baht — set exchange rates in Settings → Store → Currency Converter (Admin only)" cfgKey="showAltCurrencies" config={config} onChange={handleChange} />
+          <ToggleRow label="QR Payment code" desc="Show a payment QR code at the very bottom of the receipt (upload your QR image in Settings → Payments)" cfgKey="showQrPayment" config={config} onChange={handleChange}>
+            <TextInput value={config.qrPaymentLabel} onChange={v => handleChange('qrPaymentLabel', v)} placeholder="Scan to Pay" />
           </ToggleRow>
         </ConfigSection>
 

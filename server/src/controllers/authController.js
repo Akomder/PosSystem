@@ -57,13 +57,26 @@ async function login(req, res, next) {
       if (!result.rows.length) return res.status(401).json({ error: 'Invalid credentials' })
       user = result.rows[0]
     } else {
-      // Global login — SuperAdmin only (no slug = main login page)
-      const { rows } = await query(
+      // Global login — no restaurant slug (SuperAdmin or Admin by email/name)
+      const input = loginInput.trim()
+
+      // Try email first
+      let result = await query(
         'SELECT * FROM users WHERE email = $1',
-        [loginInput.toLowerCase().trim()]
+        [input.toLowerCase()]
       )
-      if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' })
-      user = rows[0]
+      // Fall back to staff name (case-insensitive) for restaurant Admins
+      if (!result.rows.length) {
+        result = await query(
+          `SELECT u.* FROM users u
+           JOIN staff s ON s.user_id = u.id
+           WHERE LOWER(s.name) = LOWER($1)
+           LIMIT 1`,
+          [input]
+        )
+      }
+      if (!result.rows.length) return res.status(401).json({ error: 'Invalid credentials' })
+      user = result.rows[0]
     }
 
     // 2. Check password
