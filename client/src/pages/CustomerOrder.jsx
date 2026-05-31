@@ -195,6 +195,9 @@ export default function CustomerOrder() {
   const pollRef        = useRef(null)
   const activeOrderRef = useRef(null)
   const prevStatusRef  = useRef(null)
+  const scrollLock     = useRef(false)   // prevents scroll-spy fighting click-to-scroll
+  const tabBarRef      = useRef(null)
+  const tabBtnRefs     = useRef({})
 
   const stopPoll = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
@@ -341,6 +344,34 @@ export default function CustomerOrder() {
     } finally { setCancelling(false) }
   }
 
+  // ── Scroll spy: highlight the category tab whose section is at the top ──────
+  useEffect(() => {
+    if (view !== 'menu' || !catOrder.length) return
+    const HEADER_H = 115  // sticky header height (px)
+
+    const onScroll = () => {
+      if (scrollLock.current) return
+      let current = catOrder[0]
+      for (const cat of catOrder) {
+        const el = document.getElementById(`cat-sec-${cat}`)
+        if (!el) continue
+        if (el.getBoundingClientRect().top <= HEADER_H + 24) current = cat
+      }
+      setActiveCategory(current)
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    // Fire once on mount so the first tab is highlighted without any scrolling
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [view, catOrder])
+
+  // ── Keep the active tab pill scrolled into view in the horizontal bar ────
+  useEffect(() => {
+    const btn = tabBtnRefs.current[activeCategory]
+    if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }, [activeCategory])
+
   // ── Request checkout ───────────────────────────────────────────────────────
   const handleRequestCheckout = async () => {
     if (!activeOrder) return
@@ -353,12 +384,22 @@ export default function CustomerOrder() {
     } finally { setRequesting(false) }
   }
 
+  // ── Scroll to a category section (used by tab clicks) ───────────────────
+  const scrollToCategory = (cat) => {
+    scrollLock.current = true
+    setActiveCategory(cat)
+    const el = document.getElementById(`cat-sec-${cat}`)
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - 118
+      window.scrollTo({ top, behavior: 'smooth' })
+    }
+    setTimeout(() => { scrollLock.current = false }, 900)
+  }
+
   // ── Derived ────────────────────────────────────────────────────────────────
-  const grouped      = menu.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc }, {})
-  const catOrder     = [...new Set(menu.map(m => m.category).filter(Boolean))]
-  const categories   = ['All', ...catOrder]
-  const visibleItems = activeCategory === 'All' ? menu : (grouped[activeCategory] || [])
-  const cartTotal    = cart.reduce((s, i) => s + i.price * i.quantity, 0)
+  const grouped   = menu.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc }, {})
+  const catOrder  = [...new Set(menu.map(m => m.category).filter(Boolean))]
+  const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0)
   const cartCount    = cart.reduce((s, i) => s + i.quantity, 0)
   const currency     = table?.currency || 'LAK'
 
@@ -719,10 +760,13 @@ export default function CustomerOrder() {
           </div>
         </div>
 
-        {/* Category tabs */}
-        <div className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide max-w-xl mx-auto">
-          {categories.map(cat => (
-            <button key={cat} onClick={() => setActiveCategory(cat)}
+        {/* Category tabs — scroll spy keeps active pill highlighted */}
+        <div ref={tabBarRef} className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide max-w-xl mx-auto">
+          {catOrder.map(cat => (
+            <button
+              key={cat}
+              ref={el => { tabBtnRefs.current[cat] = el }}
+              onClick={() => scrollToCategory(cat)}
               className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                 activeCategory === cat
                   ? 'bg-teal-600 text-white shadow-sm'
@@ -743,22 +787,18 @@ export default function CustomerOrder() {
           </div>
         )}
 
-        {activeCategory === 'All' ? (
-          catOrder.filter(c => grouped[c]).map(cat => (
-            <section key={cat} className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${CAT_COLOUR[cat] || 'bg-gray-100 text-gray-600'}`}>
-                  {catLabel(cat)}
-                </span>
-              </div>
-              <MenuItemList items={grouped[cat]} getQty={getQty} addItem={addItem} removeItem={removeItem} />
-            </section>
-          ))
-        ) : (
-          <MenuItemList items={visibleItems} getQty={getQty} addItem={addItem} removeItem={removeItem} />
-        )}
+        {catOrder.filter(c => grouped[c]).map(cat => (
+          <section key={cat} id={`cat-sec-${cat}`} className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${CAT_COLOUR[cat] || 'bg-gray-100 text-gray-600'}`}>
+                {catLabel(cat)}
+              </span>
+            </div>
+            <MenuItemList items={grouped[cat]} getQty={getQty} addItem={addItem} removeItem={removeItem} />
+          </section>
+        ))}
 
-        {visibleItems.length === 0 && (
+        {catOrder.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
             <UtensilsCrossed size={32} className="mb-2 opacity-30" />
             <p className="text-sm">{t('no_items')}</p>
