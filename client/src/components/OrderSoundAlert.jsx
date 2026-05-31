@@ -27,16 +27,31 @@ export default function OrderSoundAlert() {
   // ── Roles that get cashier alerts ────────────────────────────────────────────
   const eligible = user && ['Admin', 'Cashier', 'Waiter'].includes(user.role)
 
+  // ── Read setting from localStorage (default ON) ───────────────────────────────
+  const [alertsOn, setAlertsOn] = useState(() => {
+    const stored = localStorage.getItem('pos_sound_alerts')
+    return stored === null ? true : stored === 'true'
+  })
+
+  // Keep in sync if another tab changes it
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'pos_sound_alerts') setAlertsOn(e.newValue !== 'false')
+    }
+    window.addEventListener('storage', handler)
+    return () => window.removeEventListener('storage', handler)
+  }, [])
+
   // ── Unlock audio on first interaction ────────────────────────────────────────
   useEffect(() => {
-    if (!eligible) return
+    if (!eligible || !alertsOn) return
     const handleInteraction = () => {
       unlock()
       setSoundEnabled(true)
     }
     window.addEventListener('pointerdown', handleInteraction, { once: true })
     return () => window.removeEventListener('pointerdown', handleInteraction)
-  }, [eligible])
+  }, [eligible, alertsOn])
 
   // ── Toast helper ──────────────────────────────────────────────────────────────
   const addToast = useCallback((label) => {
@@ -51,12 +66,10 @@ export default function OrderSoundAlert() {
 
   // ── Socket subscription ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (!eligible) return
+    if (!eligible || !alertsOn) return
     const off = onOrderCreated(({ order }) => {
       if (!order) return
-      // Play sound
       playCashierAlert()
-      // Show toast
       const where = order.tableNumber
         ? `Table ${order.tableNumber}`
         : (order.orderType || 'Order')
@@ -64,9 +77,9 @@ export default function OrderSoundAlert() {
       addToast(`${order.id} · ${where} · ${count} item${count !== 1 ? 's' : ''}`)
     })
     return () => off?.()
-  }, [eligible, addToast])
+  }, [eligible, alertsOn, addToast])
 
-  if (!eligible) return null
+  if (!eligible || !alertsOn) return null
 
   return (
     <>

@@ -254,7 +254,12 @@ async function cancelPublicOrder(req, res, next) {
         const fullOrder = fmtOrder(fullRes.rows[0])
         emitOrderUpdated(fullOrder.id, 'Cancelled', fullOrder)
       }
-      emitTableUpdated(rawTableId, 'Available', null)
+      emitTableUpdated(`T-${String(rawTableId).padStart(2, '0')}`, 'Available', {
+        id:             `T-${String(rawTableId).padStart(2, '0')}`,
+        status:         'Available',
+        currentOrderId: null,
+        waiter:         null,
+      })
 
       res.json({ message: 'Order cancelled successfully' })
     } catch (err) {

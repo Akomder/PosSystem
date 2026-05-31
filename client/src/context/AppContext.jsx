@@ -150,7 +150,7 @@ export function AppProvider({ children }) {
       dispatch({ type: A.UPDATE_ORDER, payload: order })
     })
     const offTable = onTableUpdated(({ table }) => {
-      dispatch({ type: A.UPDATE_TABLE, payload: table })
+      if (table) dispatch({ type: A.UPDATE_TABLE, payload: table })
     })
     const offStock = onStockLow(({ items }) => {
       if (items?.length) dispatch({ type: A.ADD_STOCK_ALERTS, payload: items })

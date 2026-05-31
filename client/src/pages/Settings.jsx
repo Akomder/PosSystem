@@ -50,6 +50,7 @@ const FIELDS_MAP = {
 
 // ─── POS parameter toggle definitions ─────────────────────────────────────────
 const POS_TOGGLES = [
+  { key: 'orderSoundAlerts',       label: 'Order Sound Alerts',        desc: 'Play an audio alert and show a toast when a new order arrives', default: true },
   { key: 'productAttributes',      label: 'Product Attributes',        desc: 'Enable attribute variants (size, colour, etc.) on menu items' },
   { key: 'productUnits',           label: 'Product Units',             desc: 'Track stock in custom units (kg, litre, piece…)' },
   { key: 'productManufacturing',   label: 'Product Manufacturing',     desc: 'Enable bill-of-materials for produced items' },
@@ -113,7 +114,10 @@ function StoreTab({ isAdmin }) {
           logoUrl:  data.logoUrl   || '',
         })
         const saved = data.settings || {}
-        setPosParams(Object.fromEntries(POS_TOGGLES.map(t => [t.key, saved[t.key] ?? false])))
+        const params = Object.fromEntries(POS_TOGGLES.map(t => [t.key, saved[t.key] ?? (t.default ?? false)]))
+        setPosParams(params)
+        // Sync sound preference to localStorage so OrderSoundAlert can read it without an API call
+        localStorage.setItem('pos_sound_alerts', String(params.orderSoundAlerts ?? true))
         setExchangeRates({
           USD: saved.exchangeRates?.USD ?? '',
           THB: saved.exchangeRates?.THB ?? '',
@@ -133,6 +137,8 @@ function StoreTab({ isAdmin }) {
       const rates    = {}
       if (parseFloat(exchangeRates.USD)) rates.USD = parseFloat(exchangeRates.USD)
       if (parseFloat(exchangeRates.THB)) rates.THB = parseFloat(exchangeRates.THB)
+      // Sync sound preference to localStorage immediately on save
+      localStorage.setItem('pos_sound_alerts', String(posParams.orderSoundAlerts ?? true))
       await settingsApi.store.update({
         name:     info.name     || undefined,
         phone:    info.phone    || undefined,
