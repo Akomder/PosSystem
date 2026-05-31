@@ -46,7 +46,7 @@ const del    = (path)        => request('DELETE', path)
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authApi = {
-  login:          (email, password)              => post('/auth/login',           { email, password }),
+  login:          (email, password, restaurantSlug) => post('/auth/login', { email, password, ...(restaurantSlug && { restaurantSlug }) }),
   me:             ()                             => get('/auth/me'),
   refresh:        (refreshToken)                 => post('/auth/refresh',          { refreshToken }),
   updateProfile:  (name)                         => put('/auth/profile',           { name }),

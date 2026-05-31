@@ -97,8 +97,8 @@ export function AuthProvider({ children }) {
     })
   }, [])
 
-  const login = async (email, password) => {
-    const data = await authApi.login(email, password)
+  const login = async (email, password, restaurantSlug) => {
+    const data = await authApi.login(email, password, restaurantSlug)
     // data = { token, refreshToken, user }
     const userData = { ...data.user, token: data.token, refreshToken: data.refreshToken }
     setUser(userData)

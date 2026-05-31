@@ -60,7 +60,7 @@ export default function TenantLogin() {
     }
     setSubmitting(true)
     try {
-      const userData = await login(email, password)
+      const userData = await login(email, password, slug)
       if (userData.isSuperAdmin) {
         setError('SuperAdmin accounts must use the main login page.')
         return

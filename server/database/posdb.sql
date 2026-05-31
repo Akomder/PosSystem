@@ -687,3 +687,14 @@ DO $$ BEGIN
     CHECK (role IN ('SuperAdmin','Admin','Waiter','Cashier'));
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
+
+-- ─── Per-restaurant email uniqueness ────────────────────────────────────────
+-- Replace global email UNIQUE with composite (email, restaurant_id).
+-- NULLS NOT DISTINCT means one SuperAdmin per email (restaurant_id = NULL counts as equal).
+-- Two restaurants CAN have staff with the same email address.
+DO $$ BEGIN
+  ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_restaurant
+  ON users (email, restaurant_id) NULLS NOT DISTINCT;

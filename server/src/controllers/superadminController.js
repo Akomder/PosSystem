@@ -237,9 +237,9 @@ async function getRestaurant(req, res, next) {
 
 // ─── POST /api/superadmin/restaurants ────────────────────────────────────────
 async function createRestaurant(req, res, next) {
-  const { name, address='', phone='', email='', plan='basic', currency='LAK', taxRate=0.10, adminEmail, adminPassword } = req.body
+  const { name, address='', phone='', email='', plan='basic', currency='LAK', taxRate=0.10, adminEmail, adminPassword, adminName } = req.body
   if (!name) return res.status(400).json({ error: 'name is required' })
-  if (adminEmail && !adminPassword) return res.status(400).json({ error: 'adminPassword is required when adminEmail is provided' })
+  if (!adminEmail || !adminPassword || !adminName) return res.status(400).json({ error: 'adminName, adminEmail, and adminPassword are required' })
 
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')
   const client = await pool.connect()
@@ -254,19 +254,17 @@ async function createRestaurant(req, res, next) {
     )
     const rest = restRes.rows[0]
 
-    // Create admin user for this restaurant (optional)
-    if (adminEmail) {
-      const hash = await bcrypt.hash(adminPassword, 10)
-      const userRes = await client.query(
-        `INSERT INTO users (email, password_hash, role, restaurant_id)
-         VALUES ($1,$2,'Admin',$3) RETURNING id`,
-        [adminEmail.toLowerCase(), hash, rest.id]
-      )
-      await client.query(
-        `INSERT INTO staff (name, role, user_id, restaurant_id) VALUES ($1,'Admin',$2,$3)`,
-        [adminEmail.split('@')[0], userRes.rows[0].id, rest.id]
-      )
-    }
+    // Create admin user for this restaurant (required)
+    const hash = await bcrypt.hash(adminPassword, 10)
+    const userRes = await client.query(
+      `INSERT INTO users (email, password_hash, role, restaurant_id)
+       VALUES ($1,$2,'Admin',$3) RETURNING id`,
+      [adminEmail.toLowerCase(), hash, rest.id]
+    )
+    await client.query(
+      `INSERT INTO staff (name, role, user_id, restaurant_id) VALUES ($1,'Admin',$2,$3)`,
+      [adminName, userRes.rows[0].id, rest.id]
+    )
 
     await client.query('COMMIT')
 
@@ -274,19 +272,21 @@ async function createRestaurant(req, res, next) {
     logAction(req.user?.id, req.user?.email, rest.id, 'restaurant.created', 'restaurant', rest.id, { name, plan, adminEmail })
 
     // Send welcome email to restaurant admin (async, don't block)
-    if (adminEmail) {
-      const loginUrl = `${process.env.APP_URL || 'http://localhost:5173'}/login`
-      emailService.sendRestaurantWelcome({
-        to:             adminEmail,
-        adminName:      adminEmail.split('@')[0],
-        restaurantName: name,
-        plan,
-        password:       adminPassword,
-        loginUrl,
-      }).catch(err => console.error('Restaurant welcome email failed:', err.message))
-    }
+    const tenantLoginUrl = `${process.env.APP_URL || 'http://localhost:5173'}/${slug}`
+    emailService.sendRestaurantWelcome({
+      to:             adminEmail,
+      adminName,
+      restaurantName: name,
+      plan,
+      password:       adminPassword,
+      loginUrl:       tenantLoginUrl,
+    }).catch(err => console.error('Restaurant welcome email failed:', err.message))
 
-    res.status(201).json(fmtRestaurant({ ...rest, staff_count:0, tables_count:0, today_revenue:0, today_orders:0, monthly_revenue:0, active_orders:0 }))
+    // Return restaurant + admin credentials so UI can display them
+    res.status(201).json({
+      ...fmtRestaurant({ ...rest, staff_count:0, tables_count:0, today_revenue:0, today_orders:0, monthly_revenue:0, active_orders:0 }),
+      adminCredentials: { name: adminName, email: adminEmail, loginUrl: tenantLoginUrl },
+    })
   } catch (err) {
     await client.query('ROLLBACK')
     next(err)

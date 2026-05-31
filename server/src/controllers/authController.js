@@ -22,18 +22,35 @@ function signRefresh(payload) {
 async function login(req, res, next) {
   if (!checkValidation(req, res)) return
 
-  const { email, password } = req.body
+  const { email, password, restaurantSlug } = req.body
 
   try {
-    // 1. Find user
-    const { rows } = await query(
-      'SELECT * FROM users WHERE email = $1',
-      [email.toLowerCase().trim()]
-    )
-    if (!rows.length) {
-      return res.status(401).json({ error: 'Invalid email or password' })
+    // 1. Find user — scoped by restaurant when slug is provided (tenant login)
+    let user
+    if (restaurantSlug) {
+      // Resolve slug → restaurant
+      const restRes = await query(
+        `SELECT id FROM restaurants WHERE slug = $1 AND status = 'active'`,
+        [restaurantSlug]
+      )
+      if (!restRes.rows.length) {
+        return res.status(401).json({ error: 'Invalid email or password' })
+      }
+      const { rows } = await query(
+        'SELECT * FROM users WHERE email = $1 AND restaurant_id = $2',
+        [email.toLowerCase().trim(), restRes.rows[0].id]
+      )
+      if (!rows.length) return res.status(401).json({ error: 'Invalid email or password' })
+      user = rows[0]
+    } else {
+      // Global login — SuperAdmin only (no slug = main login page)
+      const { rows } = await query(
+        'SELECT * FROM users WHERE email = $1',
+        [email.toLowerCase().trim()]
+      )
+      if (!rows.length) return res.status(401).json({ error: 'Invalid email or password' })
+      user = rows[0]
     }
-    const user = rows[0]
 
     // 2. Check password
     const match = await bcrypt.compare(password, user.password_hash)

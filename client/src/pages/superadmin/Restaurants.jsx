@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Store, Eye, Edit2, Trash2, Power,
-  ChevronRight, DollarSign, ShoppingBag, Users, X, Megaphone, Send, CheckCircle,
+  ChevronRight, DollarSign, ShoppingBag, Users, X, Megaphone, Send, CheckCircle, Copy,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { superadminApi } from '../../services/api'
@@ -37,6 +37,7 @@ function RestaurantModal({ onClose, onSave, initial }) {
     plan: initial?.plan || 'basic',
     currency: initial?.currency || 'LAK',
     taxRate: initial?.taxRate ?? 0.10,
+    adminName: '',
     adminEmail: '',
     adminPassword: '',
   })
@@ -47,11 +48,17 @@ function RestaurantModal({ onClose, onSave, initial }) {
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError('Restaurant name is required'); return }
+    if (!isEdit) {
+      if (!form.adminName.trim())     { setError('Admin full name is required'); return }
+      if (!form.adminEmail.trim())    { setError('Admin email is required'); return }
+      if (!form.adminPassword.trim()) { setError('Admin password is required'); return }
+      if (form.adminPassword.length < 6) { setError('Password must be at least 6 characters'); return }
+    }
     setSaving(true)
     setError('')
     try {
       await onSave(form)
-      onClose()
+      onClose() // parent may open credentials modal after this
     } catch (e) {
       setError(e.message || 'Save failed')
     } finally {
@@ -116,17 +123,21 @@ function RestaurantModal({ onClose, onSave, initial }) {
             </div>
           </Field>
 
-          {/* Admin user section — only for new restaurant */}
+          {/* Admin account — required for new restaurant */}
           {!isEdit && (
             <div className="border-t border-gray-800 pt-3 mt-1">
-              <p className="text-xs text-gray-500 mb-3 font-medium uppercase tracking-wider">Admin Account (optional)</p>
-              <Field label="Admin Email">
+              <p className="text-xs text-gray-400 mb-3 font-semibold uppercase tracking-wider">Admin Account <span className="text-red-400">*</span></p>
+              <Field label="Admin Full Name *">
+                <input className={inputCls} value={form.adminName}
+                  onChange={e => set('adminName', e.target.value)} placeholder="e.g. John Smith" />
+              </Field>
+              <Field label="Admin Email *">
                 <input className={inputCls} type="email" value={form.adminEmail}
                   onChange={e => set('adminEmail', e.target.value)} placeholder="admin@restaurant.com" />
               </Field>
-              <Field label="Password">
-                <input className={inputCls} value={form.adminPassword}
-                  onChange={e => set('adminPassword', e.target.value)} />
+              <Field label="Password *">
+                <input className={inputCls} type="password" value={form.adminPassword}
+                  onChange={e => set('adminPassword', e.target.value)} placeholder="Min. 6 characters" />
               </Field>
             </div>
           )}
@@ -293,6 +304,56 @@ function BroadcastModal({ restaurants, onClose }) {
   )
 }
 
+// ─── AdminCredsModal ──────────────────────────────────────────────────────────
+function AdminCredsModal({ creds, onClose }) {
+  const [copied, setCopied] = useState('')
+  const copy = (text, key) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key)
+      setTimeout(() => setCopied(''), 2000)
+    })
+  }
+  const Row = ({ label, value, copyKey }) => (
+    <div className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
+      <div>
+        <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+        <p className="text-sm text-gray-100 font-mono">{value}</p>
+      </div>
+      <button onClick={() => copy(value, copyKey)}
+        className="ml-3 p-1.5 text-gray-400 hover:text-violet-400 transition-colors flex-shrink-0">
+        {copied === copyKey ? <CheckCircle size={14} className="text-emerald-400" /> : <Copy size={14} />}
+      </button>
+    </div>
+  )
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl">
+        <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+          <CheckCircle size={16} className="text-emerald-400" />
+          <h2 className="text-sm font-semibold text-white">Restaurant Created — Admin Credentials</h2>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-xs text-amber-400 bg-amber-900/20 border border-amber-700/40 rounded-xl px-3 py-2">
+            ⚠️ Save these credentials now. The password cannot be recovered later.
+          </p>
+          <Row label="Admin Name"  value={creds.name}     copyKey="name" />
+          <Row label="Login Email" value={creds.email}    copyKey="email" />
+          <Row label="Login URL"   value={creds.loginUrl} copyKey="url" />
+          <p className="text-xs text-gray-500">
+            A welcome email with these details has also been sent to <strong className="text-gray-300">{creds.email}</strong>.
+          </p>
+        </div>
+        <div className="px-5 py-4 border-t border-gray-800 flex justify-end">
+          <button onClick={onClose}
+            className="px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-xl transition-colors">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── ConfirmDialog ─────────────────────────────────────────────────────────────
 function ConfirmDialog({ message, onConfirm, onCancel, danger }) {
   return (
@@ -325,6 +386,7 @@ export default function Restaurants() {
   const [modal, setModal]             = useState(null) // null | 'add' | { edit: item }
   const [confirm, setConfirm]         = useState(null)
   const [broadcast, setBroadcast]     = useState(false)
+  const [adminCreds, setAdminCreds]   = useState(null) // credentials after restaurant creation
   const navigate = useNavigate()
 
   const load = useCallback(() => {
@@ -338,8 +400,11 @@ export default function Restaurants() {
   useEffect(() => { load() }, [load])
 
   const handleCreate = async (form) => {
-    await superadminApi.createRestaurant(form)
+    const result = await superadminApi.createRestaurant(form)
     load()
+    if (result?.adminCredentials) {
+      setAdminCreds(result.adminCredentials)
+    }
   }
 
   const handleUpdate = async (id, form) => {
@@ -581,6 +646,9 @@ export default function Restaurants() {
       )}
       {broadcast && (
         <BroadcastModal restaurants={restaurants} onClose={() => setBroadcast(false)} />
+      )}
+      {adminCreds && (
+        <AdminCredsModal creds={adminCreds} onClose={() => setAdminCreds(null)} />
       )}
     </div>
   )
