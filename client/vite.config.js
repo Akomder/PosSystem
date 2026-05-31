@@ -13,8 +13,8 @@ export default defineConfig({
 
       // ── Web App Manifest ─────────────────────────────────────────────────
       manifest: {
-        name: 'Bella Vista POS',
-        short_name: 'POS',
+        name: 'Error POS',
+        short_name: 'Error POS',
         description: 'Restaurant Point of Sale System',
         theme_color: '#0d9488',
         background_color: '#1f2937',

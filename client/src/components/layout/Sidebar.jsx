@@ -100,12 +100,12 @@ export default function Sidebar() {
           'flex items-center gap-3 px-4 py-5 border-b border-gray-100 dark:border-gray-700',
           !sidebarOpen && 'justify-center px-0',
         )}>
-          <div className="w-8 h-8 bg-teal-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-            <UtensilsCrossed size={16} className="text-white" />
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden">
+            <img src="/favicon.svg" alt="Error POS" className="w-8 h-8 object-cover" />
           </div>
           {sidebarOpen && (
             <div className="overflow-hidden">
-              <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">Bella Vista</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">Error POS</p>
               <p className="text-xs text-gray-400 truncate">POS System</p>
             </div>
           )}

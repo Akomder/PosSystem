@@ -25,7 +25,7 @@ const translations = {
     'page.invoices':  'Invoices',
     'page.returns':   'Returns',
     'page.reports':   'Reports',
-    'page.brand':     'Bella Vista POS',
+    'page.brand':     'Error POS',
 
     // Common
     'common.signOut':  'Sign out',
@@ -66,7 +66,7 @@ const translations = {
     'login.roles.admin.hint':   'Full system access',
     'login.roles.waiter.hint':  'Orders & tables',
     'login.roles.cashier.hint': 'Billing & checkout',
-    'login.version':      'v1.0.0 · Bella Vista Restaurant POS System',
+    'login.version':      'v1.0.0 · Error POS System',
 
     // Dashboard
     'dash.greeting.morning':   'Good morning',
@@ -710,7 +710,7 @@ const translations = {
     'page.invoices':  'ໃບເກັບເງິນ',
     'page.returns':   'ການຄືນສິນຄ້າ',
     'page.reports':   'ລາຍງານ',
-    'page.brand':     'Bella Vista POS',
+    'page.brand':     'Error POS',
 
     // Common
     'common.signOut':  'ອອກຈາກລະບົບ',
@@ -751,7 +751,7 @@ const translations = {
     'login.roles.admin.hint':   'ການເຂົ້າເຖິງລະບົບທັງໝົດ',
     'login.roles.waiter.hint':  'ຄໍາສັ່ງ & ໂຕະ',
     'login.roles.cashier.hint': 'ການຈ່າຍເງິນ',
-    'login.version':      'v1.0.0 · Bella Vista POS',
+    'login.version':      'v1.0.0 · Error POS',
 
     // Dashboard
     'dash.greeting.morning':   'ສະບາຍດີຕອນເຊົ້າ',
