@@ -1,0 +1,32 @@
+# Fly.io deployment configuration — POS System
+# Docs: https://fly.io/docs/reference/configuration/
+
+app            = "pos-system"
+primary_region = "sin"        # Singapore — closest to Southeast Asia
+
+[build]
+  # Uses the Dockerfile at the project root
+
+[env]
+  PORT       = "8080"
+  NODE_ENV   = "production"
+  # All secrets (JWT_SECRET, DATABASE_URL, SMTP_*, etc.) are set via:
+  #   fly secrets set KEY=value
+  # Never put secrets in this file.
+
+[http_service]
+  internal_port       = 8080
+  force_https         = true
+  auto_stop_machines  = false   # Never sleep — required for Socket.IO + real client
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type       = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  memory   = "256mb"
+  cpu_kind = "shared"
+  cpus     = 1

@@ -1,0 +1,32 @@
+# Dependencies (reinstalled inside Docker)
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# Dev/build artifacts
+client/dist/
+server/logs/
+
+# Environment secrets — never bake into image
+.env
+server/.env
+**/.env.local
+**/.env.*.local
+
+# Git & editor
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+
+# Local dev files
+docker-compose.yml
+ecosystem.config.js
+devReadMe.md
+init-db.sql/
+init-db.sh/
+
+# OS
+.DS_Store
+Thumbs.db
