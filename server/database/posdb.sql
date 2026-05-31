@@ -192,9 +192,12 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 -- DEFERRED FK: restaurant_tables.current_order_id → orders
-ALTER TABLE restaurant_tables
-  ADD CONSTRAINT fk_current_order
-  FOREIGN KEY (current_order_id) REFERENCES orders(id) ON DELETE SET NULL;
+DO $$ BEGIN
+  ALTER TABLE restaurant_tables
+    ADD CONSTRAINT fk_current_order
+    FOREIGN KEY (current_order_id) REFERENCES orders(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ORDER ITEMS (line items)
 CREATE TABLE IF NOT EXISTS order_items (
@@ -649,6 +652,18 @@ ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT 
 -- shifts — cash reconciliation columns (Phase 3 Step 6)
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS expected_cash NUMERIC(10,2) NOT NULL DEFAULT 0;
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS cash_variance NUMERIC(10,2) NOT NULL DEFAULT 0;
+
+-- ─── Password reset tokens ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id         SERIAL      PRIMARY KEY,
+  user_id    INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token      VARCHAR(128) NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN     NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_prt_token   ON password_reset_tokens (token);
+CREATE INDEX IF NOT EXISTS idx_prt_user    ON password_reset_tokens (user_id);
 
 -- ─── Notifications (persisted per-user) ──────────────────────────────────────
 CREATE TABLE IF NOT EXISTS notifications (
