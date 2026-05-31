@@ -141,7 +141,7 @@ async function createPublicOrder(req, res, next) {
       )
       const line = parseFloat(m.price) * i.quantity
       subtotal += line
-      return { ...i, name: m.name, unitPrice: m.price, lineTotal: line }
+      return { ...i, name: m.name, unitPrice: m.price, lineTotal: line, notes: i.notes || '' }
     })
     // Tax removed from customer QR ordering — price displayed is the final price
     const tax   = 0
@@ -160,9 +160,9 @@ async function createPublicOrder(req, res, next) {
     // Insert order items — also scoped to the restaurant
     for (const item of enriched) {
       await client.query(
-        `INSERT INTO order_items (restaurant_id, order_id, menu_item_id, name, quantity, unit_price)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [restaurantId, order.id, item.menuItemId, item.name, item.quantity, item.unitPrice]
+        `INSERT INTO order_items (restaurant_id, order_id, menu_item_id, name, quantity, unit_price, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [restaurantId, order.id, item.menuItemId, item.name, item.quantity, item.unitPrice, item.notes || '']
       )
     }
 
@@ -329,8 +329,8 @@ async function addItemsToPublicOrder(req, res, next) {
         [rawOrderId]
       )
       const subtotal = parseFloat(totals.rows[0].subtotal)
-      const tax      = Math.round(subtotal * 0.08 * 100) / 100
-      const total    = Math.round((subtotal + tax) * 100) / 100
+      const tax      = 0
+      const total    = Math.round(subtotal * 100) / 100
       await client.query(
         `UPDATE orders SET subtotal=$1, tax=$2, total=$3, updated_at=NOW() WHERE id=$4`,
         [subtotal, tax, total, rawOrderId]

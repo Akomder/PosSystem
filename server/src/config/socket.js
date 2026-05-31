@@ -19,6 +19,13 @@ function initSocket(httpServer) {
     // All POS clients join the shared "pos" room
     socket.join('pos')
 
+    // Customer QR pages join a table-specific room for push updates (no auth needed)
+    socket.on('join:table', ({ tableId }) => {
+      if (typeof tableId === 'string' && /^T-\d+$/.test(tableId)) {
+        socket.join(`table:${tableId}`)
+      }
+    })
+
     socket.on('disconnect', () => {
       if (process.env.NODE_ENV === 'development') {
         console.log(`[Socket] Client disconnected: ${socket.id}`)
@@ -37,11 +44,13 @@ function getIo() {
 function emitOrderCreated(order) {
   if (!io) return
   io.to('pos').emit('order:created', { order })
+  if (order?.tableId) io.to(`table:${order.tableId}`).emit('order:customer_update', { order })
 }
 
 function emitOrderUpdated(orderId, status, order) {
   if (!io) return
   io.to('pos').emit('order:updated', { orderId, status, order })
+  if (order?.tableId) io.to(`table:${order.tableId}`).emit('order:customer_update', { order })
 }
 
 function emitTableUpdated(tableId, status, table) {
