@@ -39,16 +39,14 @@ function decodeJwt(token) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     const stored = loadStoredUser()
-    if (stored?.token) setAuthToken(stored.token)
+    if (stored?.token) {
+      setAuthToken(stored.token)
+      connectSocket(stored.token)   // must run before child effects subscribe
+    }
     return stored
   })
 
   const refreshTimerRef = useRef(null)
-
-  // Re-connect socket for returning users (token already in localStorage)
-  useEffect(() => {
-    if (user?.token) connectSocket(user.token)
-  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const logout = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)

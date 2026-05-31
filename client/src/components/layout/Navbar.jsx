@@ -95,7 +95,7 @@ function NotifRow({ notif, onRead }) {
           <p className={`text-xs font-semibold truncate ${!notif.read ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'}`}>
             {notif.title}
           </p>
-          <span className="text-[10px] text-gray-400 flex-shrink-0">{relTime(notif.ts)}</span>
+          <span className="text-[10px] text-gray-400 flex-shrink-0">{relTime(notif.createdAt)}</span>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2 leading-relaxed">
           {notif.body}
