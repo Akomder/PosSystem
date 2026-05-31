@@ -60,7 +60,7 @@ export default function Login() {
             <div className="w-14 h-14 bg-slate-700 dark:bg-slate-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
               <Shield size={26} className="text-white" />
             </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">POS System</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">ERROR POS</h1>
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">SuperAdmin Login</p>
           </div>
 
@@ -124,11 +124,22 @@ export default function Login() {
 
           {/* Restaurant staff hint */}
           <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-5 leading-relaxed">
-            Restaurant staff? Use{' '}
-            <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded text-gray-600 dark:text-gray-300">
-              /your-restaurant-name
-            </code>{' '}
-            to log in.
+            Contact your restaurant administrator if you are a staff member trying to log in.{' '}
+            <a
+              href="mailto:soukakom2018@gmail.com"
+              className="text-slate-500 dark:text-slate-400 hover:underline"
+            >
+              soukakom2018@gmail.com
+            </a>
+            {' '}or{' '}
+            <a
+              href="https://wa.me/85620028398610"
+              target="_blank"
+              rel="noreferrer"
+              className="text-slate-500 dark:text-slate-400 hover:underline"
+            >
+              +856 20 28398610
+            </a>
           </p>
         </div>
 

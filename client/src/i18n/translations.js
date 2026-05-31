@@ -66,7 +66,7 @@ const translations = {
     'login.roles.admin.hint':   'Full system access',
     'login.roles.waiter.hint':  'Orders & tables',
     'login.roles.cashier.hint': 'Billing & checkout',
-    'login.version':      'v1.0.0 · Error POS System',
+    'login.version':      'v1.0.0 · ERROR POS',
 
     // Dashboard
     'dash.greeting.morning':   'Good morning',
@@ -751,7 +751,7 @@ const translations = {
     'login.roles.admin.hint':   'ການເຂົ້າເຖິງລະບົບທັງໝົດ',
     'login.roles.waiter.hint':  'ຄໍາສັ່ງ & ໂຕະ',
     'login.roles.cashier.hint': 'ການຈ່າຍເງິນ',
-    'login.version':      'v1.0.0 · Error POS',
+    'login.version':      'v1.0.0 · ERROR POS',
 
     // Dashboard
     'dash.greeting.morning':   'ສະບາຍດີຕອນເຊົ້າ',
