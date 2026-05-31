@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
 import { onOrderCreated, onOrderUpdated, onStockLow, onQrPaymentAlert } from '../services/socket'
 import { notificationsApi } from '../services/api'
+import { playUrgentAlert } from '../lib/soundAlert'
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 function reducer(state, action) {
@@ -124,22 +125,7 @@ export function NotificationsProvider({ children }) {
         link:   '/orders',
         urgent: true,
       })
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)()
-        const beep = (freq, start, duration) => {
-          const osc  = ctx.createOscillator()
-          const gain = ctx.createGain()
-          osc.connect(gain); gain.connect(ctx.destination)
-          osc.frequency.value = freq
-          gain.gain.setValueAtTime(0.3, ctx.currentTime + start)
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration)
-          osc.start(ctx.currentTime + start)
-          osc.stop(ctx.currentTime + start + duration)
-        }
-        beep(880, 0,    0.12)
-        beep(1046, 0.14, 0.12)
-        beep(1318, 0.28, 0.20)
-      } catch (_) {}
+      playUrgentAlert()
     })
 
     return () => { offCreated?.(); offUpdated?.(); offStock?.(); offQrPay?.() }

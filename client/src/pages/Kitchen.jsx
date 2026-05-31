@@ -4,28 +4,7 @@ import clsx from 'clsx'
 import { ordersApi } from '../services/api'
 import { onOrderCreated, onOrderUpdated } from '../services/socket'
 import { useSettings } from '../context/SettingsContext'
-
-// ─── Audio alert (Web Audio API — no deps) ───────────────────────────────────
-function playAlert() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    const tones = [880, 660]
-    tones.forEach((freq, i) => {
-      const osc  = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      const t0 = ctx.currentTime + i * 0.2
-      gain.gain.setValueAtTime(0, t0)
-      gain.gain.linearRampToValueAtTime(0.4, t0 + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.4)
-      osc.start(t0)
-      osc.stop(t0 + 0.4)
-    })
-  } catch (_) {}
-}
+import { playKitchenAlert, unlock } from '../lib/soundAlert'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function normalize(data) {
@@ -245,11 +224,8 @@ export default function Kitchen() {
   const [loading,         setLoading]         = useState(true)
   const [newIds,          setNewIds]          = useState(new Set())
   const [selectedStation, setSelectedStation] = useState('All')
-  const audioReady = useRef(false)
-
   // Unlock Web Audio on first tap/click (browser policy)
   useEffect(() => {
-    const unlock = () => { audioReady.current = true }
     window.addEventListener('pointerdown', unlock, { once: true })
     return () => window.removeEventListener('pointerdown', unlock)
   }, [])
@@ -272,7 +248,7 @@ export default function Kitchen() {
   useEffect(() => {
     const off = onOrderCreated(({ order }) => {
       if (!ACTIVE_STATUSES.has(order?.status)) return
-      if (audioReady.current) playAlert()
+      playKitchenAlert()
       setOrders(prev =>
         prev.find(o => o.id === order.id) ? prev : [order, ...prev]
       )

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Navbar from './Navbar'
+import OrderSoundAlert from '../OrderSoundAlert'
 
 export default function Layout() {
   return (
@@ -12,6 +13,8 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      {/* Global order sound alert — cashier / waiter / admin */}
+      <OrderSoundAlert />
     </div>
   )
 }
