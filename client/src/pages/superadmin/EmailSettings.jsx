@@ -21,7 +21,7 @@ function Field({ label, hint, children }) {
 function StatusBadge({ configured, source }) {
   const label = configured
     ? source === 'db' ? 'SMTP (DB Config)' : 'SMTP (Env Config)'
-    : 'Dev Mode (Ethereal)'
+    : 'Email Not Configured'
   return (
     <span className={clsx(
       'inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full',
@@ -125,7 +125,7 @@ export default function EmailSettings() {
     setTestResult(null)
     try {
       const res = await emailApi.testEmail(testTo.trim())
-      setTestResult({ success: true, message: res.message, previewUrl: res.previewUrl })
+      setTestResult({ success: true, message: res.message })
     } catch (err) {
       setTestResult({ success: false, message: err.message || 'Failed to send test email' })
     } finally {
@@ -355,12 +355,6 @@ export default function EmailSettings() {
             {testResult.success ? <CheckCircle size={15} className="flex-shrink-0 mt-0.5" /> : <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />}
             <div className="text-xs leading-relaxed">
               <p className="font-medium">{testResult.message}</p>
-              {testResult.previewUrl && (
-                <a href={testResult.previewUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 mt-2 text-amber-400 hover:text-amber-300 underline underline-offset-2">
-                  <ExternalLink size={11} /> View email preview (Ethereal)
-                </a>
-              )}
             </div>
           </div>
         )}

@@ -15,14 +15,7 @@ export function connectSocket(token) {
   })
 
   socket.on('connect', () => {
-    console.log('[socket] connected:', socket.id)
-    socket.emit('join', 'pos')   // join the pos room
-  })
-  socket.on('disconnect', (reason) => {
-    console.log('[socket] disconnected:', reason)
-  })
-  socket.on('connect_error', (err) => {
-    console.warn('[socket] connect error:', err.message)
+    socket.emit('join', 'pos')
   })
 
   return socket

@@ -38,7 +38,7 @@ function RestaurantModal({ onClose, onSave, initial }) {
     currency: initial?.currency || 'LAK',
     taxRate: initial?.taxRate ?? 0.10,
     adminEmail: '',
-    adminPassword: 'changeme123',
+    adminPassword: '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')

@@ -236,7 +236,7 @@ export default function Staff() {
           <Input label={t('staff.form.name')} required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="e.g. John Doe" />
           <Select label={t('staff.form.role')} required value={form.role} onChange={e => setForm(f => ({...f, role: e.target.value}))} options={ROLE_OPTIONS} />
           <Input label={t('staff.form.email')} required type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="staff@example.com" />
-          <Input label={t('staff.form.password')} type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} placeholder="Leave blank for default (changeme123)" />
+          <Input label={t('staff.form.password')} type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} placeholder="Required" />
         </div>
       </Modal>
 

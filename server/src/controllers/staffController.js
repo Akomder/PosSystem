@@ -81,7 +81,11 @@ async function createStaff(req, res, next) {
       }
     }
 
-    const hash = await bcrypt.hash(password || 'changeme123', 10)
+    if (!password) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Password is required' })
+    }
+    const hash = await bcrypt.hash(password, 10)
     const userRes = await client.query(
       `INSERT INTO users (email, password_hash, role, restaurant_id) VALUES ($1, $2, $3, $4) RETURNING id`,
       [email.toLowerCase(), hash, role, rid]
@@ -109,7 +113,7 @@ async function createStaff(req, res, next) {
         to:             email,
         name,
         role,
-        password:       password || 'changeme123',
+        password:       password,
         restaurantName,
         loginUrl,
       }).catch(err => console.error('Staff welcome email failed:', err.message))

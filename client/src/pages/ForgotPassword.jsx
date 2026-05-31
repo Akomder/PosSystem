@@ -7,7 +7,6 @@ export default function ForgotPassword() {
   const [email,   setEmail]   = useState('')
   const [loading, setLoading] = useState(false)
   const [sent,    setSent]    = useState(false)
-  const [preview, setPreview] = useState(null)   // Ethereal dev preview URL
   const [error,   setError]   = useState('')
 
   const handleSubmit = async (e) => {
@@ -18,7 +17,6 @@ export default function ForgotPassword() {
     try {
       const res = await emailApi.forgotPassword(email.trim())
       setSent(true)
-      if (res.previewUrl) setPreview(res.previewUrl)
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
     } finally {
@@ -59,25 +57,6 @@ export default function ForgotPassword() {
                   </p>
                 </div>
 
-                {/* Dev preview link (Ethereal) */}
-                {preview && (
-                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl p-4 text-left">
-                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1.5">
-                      🔧 Development Mode — Email Preview
-                    </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
-                      No real email was sent. Click below to view the email in Ethereal:
-                    </p>
-                    <a
-                      href={preview}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 dark:text-teal-400 hover:underline break-all"
-                    >
-                      {preview}
-                    </a>
-                  </div>
-                )}
 
                 <Link
                   to="/login"

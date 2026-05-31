@@ -11,7 +11,6 @@ const nodemailer = require('nodemailer')
 
 // ─── Transporter singleton ────────────────────────────────────────────────────
 let _transporter = null
-let _previewBase = null   // Ethereal URL prefix for dev preview
 let _dbConfig    = null   // Cached config from system_settings
 
 /** Load SMTP config from DB (system_settings), returns null if not configured there */
@@ -63,28 +62,15 @@ async function getTransporter() {
 
   const cfg = await getConfig()
 
-  if (cfg) {
-    // ── Real SMTP (DB or env) ──────────────────────────────────────────────
-    _transporter = nodemailer.createTransport({
-      host:   cfg.host,
-      port:   cfg.port,
-      secure: cfg.secure,
-      auth: { user: cfg.user, pass: cfg.pass },
-    })
-    console.log(`📧 SMTP connected → ${cfg.host}:${cfg.port} (source: ${cfg.source})`)
-  } else {
-    // ── Ethereal (dev fake inbox) ──────────────────────────────────────────
-    const testAccount = await nodemailer.createTestAccount()
-    _transporter = nodemailer.createTransport({
-      host:   'smtp.ethereal.email',
-      port:   587,
-      secure: false,
-      auth: { user: testAccount.user, pass: testAccount.pass },
-    })
-    _previewBase = 'https://ethereal.email'
-    console.log(`📧 Ethereal test inbox: ${testAccount.user} / ${testAccount.pass}`)
-    console.log(`   Preview sent emails at: ${_previewBase}`)
+  if (!cfg) {
+    throw new Error('SMTP is not configured. Go to SuperAdmin → Email Settings to set up your SMTP provider.')
   }
+  _transporter = nodemailer.createTransport({
+    host:   cfg.host,
+    port:   cfg.port,
+    secure: cfg.secure,
+    auth: { user: cfg.user, pass: cfg.pass },
+  })
 
   return _transporter
 }
@@ -92,9 +78,8 @@ async function getTransporter() {
 /** Call after updating system_settings to rebuild the transporter */
 async function reloadConfig() {
   _transporter = null
-  _previewBase = null
   _dbConfig    = null
-  return getTransporter()
+  // Don't eagerly reconnect — next send will reconnect with new config
 }
 
 // ─── From header ─────────────────────────────────────────────────────────────
@@ -116,12 +101,6 @@ async function sendMail({ to, subject, html, text }) {
     html,
   })
 
-  // In dev, log the preview URL
-  const previewUrl = nodemailer.getTestMessageUrl(info)
-  if (previewUrl) {
-    console.log(`📬 Email preview: ${previewUrl}`)
-    info.previewUrl = previewUrl
-  }
   return info
 }
 
@@ -380,7 +359,7 @@ async function sendTestEmail({ to }) {
     </p>
     ${infoTable([
       infoRow('Sent at',  now),
-      infoRow('SMTP Host', process.env.SMTP_HOST || 'Ethereal (dev)'),
+      infoRow('SMTP Host', process.env.SMTP_HOST || cfg?.host || 'Configured via Admin'),
       infoRow('To',       to),
     ])}
     <p style="margin:16px 0 0;font-size:13px;color:#22c55e;font-weight:600;">

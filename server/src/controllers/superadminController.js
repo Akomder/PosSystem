@@ -237,8 +237,9 @@ async function getRestaurant(req, res, next) {
 
 // ─── POST /api/superadmin/restaurants ────────────────────────────────────────
 async function createRestaurant(req, res, next) {
-  const { name, address='', phone='', email='', plan='basic', currency='LAK', taxRate=0.10, adminEmail, adminPassword='changeme123' } = req.body
+  const { name, address='', phone='', email='', plan='basic', currency='LAK', taxRate=0.10, adminEmail, adminPassword } = req.body
   if (!name) return res.status(400).json({ error: 'name is required' })
+  if (adminEmail && !adminPassword) return res.status(400).json({ error: 'adminPassword is required when adminEmail is provided' })
 
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')
   const client = await pool.connect()
@@ -355,8 +356,9 @@ async function deleteRestaurant(req, res, next) {
 
 // ─── POST /api/superadmin/restaurants/:id/staff ───────────────────────────────
 async function createRestaurantStaff(req, res, next) {
-  const { name, role='Waiter', email, password='changeme123' } = req.body
+  const { name, role='Waiter', email, password } = req.body
   if (!name || !email) return res.status(400).json({ error: 'name and email required' })
+  if (!password) return res.status(400).json({ error: 'password is required' })
 
   const restId = parseInt(req.params.id)
   const client = await pool.connect()

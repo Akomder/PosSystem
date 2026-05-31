@@ -57,7 +57,7 @@ function StatCard({ label, value, icon: Icon, color, bg }) {
 }
 
 function AddStaffModal({ restaurantId, onClose, onAdded }) {
-  const [form, setForm] = useState({ name:'', email:'', role:'Waiter', password:'changeme123' })
+  const [form, setForm] = useState({ name:'', email:'', role:'Waiter', password:'' })
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
   const set = (k,v) => setForm(p => ({...p,[k]:v}))

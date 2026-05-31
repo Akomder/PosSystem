@@ -60,10 +60,7 @@ async function forgotPassword(req, res, next) {
         expiresMinutes: RESET_EXPIRES_MIN,
       })
 
-      // In dev, return preview URL so devs can see the email
-      const response = { message: 'If that email exists, a reset link has been sent.' }
-      if (info.previewUrl) response.previewUrl = info.previewUrl
-      return res.json(response)
+      return res.json({ message: 'If that email exists, a reset link has been sent.' })
     }
 
     // User not found — return same generic response
@@ -132,7 +129,7 @@ async function getEmailConfig(req, res, next) {
     const configured = !!cfg
     res.json({
       configured,
-      mode:      configured ? 'smtp' : 'ethereal',
+      mode:      configured ? 'smtp' : 'not_configured',
       source:    cfg?.source || 'none',
       host:      cfg?.host      || '',
       port:      cfg?.port      || 587,
@@ -183,10 +180,9 @@ async function testEmail(req, res, next) {
   try {
     const info = await emailService.sendTestEmail({ to })
     res.json({
-      success:    true,
-      message:    `Test email sent to ${to}`,
-      messageId:  info.messageId,
-      previewUrl: info.previewUrl || null,
+      success:   true,
+      message:   `Test email sent to ${to}`,
+      messageId: info.messageId,
     })
   } catch (err) {
     next(err)
