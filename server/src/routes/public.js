@@ -1,6 +1,6 @@
 const router  = require('express').Router()
 const { body } = require('express-validator')
-const { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder } = require('../controllers/publicController')
+const { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder, addItemsToPublicOrder, requestCheckout } = require('../controllers/publicController')
 
 // No authentication on any of these routes
 
@@ -24,6 +24,16 @@ router.post(
 
 // Fetch an order (customer-facing, no auth — orderId + tableId proves ownership)
 router.get('/orders/:id', getPublicOrder)
+
+// Add more items to an existing open order (running tab)
+router.patch(
+  '/orders/:id/add-items',
+  [body('tableId').notEmpty(), body('items').isArray({ min: 1 })],
+  addItemsToPublicOrder
+)
+
+// Customer requests the bill — alerts cashier immediately
+router.post('/orders/:id/request-checkout', requestCheckout)
 
 // Cancel a Pending order — customer self-service, no auth token required.
 // Security: orderId (URL) + tableId (body) together prove ownership.

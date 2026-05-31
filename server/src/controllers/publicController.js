@@ -272,6 +272,108 @@ async function cancelPublicOrder(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// ─── PATCH /api/public/orders/:id/add-items ──────────────────────────────────
+// Customer adds more items to their existing open order (running tab).
+async function addItemsToPublicOrder(req, res, next) {
+  try {
+    const rawOrderId = parseOrderId(req.params.id)
+    if (!rawOrderId) return res.status(400).json({ error: 'Invalid order ID' })
+
+    const { tableId, items } = req.body
+    if (!tableId) return res.status(400).json({ error: 'tableId required' })
+    if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items required' })
+
+    const rawTableId = parseRawTableId(tableId)
+    if (!rawTableId) return res.status(400).json({ error: 'Invalid tableId' })
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      const chk = await client.query(
+        `SELECT o.id, o.status, o.restaurant_id FROM orders o
+         WHERE o.id = $1 AND o.table_id = $2 FOR UPDATE`,
+        [rawOrderId, rawTableId]
+      )
+      if (!chk.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }) }
+      const { status, restaurant_id: rid } = chk.rows[0]
+      if (['Closed', 'Cancelled'].includes(status)) {
+        await client.query('ROLLBACK')
+        return res.status(400).json({ error: 'Cannot add items to a closed or cancelled order' })
+      }
+
+      // Fetch current menu prices
+      const menuIds = items.map(i => i.menuItemId)
+      const mRes = await client.query(
+        'SELECT id, name, price, station FROM menu_items WHERE id = ANY($1) AND restaurant_id = $2',
+        [menuIds, rid]
+      )
+      const menuMap = {}
+      mRes.rows.forEach(m => { menuMap[m.id] = m })
+
+      // Insert new order items
+      for (const item of items) {
+        const m = menuMap[item.menuItemId]
+        if (!m) { await client.query('ROLLBACK'); return res.status(400).json({ error: `Menu item ${item.menuItemId} not found` }) }
+        const unitPrice = parseFloat(m.price)
+        await client.query(
+          `INSERT INTO order_items (order_id, menu_item_id, name, quantity, unit_price, notes, station, restaurant_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [rawOrderId, item.menuItemId, m.name, item.quantity, unitPrice, item.notes || '', m.station || 'Kitchen', rid]
+        )
+      }
+
+      // Recalculate totals from all items
+      const totals = await client.query(
+        `SELECT COALESCE(SUM(quantity * unit_price), 0) AS subtotal FROM order_items WHERE order_id = $1`,
+        [rawOrderId]
+      )
+      const subtotal = parseFloat(totals.rows[0].subtotal)
+      const tax      = Math.round(subtotal * 0.08 * 100) / 100
+      const total    = Math.round((subtotal + tax) * 100) / 100
+      await client.query(
+        `UPDATE orders SET subtotal=$1, tax=$2, total=$3, updated_at=NOW() WHERE id=$4`,
+        [subtotal, tax, total, rawOrderId]
+      )
+
+      await client.query('COMMIT')
+
+      // Return full updated order + notify kitchen/admin
+      const fullRes = await query(`${ORDER_SELECT} WHERE o.id=$1 GROUP BY o.id`, [rawOrderId])
+      const fullOrder = fmtOrder(fullRes.rows[0])
+      emitOrderUpdated(fullOrder.id, fullOrder.status, fullOrder)
+      res.json(fullOrder)
+    } catch (err) {
+      await client.query('ROLLBACK')
+      next(err)
+    } finally { client.release() }
+  } catch (err) { next(err) }
+}
+
+// ─── POST /api/public/orders/:id/request-checkout ────────────────────────────
+// Customer signals they are ready to pay — alerts cashier/waiter immediately.
+async function requestCheckout(req, res, next) {
+  try {
+    const rawOrderId = parseOrderId(req.params.id)
+    if (!rawOrderId) return res.status(400).json({ error: 'Invalid order ID' })
+
+    const { tableId } = req.body
+    if (!tableId) return res.status(400).json({ error: 'tableId required' })
+
+    const rawTableId = parseRawTableId(tableId)
+    if (!rawTableId) return res.status(400).json({ error: 'Invalid tableId' })
+
+    const { rows } = await query(
+      `${ORDER_SELECT} WHERE o.id=$1 AND o.table_id=$2 GROUP BY o.id`,
+      [rawOrderId, rawTableId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Order not found' })
+
+    emitQrPaymentAlert(fmtOrder(rows[0]))
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+}
+
 // ─── GET /api/public/orders/:id?tableId=T-01 ─────────────────────────────────
 // Returns a customer's order. Security: orderId + tableId must match.
 async function getPublicOrder(req, res, next) {
@@ -291,4 +393,4 @@ async function getPublicOrder(req, res, next) {
   } catch (err) { next(err) }
 }
 
-module.exports = { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder }
+module.exports = { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder, addItemsToPublicOrder, requestCheckout }

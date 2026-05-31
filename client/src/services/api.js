@@ -341,7 +341,11 @@ export const publicApi = {
   getMenu:     (tableId)  => publicRequest('GET',  `/public/menu${tableId ? `?tableId=${encodeURIComponent(tableId)}` : ''}`),
   createOrder: (body)     => publicRequest('POST', '/public/orders', body),
   // Fetch an order by ID (tableId proves ownership — no auth token needed)
-  getOrder:    (orderId, tableId) => publicRequest('GET',   `/public/orders/${encodeURIComponent(orderId)}?tableId=${encodeURIComponent(tableId)}`),
+  getOrder:        (orderId, tableId) => publicRequest('GET',   `/public/orders/${encodeURIComponent(orderId)}?tableId=${encodeURIComponent(tableId)}`),
+  // Add more items to an existing open order (running tab)
+  addItems:        (orderId, tableId, items) => publicRequest('PATCH', `/public/orders/${encodeURIComponent(orderId)}/add-items`, { tableId, items }),
+  // Customer signals they want to pay — alerts cashier
+  requestCheckout: (orderId, tableId) => publicRequest('POST',  `/public/orders/${encodeURIComponent(orderId)}/request-checkout`, { tableId }),
   // Cancel a Pending order — only works before the kitchen starts preparing
-  cancelOrder: (orderId, tableId) => publicRequest('PATCH', `/public/orders/${encodeURIComponent(orderId)}/cancel`, { tableId }),
+  cancelOrder:     (orderId, tableId) => publicRequest('PATCH', `/public/orders/${encodeURIComponent(orderId)}/cancel`, { tableId }),
 }

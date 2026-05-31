@@ -447,21 +447,25 @@ export default function Orders() {
                   ✕ Order cancelled{selectedOrder.cancelReason ? ` — ${selectedOrder.cancelReason}` : ''}
                 </span>
               )}
-              {selectedOrder.status === 'Closed' && (
-                <>
-                  <span className="text-sm text-gray-400 dark:text-gray-500 italic">{t('orders.closedMsg')}</span>
-                  <Button
-                    variant="secondary"
-                    icon={Printer}
-                    onClick={() => {
-                      setReceiptType('receipt')
-                      setReceiptId(selectedOrder.rawId)
-                    }}
-                  >
-                    {t('orders.printReceipt')}
-                  </Button>
-                </>
+
+              {/* Print receipt — available for ALL non-cancelled statuses */}
+              {selectedOrder.status !== 'Cancelled' && (
+                <Button
+                  variant="secondary"
+                  icon={Printer}
+                  onClick={() => {
+                    setReceiptType(selectedOrder.status === 'Closed' ? 'receipt' : 'draft')
+                    setReceiptId(selectedOrder.rawId)
+                  }}
+                >
+                  {selectedOrder.status === 'Closed' ? t('orders.printReceipt') : 'Print Bill'}
+                </Button>
               )}
+
+              {selectedOrder.status === 'Closed' && (
+                <span className="text-sm text-gray-400 dark:text-gray-500 italic">{t('orders.closedMsg')}</span>
+              )}
+
               {selectedOrder.status !== 'Closed' && selectedOrder.status !== 'Cancelled' && (
                 <>
                   {getNextStatus(selectedOrder.status) && (
@@ -474,16 +478,6 @@ export default function Orders() {
                       {getNextStatusLabel(selectedOrder.status)}
                     </Button>
                   )}
-                  <Button
-                    variant="secondary"
-                    icon={Printer}
-                    onClick={() => {
-                      setReceiptType('draft')
-                      setReceiptId(selectedOrder.rawId)
-                    }}
-                  >
-                    Draft
-                  </Button>
                   <Button
                     variant="danger"
                     onClick={() => setCancelOpen(true)}
