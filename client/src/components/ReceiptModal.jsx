@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { X, Printer } from 'lucide-react'
 import clsx from 'clsx'
+import { getAuthToken } from '../services/api'
 
 /**
  * ReceiptModal
@@ -49,9 +50,7 @@ export default function ReceiptModal({ orderId, entityId, type = 'receipt', onCl
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
 
-  const token = (() => {
-    try { return JSON.parse(localStorage.getItem('pos_user') || 'null')?.token || '' } catch { return '' }
-  })()
+  const token = getAuthToken() || ''
 
   const id     = entityId ?? orderId
   const path   = buildPath(type, orderId, entityId)

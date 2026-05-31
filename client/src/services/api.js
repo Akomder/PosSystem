@@ -1,17 +1,20 @@
 // ─── Axios-free fetch wrapper ──────────────────────────────────────────────────
 const BASE = '/api'
 
-function getToken() {
-  try {
-    const u = JSON.parse(localStorage.getItem('pos_user') || 'null')
-    return u?.token || null
-  } catch { return null }
-}
+// Module-level token — set by AuthContext on login/logout/refresh.
+// Decoupled from localStorage so SuperAdmin and restaurant sessions
+// can coexist in separate tabs without overwriting each other.
+let _token = null
+let _onExpired = null  // callback to call when 401 received
+
+export function setAuthToken(token) { _token = token }
+export function clearAuthToken()    { _token = null }
+export function getAuthToken()      { return _token }
+export function onTokenExpired(cb)  { _onExpired = cb }
 
 async function request(method, path, body) {
-  const token = getToken()
   const headers = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  if (_token) headers['Authorization'] = `Bearer ${_token}`
 
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -23,12 +26,9 @@ async function request(method, path, body) {
 
   const data = await res.json()
   if (!res.ok) {
-    // 401 = token invalid or expired — clear stale session and redirect to login
+    // 401 = token invalid or expired — notify AuthContext to clear session
     if (res.status === 401 && !path.includes('/auth/')) {
-      localStorage.removeItem('pos_user')
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
-      }
+      _onExpired?.()
     }
     const err = new Error(data.error || data.message || 'Request failed')
     err.status = res.status

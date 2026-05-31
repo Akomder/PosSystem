@@ -38,6 +38,7 @@ export default function Login() {
         // Non-superadmin authenticated but used the wrong URL — reject & clear session
         setError("This login is for SuperAdmin only. Please use your restaurant's login URL.")
         localStorage.removeItem('pos_user')
+        localStorage.removeItem('pos_sa_user')
         return
       }
       navigate('/superadmin')

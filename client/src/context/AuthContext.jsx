@@ -1,6 +1,28 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
-import { authApi } from '../services/api'
+import { authApi, setAuthToken, clearAuthToken, onTokenExpired } from '../services/api'
 import { connectSocket, disconnectSocket } from '../services/socket'
+
+// ─── Separate storage keys so SuperAdmin and restaurant sessions coexist ───────
+const SA_KEY = 'pos_sa_user'   // SuperAdmin — one per browser (shared across SA tabs)
+const RS_KEY = 'pos_user'      // Restaurant staff — one per browser (shared across RS tabs)
+
+function storageKey(user) {
+  return user?.isSuperAdmin ? SA_KEY : RS_KEY
+}
+
+/** Read stored session on page load — check both keys, prefer based on URL. */
+function loadStoredUser() {
+  const path = window.location.pathname
+  const isSAPath = path.startsWith('/superadmin') || path === '/login'
+  const keys = isSAPath ? [SA_KEY, RS_KEY] : [RS_KEY, SA_KEY]
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw) return JSON.parse(raw)
+    } catch {}
+  }
+  return null
+}
 
 const AuthContext = createContext(null)
 
@@ -16,12 +38,9 @@ function decodeJwt(token) {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem('pos_user')
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
-    }
+    const stored = loadStoredUser()
+    if (stored?.token) setAuthToken(stored.token)
+    return stored
   })
 
   const refreshTimerRef = useRef(null)
@@ -34,8 +53,11 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
     disconnectSocket()
+    clearAuthToken()
+    // Clear from whichever key this session was stored under
+    localStorage.removeItem(SA_KEY)
+    localStorage.removeItem(RS_KEY)
     setUser(null)
-    localStorage.removeItem('pos_user')
   }, [])
 
   // Schedule a silent token refresh 30 minutes before the JWT expires
@@ -47,18 +69,19 @@ export function AuthProvider({ children }) {
     const msLeft   = decoded.exp * 1000 - Date.now()
     const refreshIn = msLeft - 30 * 60 * 1000   // 30 min before expiry
 
+    const applyRefresh = (newToken) => {
+      setUser(prev => {
+        if (!prev) return prev
+        const updated = { ...prev, token: newToken }
+        setAuthToken(newToken)
+        localStorage.setItem(storageKey(prev), JSON.stringify(updated))
+        return updated
+      })
+    }
+
     if (refreshIn <= 0) {
-      // Token already expired or too close — refresh immediately
       authApi.refresh(refreshToken)
-        .then(data => {
-          const updated = {
-            ...JSON.parse(localStorage.getItem('pos_user') || '{}'),
-            token: data.token,
-          }
-          localStorage.setItem('pos_user', JSON.stringify(updated))
-          setUser(updated)
-          scheduleRefresh(data.token, refreshToken)
-        })
+        .then(data => { applyRefresh(data.token); scheduleRefresh(data.token, refreshToken) })
         .catch(() => logout())
       return
     }
@@ -66,12 +89,7 @@ export function AuthProvider({ children }) {
     refreshTimerRef.current = setTimeout(async () => {
       try {
         const data = await authApi.refresh(refreshToken)
-        const updated = {
-          ...JSON.parse(localStorage.getItem('pos_user') || '{}'),
-          token: data.token,
-        }
-        localStorage.setItem('pos_user', JSON.stringify(updated))
-        setUser(updated)
+        applyRefresh(data.token)
         scheduleRefresh(data.token, refreshToken)
       } catch {
         logout()
@@ -92,20 +110,26 @@ export function AuthProvider({ children }) {
   const updateUser = useCallback((updates) => {
     setUser(prev => {
       const updated = { ...prev, ...updates }
-      localStorage.setItem('pos_user', JSON.stringify(updated))
+      localStorage.setItem(storageKey(updated), JSON.stringify(updated))
       return updated
     })
   }, [])
 
   const login = async (email, password, restaurantSlug) => {
     const data = await authApi.login(email, password, restaurantSlug)
-    // data = { token, refreshToken, user }
     const userData = { ...data.user, token: data.token, refreshToken: data.refreshToken }
+    setAuthToken(data.token)
+    // Store under role-appropriate key so sessions don't overwrite each other
+    localStorage.setItem(storageKey(userData), JSON.stringify(userData))
     setUser(userData)
-    localStorage.setItem('pos_user', JSON.stringify(userData))
     connectSocket(data.token)
     return userData
   }
+
+  // Register 401 handler — called by api.js when any request is unauthorised
+  useEffect(() => {
+    onTokenExpired(logout)
+  }, [logout])
 
   return (
     <AuthContext.Provider value={{ user, login, logout, updateUser }}>
