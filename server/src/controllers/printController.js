@@ -187,6 +187,30 @@ function buildReceiptHtml(order, restaurant, isKitchen = false) {
        <div style="font-size:${fontSize - 1}px;margin-top:4px;">${escHtml(cfg.signatureLabel || 'Signature: ____________________')}</div>`
     : ''
 
+  // ── Alt currencies ─────────────────────────────────────────────────────────
+  const exchangeRates = (restaurant.settings || {}).exchangeRates || {}
+  const usdRate = parseFloat(exchangeRates.USD)
+  const thbRate = parseFloat(exchangeRates.THB)
+  const altCurrencyBlock = !isKitchen && cfg.showAltCurrencies && (usdRate || thbRate)
+    ? `${cfg.showDividers ? dividerEl : ''}
+       <div style="font-size:${fontSize - 1}px;">
+         ${usdRate ? `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="color:#888;">$ USD</span><span>≈ ${(parseFloat(order.total || 0) * usdRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
+         ${thbRate ? `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="color:#888;">฿ THB</span><span>≈ ${(parseFloat(order.total || 0) * thbRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
+       </div>`
+    : ''
+
+  // ── QR payment ─────────────────────────────────────────────────────────────
+  const qrImageBase64 = (restaurant.settings || {}).payment?.qrImageBase64 || ''
+  const qrPaymentBlock = !isKitchen && cfg.showQrPayment
+    ? `${cfg.showDividers ? dividerEl : ''}
+       <div style="text-align:center;margin:6px 0 4px;">
+         <div style="font-size:${fontSize - 1}px;font-weight:600;margin-bottom:5px;">${escHtml(cfg.qrPaymentLabel || 'Scan to Pay')}</div>
+         ${qrImageBase64
+           ? `<img src="${qrImageBase64}" style="width:80px;height:80px;object-fit:contain;display:block;margin:0 auto;" alt="QR"/>`
+           : `<div style="width:80px;height:80px;margin:0 auto;border:1.5px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;">QR Code</div>`}
+       </div>`
+    : ''
+
   // ── Logo ───────────────────────────────────────────────────────────────────
   const logoSrc  = cfg.logoUrl || restaurant.logo_url || ''
   const logoHtml = cfg.showLogo && logoSrc
@@ -289,6 +313,8 @@ ${order.notes ? `${cfg.showDividers ? dividerEl : ''}<div style="font-size:${fon
 
 ${totalsBlock}
 ${signatureLine}
+${altCurrencyBlock}
+${qrPaymentBlock}
 
 ${cfg.showDividers ? dividerEl : ''}
 <div style="text-align:${fAlign};font-size:${fontSize - 2}px;color:#777;margin-top:4px;line-height:1.5;">${escHtml(footerText)}</div>
