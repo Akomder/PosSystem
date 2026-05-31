@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   ShoppingCart, Plus, Minus, X, UtensilsCrossed,
-  XCircle, CheckCircle2, Clock, Bell, ChevronLeft,
+  XCircle, CheckCircle2, Clock, Bell, ChevronLeft, ImageOff,
 } from 'lucide-react'
 import { io } from 'socket.io-client'
 import { publicApi } from '../services/api'
@@ -914,11 +914,28 @@ function MenuItemList({ items, getQty, addItem, removeItem }) {
         const qty = getQty(item.id)
         return (
           <div key={item.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex">
-            {item.imageUrl && (
-              <div className="w-24 flex-shrink-0 bg-gray-100">
-                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" style={{ minHeight: '80px' }} />
+            {/* Image column — always present */}
+            <div className="w-24 flex-shrink-0 self-stretch bg-gray-100 overflow-hidden" style={{ minHeight: '88px' }}>
+              {item.imageUrl ? (
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                  onError={e => {
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextSibling.style.display = 'flex'
+                  }}
+                />
+              ) : null}
+              {/* Shown when no image OR image fails to load */}
+              <div
+                className="w-full h-full flex-col items-center justify-center gap-1 text-center px-2"
+                style={{ display: item.imageUrl ? 'none' : 'flex' }}
+              >
+                <ImageOff size={18} className="text-gray-300" />
+                <p className="text-[9px] text-gray-300 leading-tight">No image</p>
               </div>
-            )}
+            </div>
             <div className="flex flex-1 items-start justify-between gap-3 p-3 min-w-0">
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 text-sm">{item.name}</p>

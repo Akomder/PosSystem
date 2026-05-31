@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { PlusCircle, Search, Pencil, Package, Layers } from 'lucide-react'
+import { PlusCircle, Search, Pencil, Package, Layers, ImageIcon, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
@@ -18,7 +18,7 @@ import { getPlaceholderColor, getPlaceholderTextColor } from '../utils/tableHelp
 
 const PLAN_MENU_LIMITS = { basic: 50, pro: 200, enterprise: Infinity }
 
-const EMPTY_FORM = { name: '', category: '', price: '', available: true }
+const EMPTY_FORM = { name: '', category: '', price: '', available: true, imageUrl: '' }
 
 export default function Menu() {
   const { menuItems, addMenuItem, updateMenuItem, toggleMenuItemAvailability } = useApp()
@@ -77,10 +77,34 @@ export default function Menu() {
       category:  item.category  || categories[0]?.name || '',
       price:     String(item.price ?? ''),
       available: item.available,
+      imageUrl:  item.imageUrl  || '',
     })
     setErrors({})
     setSaveError(null)
     setModalOpen(true)
+  }
+
+  // ── Image upload (auto-resizes to max 600px, JPEG 80%) ────
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) { alert('Image must be under 10 MB'); return }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const img = new Image()
+      img.onload = () => {
+        const MAX    = 600
+        const ratio  = Math.min(MAX / img.width, MAX / img.height, 1)
+        const canvas = document.createElement('canvas')
+        canvas.width  = Math.round(img.width  * ratio)
+        canvas.height = Math.round(img.height * ratio)
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+        setForm(f => ({ ...f, imageUrl: canvas.toDataURL('image/jpeg', 0.8) }))
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
   }
 
   // ── Validate & Save ────────────────────────────────────────
@@ -108,7 +132,7 @@ export default function Menu() {
       prepTime:          editItem?.prepTime           ?? 0,
       station:           editItem?.station            || 'Kitchen',
       tags:              editItem?.tags               || [],
-      imageUrl:          editItem?.imageUrl           || '',
+      imageUrl:          form.imageUrl                 || '',
       productCode:       editItem?.productCode        || '',
       costPrice:         editItem?.costPrice          ?? 0,
       productGroup:      editItem?.productGroup       || '',
@@ -381,6 +405,51 @@ export default function Menu() {
             placeholder="0"
             error={errors.price}
           />
+
+          {/* Image upload */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">
+              Image <span className="text-xs text-gray-400 font-normal">(optional)</span>
+            </label>
+            {form.imageUrl ? (
+              <div className="relative w-full h-40 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
+                <img src={form.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, imageUrl: '' }))}
+                  className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                  title="Remove image"
+                >
+                  <X size={12} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('menuImgUpload').click()}
+                  className="absolute bottom-2 right-2 px-2.5 py-1 bg-black/50 hover:bg-black/70 text-white text-xs font-medium rounded-full transition-colors"
+                >
+                  Replace
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => document.getElementById('menuImgUpload').click()}
+                className="w-full h-28 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:border-teal-400 dark:hover:border-teal-500 hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-colors"
+              >
+                <ImageIcon size={22} className="text-gray-300 dark:text-gray-500" />
+                <p className="text-sm text-gray-400 dark:text-gray-500">Click to upload photo</p>
+                <p className="text-xs text-gray-300 dark:text-gray-600">Auto-resized · max 10 MB</p>
+              </button>
+            )}
+            <input id="menuImgUpload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            <input
+              type="url"
+              value={form.imageUrl.startsWith('data:') ? '' : form.imageUrl}
+              onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
+              placeholder="Or paste an image URL…"
+              className="mt-2 w-full text-sm border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-300 dark:placeholder:text-gray-500 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+          </div>
 
           {/* Availability toggle */}
           <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
