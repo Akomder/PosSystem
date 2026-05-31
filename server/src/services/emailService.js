@@ -359,7 +359,7 @@ async function sendTestEmail({ to }) {
     </p>
     ${infoTable([
       infoRow('Sent at',  now),
-      infoRow('SMTP Host', process.env.SMTP_HOST || cfg?.host || 'Configured via Admin'),
+      infoRow('SMTP Host', process.env.SMTP_HOST || 'Configured via Admin'),
       infoRow('To',       to),
     ])}
     <p style="margin:16px 0 0;font-size:13px;color:#22c55e;font-weight:600;">
