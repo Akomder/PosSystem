@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   ShoppingCart, Plus, Minus, X, UtensilsCrossed,
@@ -202,7 +202,7 @@ export default function CustomerOrder() {
 
   // lang + auto-translation
   const [lang,         setLang]         = useState(() => {
-    try { return localStorage.getItem('qr_lang') || 'en' } catch { return 'en' }
+    try { return localStorage.getItem('qr_lang') || 'lo' } catch { return 'lo' }
   })
   const [translations, setTranslations] = useState(readTransCache)  // { laoText: enText }
   const [translating,  setTranslating]  = useState(false)
@@ -330,6 +330,7 @@ export default function CustomerOrder() {
         writeTransCache(merged)
         setTranslations(merged)
       })
+      .catch(() => {})  // silent — items stay in Lao if translation fails
       .finally(() => setTranslating(false))
   }, [lang, menu])
 
@@ -444,8 +445,12 @@ export default function CustomerOrder() {
   }
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const grouped   = menu.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc }, {})
-  const catOrder  = [...new Set(menu.map(m => m.category).filter(Boolean))]
+  const grouped   = useMemo(() =>
+    menu.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc }, {}),
+    [menu]
+  )
+  // Stable reference — scroll spy effect won't re-run on unrelated re-renders
+  const catOrder  = useMemo(() => [...new Set(menu.map(m => m.category).filter(Boolean))], [menu])
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0)
   const cartCount    = cart.reduce((s, i) => s + i.quantity, 0)
   const currency     = table?.currency || 'LAK'
