@@ -22,7 +22,7 @@ function signRefresh(payload) {
 async function login(req, res, next) {
   if (!checkValidation(req, res)) return
 
-  const { email, password, restaurantSlug } = req.body
+  const { email: loginInput, password, restaurantSlug } = req.body
 
   try {
     // 1. Find user — scoped by restaurant when slug is provided (tenant login)
@@ -34,28 +34,42 @@ async function login(req, res, next) {
         [restaurantSlug]
       )
       if (!restRes.rows.length) {
-        return res.status(401).json({ error: 'Invalid email or password' })
+        return res.status(401).json({ error: 'Invalid credentials' })
       }
-      const { rows } = await query(
-        'SELECT * FROM users WHERE email = $1 AND restaurant_id = $2',
-        [email.toLowerCase().trim(), restRes.rows[0].id]
+      const restaurantId = restRes.rows[0].id
+      const input = loginInput.trim()
+
+      // Try email first
+      let result = await query(
+        'SELECT u.* FROM users u WHERE u.email = $1 AND u.restaurant_id = $2',
+        [input.toLowerCase(), restaurantId]
       )
-      if (!rows.length) return res.status(401).json({ error: 'Invalid email or password' })
-      user = rows[0]
+      // Fall back to staff name (case-insensitive)
+      if (!result.rows.length) {
+        result = await query(
+          `SELECT u.* FROM users u
+           JOIN staff s ON s.user_id = u.id
+           WHERE LOWER(s.name) = LOWER($1) AND u.restaurant_id = $2
+           LIMIT 1`,
+          [input, restaurantId]
+        )
+      }
+      if (!result.rows.length) return res.status(401).json({ error: 'Invalid credentials' })
+      user = result.rows[0]
     } else {
       // Global login — SuperAdmin only (no slug = main login page)
       const { rows } = await query(
         'SELECT * FROM users WHERE email = $1',
-        [email.toLowerCase().trim()]
+        [loginInput.toLowerCase().trim()]
       )
-      if (!rows.length) return res.status(401).json({ error: 'Invalid email or password' })
+      if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' })
       user = rows[0]
     }
 
     // 2. Check password
     const match = await bcrypt.compare(password, user.password_hash)
     if (!match) {
-      return res.status(401).json({ error: 'Invalid email or password' })
+      return res.status(401).json({ error: 'Invalid credentials' })
     }
 
     // 3. Get linked staff profile + restaurant plan (may not exist)

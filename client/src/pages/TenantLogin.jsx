@@ -55,7 +55,7 @@ export default function TenantLogin() {
     e.preventDefault()
     setError('')
     if (!email || !password) {
-      setError('Email and password are required')
+      setError('Username/email and password are required')
       return
     }
     setSubmitting(true)
@@ -162,11 +162,11 @@ export default function TenantLogin() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
-              label="Email"
-              type="email"
+              label="Email or Username"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="your@email.com or John Smith"
               required
             />
 
