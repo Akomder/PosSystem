@@ -7,12 +7,24 @@ const { emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow } = r
 const VALID_STATUSES = ['Pending', 'In Progress', 'Served', 'Closed', 'Cancelled']
 
 // ─── format helpers ───────────────────────────────────────────────────────────
-function fmtOrderId(n) { return `ORD-${String(n).padStart(3, '0')}` }
+const _ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXY3456789'  // 30 unambiguous chars
+function fmtOrderId(n) {
+  const B = _ID_CHARS.length
+  // Integer hash (Thomas Wang): makes sequential IDs look random
+  let x = Math.imul(n ^ (n >>> 15), 0x1234567 | 1)
+  x = Math.imul(x ^ (x >>> 13), 0x89ABCDE | 1)
+  x = (x ^ (x >>> 17)) >>> 0          // unsigned 32-bit
+  let v = x % (B * B * B * B)         // 4-digit base-30
+  let s = ''
+  for (let i = 0; i < 4; i++) { s = _ID_CHARS[v % B] + s; v = Math.floor(v / B) }
+  return '#' + s
+}
 function fmtTableId(n) { return n ? `T-${String(n).padStart(2, '0')}` : null }
 function fmtMenuId(n)  { return `MI-${String(n).padStart(3, '0')}`  }
 
 function fmtOrder(r) {
   return {
+    rawId:         r.id,
     id:            fmtOrderId(r.id),
     orderType:     r.order_type  || 'Dine In',
     tableId:       fmtTableId(r.table_id),

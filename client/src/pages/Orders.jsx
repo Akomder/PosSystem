@@ -96,8 +96,7 @@ export default function Orders() {
     if (!selectedOrder) return
     setCancelling(true)
     try {
-      const rawId = parseInt(String(selectedOrder.id).replace(/\D/g, ''), 10)
-      await ordersApi.cancel(rawId, cancelReason || 'No reason given')
+      await ordersApi.cancel(selectedOrder.rawId, cancelReason || 'No reason given')
       setCancelOpen(false)
       setSelectedId(null)
     } catch (e) {
@@ -455,9 +454,8 @@ export default function Orders() {
                     variant="secondary"
                     icon={Printer}
                     onClick={() => {
-                      const rawId = parseInt(String(selectedOrder.id).replace(/\D/g, ''), 10)
                       setReceiptType('receipt')
-                      setReceiptId(rawId)
+                      setReceiptId(selectedOrder.rawId)
                     }}
                   >
                     {t('orders.printReceipt')}
@@ -470,7 +468,7 @@ export default function Orders() {
                     <Button
                       variant={BTN_VARIANTS[getNextStatus(selectedOrder.status)] || 'primary'}
                       onClick={() =>
-                        updateOrderStatus(selectedOrder.id, getNextStatus(selectedOrder.status))
+                        updateOrderStatus(selectedOrder.rawId, getNextStatus(selectedOrder.status))
                       }
                     >
                       {getNextStatusLabel(selectedOrder.status)}
@@ -480,9 +478,8 @@ export default function Orders() {
                     variant="secondary"
                     icon={Printer}
                     onClick={() => {
-                      const rawId = parseInt(String(selectedOrder.id).replace(/\D/g, ''), 10)
                       setReceiptType('draft')
-                      setReceiptId(rawId)
+                      setReceiptId(selectedOrder.rawId)
                     }}
                   >
                     Draft

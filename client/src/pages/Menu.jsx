@@ -722,7 +722,6 @@ export default function Menu() {
               value={form.stock}
               onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
               placeholder="0"
-              error={errors.stock}
             />
             <Input
               label={t('menu.prepTime')}

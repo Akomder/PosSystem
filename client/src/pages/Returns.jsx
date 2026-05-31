@@ -74,7 +74,7 @@ export default function Returns() {
     setError('')
     try {
       await returnsApi.create({
-        orderId: form.orderId ? parseInt(String(form.orderId).replace('ORD-', ''), 10) : null,
+        orderId: form.orderId ? parseInt(String(form.orderId).replace(/\D/g, ''), 10) || null : null,
         reason:  form.reason,
         items:   form.items,
       })

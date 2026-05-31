@@ -34,8 +34,7 @@ export default function OfflineBanner() {
       try {
         // Re-submit the order
         const order   = await ordersApi.create(record.payload)
-        const rawId   = parseInt(String(order.id).replace('ORD-', ''), 10)
-        await ordersApi.updateStatus(rawId, 'Closed')
+        await ordersApi.updateStatus(order.rawId, 'Closed')
         await markSynced(record.localId)
         synced++
       } catch {

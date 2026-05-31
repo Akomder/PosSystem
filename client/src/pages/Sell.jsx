@@ -572,8 +572,7 @@ export default function Sell() {
       try {
         // ── Online path ────────────────────────────────────────────────────
         const order      = await ordersApi.create(body)
-        const rawOrderId = parseInt(String(order.id).replace('ORD-', ''), 10)
-        await ordersApi.updateStatus(rawOrderId, 'Closed')
+        await ordersApi.updateStatus(order.rawId, 'Closed')
         setPayOpen(false)
         closeTab(activeTab)
         setReceiptOrderId(rawOrderId)

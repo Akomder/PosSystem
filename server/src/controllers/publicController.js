@@ -56,9 +56,7 @@ async function getPublicTable(req, res, next) {
       restaurantId:     r.restaurant_id,
       restaurantName:   r.restaurant_name || 'Restaurant',
       currency:         r.currency || 'LAK',
-      currentOrderId:   r.current_order_id
-                          ? `ORD-${String(r.current_order_id).padStart(3, '0')}`
-                          : null,
+      currentOrderId:   r.current_order_id || null,
       qrImageBase64:    rSettings?.payment?.qrImageBase64 || null,
     })
   } catch (err) { next(err) }

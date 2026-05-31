@@ -149,6 +149,7 @@ export default function CustomerOrder() {
   const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
 
   // ── Fetch & display an active order ───────────────────────────────────────
+  // orderId is always a raw integer (returned directly from server or order.rawId)
   const loadOrder = useCallback(async (orderId) => {
     try {
       const order = await publicApi.getOrder(orderId, tableId)
@@ -194,8 +195,8 @@ export default function CustomerOrder() {
     if (view !== 'tracking' || !activeOrder) return
     stopPoll()
     pollRef.current = setInterval(() => {
-      loadOrder(activeOrder.id)
-    }, 12000) // every 12 s
+      loadOrder(activeOrder.rawId)
+    }, 12000)
     return () => stopPoll()
   }, [view, activeOrder?.id, loadOrder])
 
@@ -228,8 +229,7 @@ export default function CustomerOrder() {
       setCart([])
       setNotes('')
       setCartOpen(false)
-      // Load the newly created order and switch to tracking view
-      await loadOrder(result.id)
+      await loadOrder(result.rawId)
     } catch (err) {
       alert(err.message || 'Could not place order. Please ask a staff member.')
     } finally {
@@ -242,7 +242,7 @@ export default function CustomerOrder() {
     if (!activeOrder) return
     setCancelling(true)
     try {
-      await publicApi.cancelOrder(activeOrder.id, tableId)
+      await publicApi.cancelOrder(activeOrder.rawId, tableId)
       stopPoll()
       setView('cancelled')
       setCancelConfirm(false)
