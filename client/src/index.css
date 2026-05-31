@@ -4,7 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Poppins', 'Noto Sans Lao', system-ui, sans-serif;
   --color-primary: #14b8a6;
   --color-primary-light: #f0fdfa;
   --color-primary-dark: #0f766e;
@@ -18,18 +18,12 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Poppins', 'Noto Sans Lao', system-ui, sans-serif;
   background-color: #F9FAFB;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/* Lao language: switch to Poppins for better Lao script rendering */
-html.lang-lo body,
-html.lang-lo {
-  font-family: 'Poppins', system-ui, sans-serif;
 }
 
 #root {

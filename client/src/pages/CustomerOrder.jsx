@@ -148,6 +148,29 @@ function triggerServedBeep() {
   } catch {}
 }
 
+// ── Menu text auto-translation (Lao → English via Google Translate) ───────────
+const TRANS_CACHE_KEY = 'qr_menu_trans_v1'
+const readTransCache  = () => { try { return JSON.parse(localStorage.getItem(TRANS_CACHE_KEY) || '{}') } catch { return {} } }
+const writeTransCache = c  => { try { localStorage.setItem(TRANS_CACHE_KEY, JSON.stringify(c))  } catch {} }
+
+async function batchTranslateLao(texts) {
+  const result = {}
+  if (!texts.length) return result
+  try {
+    const joined = texts.join('\n')
+    const res  = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=lo&tl=en&dt=t&q=${encodeURIComponent(joined)}`
+    )
+    const data = await res.json()
+    const raw  = data[0]?.map(s => s[0]).join('') || ''
+    const lines = raw.split('\n')
+    texts.forEach((t, i) => { result[t] = (lines[i] || t).trim() || t })
+  } catch {
+    texts.forEach(t => { result[t] = t })
+  }
+  return result
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function CustomerOrder() {
   const { tableId } = useParams()
@@ -177,15 +200,20 @@ export default function CustomerOrder() {
   const [cartOpen,       setCartOpen]       = useState(false)
   const [submitting,     setSubmitting]     = useState(false)
 
-  // lang
-  const [lang, setLang] = useState(() => {
+  // lang + auto-translation
+  const [lang,         setLang]         = useState(() => {
     try { return localStorage.getItem('qr_lang') || 'en' } catch { return 'en' }
   })
+  const [translations, setTranslations] = useState(readTransCache)  // { laoText: enText }
+  const [translating,  setTranslating]  = useState(false)
+
   const t = (key, ...args) => {
     const v = TR[lang]?.[key] ?? TR.en[key]
     return typeof v === 'function' ? v(...args) : (v ?? key)
   }
-  const catLabel = c => c === 'All' ? t('cat_all') : (TR[lang]?.cat_map?.[c] ?? c)
+  // tr() is used for dynamic menu/category text (not static UI strings)
+  const tr       = text => lang === 'en' ? (translations[text] || text) : text
+  const catLabel = c    => lang === 'en' ? tr(c) : c
   const toggleLang = () => {
     const next = lang === 'en' ? 'lo' : 'en'
     setLang(next)
@@ -285,6 +313,25 @@ export default function CustomerOrder() {
     })
     return () => sock.disconnect()
   }, [tableId, stopPoll])
+
+  // ── Auto-translate menu texts when switching to English ───────────────────
+  useEffect(() => {
+    if (lang !== 'en' || !menu.length) return
+    const cats     = [...new Set(menu.map(m => m.category).filter(Boolean))]
+    const allTexts = [...new Set([...menu.map(i => i.name), ...cats])]
+    const cache    = readTransCache()
+    const missing  = allTexts.filter(t => !cache[t])
+    // Everything already cached — apply immediately
+    if (!missing.length) { setTranslations({ ...cache }); return }
+    setTranslating(true)
+    batchTranslateLao(missing)
+      .then(result => {
+        const merged = { ...cache, ...result }
+        writeTransCache(merged)
+        setTranslations(merged)
+      })
+      .finally(() => setTranslating(false))
+  }, [lang, menu])
 
   // ── Cart helpers ───────────────────────────────────────────────────────────
   const addItem     = item => setCart(prev => {
@@ -761,7 +808,7 @@ export default function CustomerOrder() {
         </div>
 
         {/* Category tabs — scroll spy keeps active pill highlighted */}
-        <div ref={tabBarRef} className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide max-w-xl mx-auto">
+        <div ref={tabBarRef} className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide max-w-xl mx-auto items-center">
           {catOrder.map(cat => (
             <button
               key={cat}
@@ -776,6 +823,9 @@ export default function CustomerOrder() {
               {catLabel(cat)}
             </button>
           ))}
+          {translating && (
+            <div className="flex-shrink-0 w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin ml-1" title="Translating…" />
+          )}
         </div>
       </header>
 
@@ -791,10 +841,10 @@ export default function CustomerOrder() {
           <section key={cat} id={`cat-sec-${cat}`} className="mb-8">
             <div className="flex items-center gap-2 mb-3">
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${CAT_COLOUR[cat] || 'bg-gray-100 text-gray-600'}`}>
-                {catLabel(cat)}
+                {tr(cat)}
               </span>
             </div>
-            <MenuItemList items={grouped[cat]} getQty={getQty} addItem={addItem} removeItem={removeItem} />
+            <MenuItemList items={grouped[cat]} getQty={getQty} addItem={addItem} removeItem={removeItem} trFn={tr} />
           </section>
         ))}
 
@@ -841,7 +891,7 @@ export default function CustomerOrder() {
                         <X size={14} />
                       </button>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{tr(item.name)}</p>
                         <p className="text-xs text-gray-400">{item.price.toLocaleString()} each</p>
                       </div>
                     </div>
@@ -947,7 +997,8 @@ export default function CustomerOrder() {
 }
 
 // ── Menu item list ─────────────────────────────────────────────────────────────
-function MenuItemList({ items, getQty, addItem, removeItem }) {
+function MenuItemList({ items, getQty, addItem, removeItem, trFn }) {
+  const tr = trFn || (x => x)
   return (
     <div className="space-y-3">
       {items.map(item => {
@@ -978,8 +1029,8 @@ function MenuItemList({ items, getQty, addItem, removeItem }) {
             </div>
             <div className="flex flex-1 items-start justify-between gap-3 p-3 min-w-0">
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 text-sm">{item.name}</p>
-                {item.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{item.description}</p>}
+                <p className="font-semibold text-gray-900 text-sm">{tr(item.name)}</p>
+                {item.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{tr(item.description)}</p>}
                 {item.prepTime > 0 && <p className="text-[11px] text-gray-300 mt-0.5">~{item.prepTime} min</p>}
                 <p className="text-sm font-bold text-teal-600 mt-1.5">{item.price.toLocaleString()}</p>
               </div>
