@@ -101,14 +101,14 @@ async function getAllItems(req, res, next) {
 async function getCategories(req, res, next) {
   try {
     const { rows } = await query(
-      `SELECT mc.id, mc.name, mc.sort_order AS "sortOrder", mc.color,
+      `SELECT mc.id, mc.name, mc.sort_order AS "sortOrder", mc.color, mc.image_url AS "imageUrl",
               COUNT(mi.id)::int                                           AS total,
               COUNT(mi.id) FILTER (WHERE mi.available = TRUE)::int       AS available
        FROM menu_categories mc
        LEFT JOIN menu_items mi
          ON mi.restaurant_id = mc.restaurant_id AND mi.category = mc.name
        WHERE mc.restaurant_id = $1
-       GROUP BY mc.id, mc.name, mc.sort_order, mc.color
+       GROUP BY mc.id, mc.name, mc.sort_order, mc.color, mc.image_url
        ORDER BY mc.sort_order, mc.name`,
       [req.restaurantId]
     )
@@ -118,7 +118,7 @@ async function getCategories(req, res, next) {
 
 // ─── POST /api/menu/categories ───────────────────────────────────────────────
 async function createCategory(req, res, next) {
-  const { name, color } = req.body
+  const { name, color, imageUrl } = req.body
   if (!name?.trim()) return res.status(400).json({ error: 'Name is required' })
   try {
     const maxRow = await query(
@@ -128,9 +128,9 @@ async function createCategory(req, res, next) {
     )
     const nextOrder = maxRow.rows[0].next_order
     const { rows } = await query(
-      `INSERT INTO menu_categories (restaurant_id, name, sort_order, color)
-       VALUES ($1, $2, $3, $4) RETURNING id, name, sort_order AS "sortOrder", color`,
-      [req.restaurantId, name.trim(), nextOrder, color || '#14b8a6']
+      `INSERT INTO menu_categories (restaurant_id, name, sort_order, color, image_url)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, name, sort_order AS "sortOrder", color, image_url AS "imageUrl"`,
+      [req.restaurantId, name.trim(), nextOrder, color || '#14b8a6', imageUrl || '']
     )
     res.status(201).json({ ...rows[0], total: 0, available: 0 })
   } catch (err) {
@@ -141,10 +141,11 @@ async function createCategory(req, res, next) {
 
 // ─── PUT /api/menu/categories/:id ────────────────────────────────────────────
 async function updateCategory(req, res, next) {
-  const { name, color } = req.body
+  const { name, color, imageUrl } = req.body
   const sets = [], params = []
-  if (name?.trim()) { params.push(name.trim()); sets.push(`name = $${params.length}`) }
-  if (color)        { params.push(color);        sets.push(`color = $${params.length}`) }
+  if (name?.trim())          { params.push(name.trim());  sets.push(`name = $${params.length}`) }
+  if (color)                 { params.push(color);         sets.push(`color = $${params.length}`) }
+  if (imageUrl !== undefined) { params.push(imageUrl || ''); sets.push(`image_url = $${params.length}`) }
   if (!sets.length) return res.status(400).json({ error: 'Nothing to update' })
 
   params.push(req.params.id, req.restaurantId)
@@ -168,12 +169,12 @@ async function updateCategory(req, res, next) {
       )
     }
     const { rows } = await query(
-      `SELECT mc.id, mc.name, mc.sort_order AS "sortOrder", mc.color,
+      `SELECT mc.id, mc.name, mc.sort_order AS "sortOrder", mc.color, mc.image_url AS "imageUrl",
               COUNT(mi.id)::int                                           AS total,
               COUNT(mi.id) FILTER (WHERE mi.available = TRUE)::int       AS available
        FROM menu_categories mc
        LEFT JOIN menu_items mi ON mi.restaurant_id = mc.restaurant_id AND mi.category = mc.name
-       WHERE mc.id = $1 GROUP BY mc.id, mc.name, mc.sort_order, mc.color`,
+       WHERE mc.id = $1 GROUP BY mc.id, mc.name, mc.sort_order, mc.color, mc.image_url`,
       [req.params.id]
     )
     res.json(rows[0])

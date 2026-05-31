@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Check, X, GripVertical } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Check, X, GripVertical, Camera, ImageOff } from 'lucide-react'
 import clsx from 'clsx'
 import { menuApi } from '../services/api'
 
@@ -23,6 +23,69 @@ function ColorDot({ color, selected, onClick }) {
   )
 }
 
+// Resizes to max 400px, compresses to JPEG 85% before storing
+function compressImage(file, callback) {
+  const reader = new FileReader()
+  reader.onload = ev => {
+    const img = new Image()
+    img.onload = () => {
+      const MAX    = 400
+      const ratio  = Math.min(MAX / img.width, MAX / img.height, 1)
+      const canvas = document.createElement('canvas')
+      canvas.width  = Math.round(img.width  * ratio)
+      canvas.height = Math.round(img.height * ratio)
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      callback(canvas.toDataURL('image/jpeg', 0.85))
+    }
+    img.src = ev.target.result
+  }
+  reader.readAsDataURL(file)
+}
+
+// Small square image uploader used in each row
+function ImagePicker({ imageUrl, onChange }) {
+  const ref = useRef(null)
+
+  const pick = e => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) { alert('Image must be under 10 MB'); return }
+    compressImage(file, onChange)
+    e.target.value = ''
+  }
+
+  return (
+    <div className="flex-shrink-0">
+      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={pick} />
+      {imageUrl ? (
+        <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 group cursor-pointer" onClick={() => ref.current?.click()}>
+          <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+          {/* Hover overlay — click to replace, X to remove */}
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Camera size={10} className="text-white" />
+          </div>
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onChange('') }}
+            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <X size={8} className="text-white" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => ref.current?.click()}
+          className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center hover:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+          title="Upload category image"
+        >
+          <Camera size={14} className="text-gray-400" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function CategoryManager({ open, onClose, onChanged }) {
   const [categories, setCategories] = useState([])
   const [loading,    setLoading]    = useState(true)
@@ -32,10 +95,11 @@ export default function CategoryManager({ open, onClose, onChanged }) {
   // Add form
   const [addName,  setAddName]  = useState('')
   const [addColor, setAddColor] = useState('#14b8a6')
+  const [addImage, setAddImage] = useState('')
   const [addError, setAddError] = useState(null)
 
-  // Edit state: id → { name, color }
-  const [editing, setEditing] = useState(null)  // { id, name, color }
+  // Edit state: { id, name, color, imageUrl }
+  const [editing, setEditing] = useState(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -69,9 +133,9 @@ export default function CategoryManager({ open, onClose, onChanged }) {
     if (!addName.trim()) { setAddError('Name is required'); return }
     setSaving(true); setAddError(null)
     try {
-      const created = await menuApi.createCategory({ name: addName.trim(), color: addColor })
+      const created = await menuApi.createCategory({ name: addName.trim(), color: addColor, imageUrl: addImage })
       setCategories(prev => [...prev, created])
-      setAddName(''); setAddColor('#14b8a6')
+      setAddName(''); setAddColor('#14b8a6'); setAddImage('')
       onChanged?.()
     } catch (err) {
       setAddError(err?.response?.data?.error || err?.message || 'Failed to add category')
@@ -83,7 +147,11 @@ export default function CategoryManager({ open, onClose, onChanged }) {
     if (!editing.name.trim()) return
     setSaving(true)
     try {
-      const updated = await menuApi.updateCategory(editing.id, { name: editing.name.trim(), color: editing.color })
+      const updated = await menuApi.updateCategory(editing.id, {
+        name:     editing.name.trim(),
+        color:    editing.color,
+        imageUrl: editing.imageUrl,
+      })
       setCategories(prev => prev.map(c => c.id === editing.id ? updated : c))
       setEditing(null)
       onChanged?.()
@@ -116,7 +184,7 @@ export default function CategoryManager({ open, onClose, onChanged }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
           <div>
             <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Manage Categories</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Add, rename, reorder, or delete categories</p>
+            <p className="text-xs text-gray-400 mt-0.5">Add, rename, reorder, upload images</p>
           </div>
           <button
             onClick={onClose}
@@ -143,43 +211,67 @@ export default function CategoryManager({ open, onClose, onChanged }) {
           ) : categories.map((cat, index) => (
             <div
               key={cat.id}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/50 group"
+              className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/50 group"
             >
-              {/* Drag handle (visual only) */}
-              <GripVertical size={14} className="text-gray-300 dark:text-gray-600 flex-shrink-0" />
-
-              {/* Color dot */}
-              <span
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ background: editing?.id === cat.id ? editing.color : cat.color }}
-              />
+              {/* Drag handle */}
+              <GripVertical size={14} className="text-gray-300 dark:text-gray-600 flex-shrink-0 mt-2.5" />
 
               {editing?.id === cat.id ? (
-                /* Edit mode */
+                /* ── Edit mode ─────────────────────────────────────────── */
                 <div className="flex-1 flex flex-col gap-2">
-                  <input
-                    autoFocus
-                    value={editing.name}
-                    onChange={e => setEditing(p => ({ ...p, name: e.target.value }))}
-                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(null) }}
-                    className="w-full text-sm bg-white dark:bg-gray-700 border border-teal-400 rounded-lg px-2.5 py-1.5 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                  <div className="flex gap-1.5 flex-wrap">
+                  <div className="flex gap-2 items-center">
+                    {/* Image picker */}
+                    <ImagePicker
+                      imageUrl={editing.imageUrl}
+                      onChange={url => setEditing(p => ({ ...p, imageUrl: url }))}
+                    />
+                    {/* Name input */}
+                    <input
+                      autoFocus
+                      value={editing.name}
+                      onChange={e => setEditing(p => ({ ...p, name: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(null) }}
+                      className="flex-1 text-sm bg-white dark:bg-gray-700 border border-teal-400 rounded-lg px-2.5 py-1.5 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                  {/* Color picker */}
+                  <div className="flex gap-1.5 flex-wrap pl-12">
                     {PRESET_COLORS.map(c => (
                       <ColorDot key={c} color={c} selected={editing.color === c} onClick={() => setEditing(p => ({ ...p, color: c }))} />
                     ))}
                   </div>
                 </div>
               ) : (
-                /* View mode */
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{cat.name}</span>
-                  <span className="ml-2 text-xs text-gray-400">{cat.total} item{cat.total !== 1 ? 's' : ''}</span>
+                /* ── View mode ─────────────────────────────────────────── */
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {/* Thumbnail or color dot */}
+                  {cat.imageUrl ? (
+                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 flex-shrink-0">
+                      <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: cat.color + '22' }}
+                    >
+                      <ImageOff size={16} style={{ color: cat.color }} className="opacity-60" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ background: cat.color }}
+                      />
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{cat.name}</span>
+                    </div>
+                    <span className="text-xs text-gray-400">{cat.total} item{cat.total !== 1 ? 's' : ''}</span>
+                  </div>
                 </div>
               )}
 
-              {/* Actions */}
-              <div className="flex items-center gap-1 flex-shrink-0">
+              {/* Action buttons */}
+              <div className="flex items-center gap-1 flex-shrink-0 mt-1">
                 {editing?.id === cat.id ? (
                   <>
                     <button
@@ -213,7 +305,7 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                       <ChevronDown size={14} />
                     </button>
                     <button
-                      onClick={() => setEditing({ id: cat.id, name: cat.name, color: cat.color })}
+                      onClick={() => setEditing({ id: cat.id, name: cat.name, color: cat.color, imageUrl: cat.imageUrl || '' })}
                       className="p-1.5 rounded-lg text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
                     >
                       <Pencil size={13} />
@@ -235,7 +327,11 @@ export default function CategoryManager({ open, onClose, onChanged }) {
         <div className="px-5 pb-5 border-t border-gray-100 dark:border-gray-700 pt-4">
           <form onSubmit={handleAdd} className="space-y-3">
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Add Category</p>
-            <div className="flex gap-2">
+
+            <div className="flex gap-2 items-center">
+              {/* Image picker for new category */}
+              <ImagePicker imageUrl={addImage} onChange={setAddImage} />
+
               <input
                 value={addName}
                 onChange={e => { setAddName(e.target.value); setAddError(null) }}
@@ -254,12 +350,14 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                 Add
               </button>
             </div>
+
             {/* Color picker */}
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap pl-12">
               {PRESET_COLORS.map(c => (
                 <ColorDot key={c} color={c} selected={addColor === c} onClick={() => setAddColor(c)} />
               ))}
             </div>
+
             {addError && <p className="text-xs text-red-500">{addError}</p>}
           </form>
         </div>
