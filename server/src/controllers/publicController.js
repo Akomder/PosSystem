@@ -37,6 +37,7 @@ async function getPublicTable(req, res, next) {
     if (!rawId) return res.status(400).json({ error: 'Invalid table id' })
     const { rows } = await query(
       `SELECT t.id, t.number, t.capacity, t.status, t.section, t.restaurant_id,
+              t.current_order_id,
               r.name AS restaurant_name, r.currency, r.settings
        FROM restaurant_tables t
        LEFT JOIN restaurants r ON r.id = t.restaurant_id
@@ -55,7 +56,9 @@ async function getPublicTable(req, res, next) {
       restaurantId:     r.restaurant_id,
       restaurantName:   r.restaurant_name || 'Restaurant',
       currency:         r.currency || 'LAK',
-      // Payment config — shown to customers on QR payment confirmation screen
+      currentOrderId:   r.current_order_id
+                          ? `ORD-${String(r.current_order_id).padStart(3, '0')}`
+                          : null,
       qrImageBase64:    rSettings?.payment?.qrImageBase64 || null,
     })
   } catch (err) { next(err) }
@@ -271,4 +274,23 @@ async function cancelPublicOrder(req, res, next) {
   } catch (err) { next(err) }
 }
 
-module.exports = { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder }
+// ─── GET /api/public/orders/:id?tableId=T-01 ─────────────────────────────────
+// Returns a customer's order. Security: orderId + tableId must match.
+async function getPublicOrder(req, res, next) {
+  try {
+    const rawOrderId = parseOrderId(req.params.id)
+    if (!rawOrderId) return res.status(400).json({ error: 'Invalid order ID' })
+
+    const rawTableId = parseRawTableId(req.query.tableId || '')
+    if (!rawTableId) return res.status(400).json({ error: 'tableId query param required' })
+
+    const { rows } = await query(
+      `${ORDER_SELECT} WHERE o.id = $1 AND o.table_id = $2 GROUP BY o.id`,
+      [rawOrderId, rawTableId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Order not found' })
+    res.json(fmtOrder(rows[0]))
+  } catch (err) { next(err) }
+}
+
+module.exports = { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder }

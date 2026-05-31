@@ -1,6 +1,6 @@
 const router  = require('express').Router()
 const { body } = require('express-validator')
-const { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder } = require('../controllers/publicController')
+const { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder } = require('../controllers/publicController')
 
 // No authentication on any of these routes
 
@@ -21,6 +21,9 @@ router.post(
   ],
   createPublicOrder
 )
+
+// Fetch an order (customer-facing, no auth — orderId + tableId proves ownership)
+router.get('/orders/:id', getPublicOrder)
 
 // Cancel a Pending order — customer self-service, no auth token required.
 // Security: orderId (URL) + tableId (body) together prove ownership.
