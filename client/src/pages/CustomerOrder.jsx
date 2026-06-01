@@ -379,6 +379,13 @@ export default function CustomerOrder() {
     }
   }
 
+  // ── Derived (must be declared before scroll-spy effect uses catOrder) ────────
+  const grouped  = useMemo(() =>
+    menu.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc }, {}),
+    [menu]
+  )
+  const catOrder = useMemo(() => [...new Set(menu.map(m => m.category).filter(Boolean))], [menu])
+
   // ── Cancel order ───────────────────────────────────────────────────────────
   const handleCancelOrder = async () => {
     if (!activeOrder) return
@@ -444,13 +451,7 @@ export default function CustomerOrder() {
     setTimeout(() => { scrollLock.current = false }, 900)
   }
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-  const grouped   = useMemo(() =>
-    menu.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc }, {}),
-    [menu]
-  )
-  // Stable reference — scroll spy effect won't re-run on unrelated re-renders
-  const catOrder  = useMemo(() => [...new Set(menu.map(m => m.category).filter(Boolean))], [menu])
+  // ── Remaining derived values ───────────────────────────────────────────────
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0)
   const cartCount    = cart.reduce((s, i) => s + i.quantity, 0)
   const currency     = table?.currency || 'LAK'
