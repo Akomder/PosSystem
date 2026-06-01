@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Users, ClipboardList, PlusCircle, Trash2, Layers, Pencil, LayoutGrid, Map } from 'lucide-react'
+import { X, Users, ClipboardList, PlusCircle, Trash2, Layers, Pencil, LayoutGrid, Map, FolderDown } from 'lucide-react'
+import { batchDownloadQRCodes } from '../utils/batchDownloadQR'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useSettings } from '../context/SettingsContext'
@@ -206,6 +207,9 @@ export default function Tables() {
             <>
               <Button size="sm" variant="secondary" icon={Layers} onClick={() => { setZoneModalOpen(true); setEditingZone(null); setZoneForm({ name: '', color: '#14b8a6', description: '' }) }}>
                 Manage Zones
+              </Button>
+              <Button size="sm" variant="secondary" icon={FolderDown} onClick={() => batchDownloadQRCodes(tables, window.location.origin)}>
+                Download All QRs
               </Button>
               <Button size="sm" icon={PlusCircle} onClick={() => setAddTableOpen(true)}>
                 Add Table
