@@ -208,7 +208,7 @@ export default function Tables() {
               <Button size="sm" variant="secondary" icon={Layers} onClick={() => { setZoneModalOpen(true); setEditingZone(null); setZoneForm({ name: '', color: '#14b8a6', description: '' }) }}>
                 Manage Zones
               </Button>
-              <Button size="sm" variant="secondary" icon={FolderDown} onClick={() => batchDownloadQRCodes(tables, window.location.origin)}>
+              <Button size="sm" variant="secondary" icon={FolderDown} onClick={() => batchDownloadQRCodes(tables, window.location.origin, storeSettings?.name)}>
                 Download All QRs
               </Button>
               <Button size="sm" icon={PlusCircle} onClick={() => setAddTableOpen(true)}>
@@ -362,6 +362,7 @@ export default function Tables() {
         isOpen={!!qrTable}
         onClose={() => setQrTable(null)}
         table={qrTable}
+        restaurantName={storeSettings?.name}
       />
 
       {/* ── Slide-Over Drawer ──────────────────────────────── */}

@@ -2,19 +2,18 @@ import { QRCodeCanvas } from 'qrcode.react'
 import { Download } from 'lucide-react'
 import Modal from '../ui/Modal'
 import Button from '../ui/Button'
+import { generateSingleQRCard } from '../../utils/batchDownloadQR'
 
-export default function QRCodeModal({ isOpen, onClose, table }) {
+export default function QRCodeModal({ isOpen, onClose, table, restaurantName }) {
   if (!table) return null
 
   const orderUrl = `${window.location.origin}/order/${table.id}`
 
-  const handleDownload = () => {
-    const canvas = document.getElementById('table-qr-canvas')
-    if (!canvas) return
-    const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.95)
+  const handleDownload = async () => {
+    const card = await generateSingleQRCard(table, restaurantName, window.location.origin)
     const a = document.createElement('a')
     a.download = `QR-Table-${table.tableNumber}.jpg`
-    a.href = jpgDataUrl
+    a.href = card.toDataURL('image/jpeg', 0.95)
     a.click()
   }
 
