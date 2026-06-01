@@ -1,4 +1,4 @@
-import { QRCodeSVG } from 'qrcode.react'
+import { QRCodeCanvas } from 'qrcode.react'
 import { Download } from 'lucide-react'
 import Modal from '../ui/Modal'
 import Button from '../ui/Button'
@@ -9,14 +9,13 @@ export default function QRCodeModal({ isOpen, onClose, table }) {
   const orderUrl = `${window.location.origin}/order/${table.id}`
 
   const handleDownload = () => {
-    const svg = document.getElementById('table-qr-svg')
-    if (!svg) return
-    const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' })
+    const canvas = document.getElementById('table-qr-canvas')
+    if (!canvas) return
+    const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.95)
     const a = document.createElement('a')
-    a.download = `QR-${table.id}.svg`
-    a.href = URL.createObjectURL(blob)
+    a.download = `QR-Table-${table.tableNumber}.jpg`
+    a.href = jpgDataUrl
     a.click()
-    URL.revokeObjectURL(a.href)
   }
 
   return (
@@ -28,14 +27,14 @@ export default function QRCodeModal({ isOpen, onClose, table }) {
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Close</Button>
-          <Button variant="primary" icon={Download} onClick={handleDownload}>Download</Button>
+          <Button variant="primary" icon={Download} onClick={handleDownload}>Download JPG</Button>
         </>
       }
     >
       <div className="flex flex-col items-center gap-4 py-2">
         <div className="p-4 bg-white border border-gray-100 rounded-xl shadow-inner">
-          <QRCodeSVG
-            id="table-qr-svg"
+          <QRCodeCanvas
+            id="table-qr-canvas"
             value={orderUrl}
             size={220}
             level="M"
