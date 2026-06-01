@@ -59,12 +59,14 @@ export default function Tables() {
   const [zoneSaving,    setZoneSaving]    = useState(false)
 
   // Floor plan settings (canvas size + decorations)
-  const [storeSettings, setStoreSettings] = useState({})
-  const [floorPlan,     setFloorPlan]     = useState({ cols: 20, rows: 14, decorations: [] })
+  const [storeSettings,   setStoreSettings]   = useState({})
+  const [restaurantName,  setRestaurantName]  = useState('')
+  const [floorPlan,       setFloorPlan]       = useState({ cols: 20, rows: 14, decorations: [] })
 
   useEffect(() => {
     zonesApi.getAll().then(setZones).catch(() => {})
     settingsApi.store.get().then(data => {
+      if (data.name) setRestaurantName(data.name)
       const s = data.settings || {}
       setStoreSettings(s)
       const fp = s.floorPlan || {}
@@ -208,7 +210,7 @@ export default function Tables() {
               <Button size="sm" variant="secondary" icon={Layers} onClick={() => { setZoneModalOpen(true); setEditingZone(null); setZoneForm({ name: '', color: '#14b8a6', description: '' }) }}>
                 Manage Zones
               </Button>
-              <Button size="sm" variant="secondary" icon={FolderDown} onClick={() => batchDownloadQRCodes(tables, window.location.origin, storeSettings?.name)}>
+              <Button size="sm" variant="secondary" icon={FolderDown} onClick={() => batchDownloadQRCodes(tables, window.location.origin, restaurantName)}>
                 Download All QRs
               </Button>
               <Button size="sm" icon={PlusCircle} onClick={() => setAddTableOpen(true)}>
@@ -362,7 +364,7 @@ export default function Tables() {
         isOpen={!!qrTable}
         onClose={() => setQrTable(null)}
         table={qrTable}
-        restaurantName={storeSettings?.name}
+        restaurantName={restaurantName}
       />
 
       {/* ── Slide-Over Drawer ──────────────────────────────── */}
