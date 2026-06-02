@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import {
   PlusCircle, Search, Printer, X,
   Clock, ChevronRight, Minus, Plus, RotateCcw, CheckCircle, XCircle,
+  Pencil, Save, Trash2,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
@@ -68,6 +69,13 @@ export default function Orders() {
   const [cancelReason,  setCancelReason]  = useState('')
   const [cancelling,    setCancelling]    = useState(false)
 
+  // Edit items state
+  const [editingItems, setEditingItems] = useState(false)
+  const [editItems,    setEditItems]    = useState([])
+  const [editSearch,   setEditSearch]   = useState('')
+  const [editSaving,   setEditSaving]   = useState(false)
+  const [editError,    setEditError]    = useState('')
+
   // New order state
   const [noType,     setNoType]     = useState('Dine In')
   const [noTable,    setNoTable]    = useState('')
@@ -88,6 +96,11 @@ export default function Orders() {
   useEffect(() => {
     salesChannelsApi.getAll().then(data => setChannels(data.filter(c => c.active))).catch(() => {})
   }, [])
+
+  // Reset edit mode when selected order changes
+  useEffect(() => {
+    setEditingItems(false); setEditItems([]); setEditSearch(''); setEditError('')
+  }, [selectedId])
 
   // Fetch pending return requests whenever the selected order changes
   useEffect(() => {
@@ -144,6 +157,51 @@ export default function Orders() {
       alert(e.message)
     } finally {
       setProcessingReturn(null)
+    }
+  }
+
+  // ── Edit order items ────────────────────────────────────────────────────────
+  const parseMenuId = (id) => parseInt(String(id).replace('MI-', ''), 10)
+
+  const startEditItems = () => {
+    setEditItems(selectedOrder.items.map(i => ({
+      id: i.id, name: i.name, unitPrice: i.unitPrice, quantity: i.quantity, notes: i.notes || '',
+    })))
+    setEditSearch(''); setEditError(''); setEditingItems(true)
+  }
+
+  const cancelEditItems = () => {
+    setEditingItems(false); setEditItems([]); setEditSearch(''); setEditError('')
+  }
+
+  const changeEditQty = (id, delta) => {
+    setEditItems(prev =>
+      prev.map(i => i.id === id ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i)
+          .filter(i => i.quantity > 0)
+    )
+  }
+
+  const addEditItem = (menuItem) => {
+    setEditItems(prev => {
+      const ex = prev.find(i => i.id === menuItem.id)
+      if (ex) return prev.map(i => i.id === menuItem.id ? { ...i, quantity: i.quantity + 1 } : i)
+      return [...prev, { id: menuItem.id, name: menuItem.name, unitPrice: menuItem.price, quantity: 1, notes: '' }]
+    })
+  }
+
+  const saveEditItems = async () => {
+    if (!editItems.length) { setEditError('Order must have at least one item.'); return }
+    setEditSaving(true); setEditError('')
+    try {
+      await ordersApi.update(selectedOrder.rawId, {
+        notes: selectedOrder.notes,
+        items: editItems.map(i => ({ menuItemId: parseMenuId(i.id), quantity: i.quantity, notes: i.notes })),
+      })
+      setEditingItems(false); setEditItems([])
+    } catch (err) {
+      setEditError(err.message || 'Failed to save changes.')
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -425,34 +483,129 @@ export default function Orders() {
 
               {/* Items table */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                  {t('orders.items')}
-                </h3>
-                <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                      <tr>
-                        {[t('orders.col.item'), t('orders.col.qty'), t('orders.col.unitPrice'), t('orders.col.total')].map((h) => (
-                          <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 dark:text-gray-500">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                      {selectedOrder.items.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                          <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
-                          <td className="px-4 py-3 text-gray-500 dark:text-gray-400">×{item.quantity}</td>
-                          <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{formatCurrency(item.unitPrice)}</td>
-                          <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
-                            {formatCurrency(item.quantity * item.unitPrice)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    {t('orders.items')}
+                  </h3>
+                  {!editingItems && !['Closed','Cancelled'].includes(selectedOrder.status) && ['Admin','Waiter'].includes(user?.role) && (
+                    <button
+                      onClick={startEditItems}
+                      className="flex items-center gap-1 text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium transition-colors"
+                    >
+                      <Pencil size={11} /> Edit
+                    </button>
+                  )}
                 </div>
+
+                {editingItems ? (
+                  <div className="space-y-3">
+                    {/* Editable item rows */}
+                    <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden divide-y divide-gray-50 dark:divide-gray-700">
+                      {editItems.map(item => (
+                        <div key={item.id} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800">
+                          <span className="flex-1 text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{item.name}</span>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => changeEditQty(item.id, -1)} className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                              <Minus size={10} />
+                            </button>
+                            <span className="w-7 text-center text-sm font-semibold text-gray-900 dark:text-gray-100">{item.quantity}</span>
+                            <button onClick={() => changeEditQty(item.id, +1)} className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                              <Plus size={10} />
+                            </button>
+                          </div>
+                          <span className="text-xs text-gray-400 w-16 text-right">{formatCurrency(item.unitPrice * item.quantity)}</span>
+                          <button onClick={() => setEditItems(prev => prev.filter(i => i.id !== item.id))} className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors ml-1">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                      {editItems.length === 0 && (
+                        <p className="text-xs text-gray-400 text-center py-3">No items — add some below</p>
+                      )}
+                    </div>
+
+                    {/* Add item search */}
+                    <div>
+                      <div className="relative mb-1.5">
+                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          value={editSearch}
+                          onChange={e => setEditSearch(e.target.value)}
+                          placeholder="Search menu to add…"
+                          className="w-full pl-7 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+                      {editSearch && (
+                        <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden max-h-36 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700">
+                          {menuItems
+                            .filter(m => m.available && m.name.toLowerCase().includes(editSearch.toLowerCase()))
+                            .slice(0, 10)
+                            .map(m => (
+                              <button
+                                key={m.id}
+                                onClick={() => { addEditItem(m); setEditSearch('') }}
+                                className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+                              >
+                                <span className="font-medium text-gray-900 dark:text-gray-100">{m.name}</span>
+                                <span className="text-gray-400">{formatCurrency(m.price)}</span>
+                              </button>
+                            ))
+                          }
+                          {menuItems.filter(m => m.available && m.name.toLowerCase().includes(editSearch.toLowerCase())).length === 0 && (
+                            <p className="text-xs text-gray-400 text-center py-3">No items found</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {editError && <p className="text-xs text-red-500">{editError}</p>}
+
+                    {/* Save / Cancel */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={saveEditItems}
+                        disabled={editSaving}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors"
+                      >
+                        <Save size={12} />
+                        {editSaving ? 'Saving…' : 'Save Changes'}
+                      </button>
+                      <button
+                        onClick={cancelEditItems}
+                        disabled={editSaving}
+                        className="px-3 py-1.5 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                          {[t('orders.col.item'), t('orders.col.qty'), t('orders.col.unitPrice'), t('orders.col.total')].map((h) => (
+                            <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 dark:text-gray-500">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                        {selectedOrder.items.map((item) => (
+                          <tr key={item.orderItemId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
+                            <td className="px-4 py-3 text-gray-500 dark:text-gray-400">×{item.quantity}</td>
+                            <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{formatCurrency(item.unitPrice)}</td>
+                            <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
+                              {formatCurrency(item.quantity * item.unitPrice)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               {/* Notes */}
