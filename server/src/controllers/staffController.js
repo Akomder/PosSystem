@@ -45,9 +45,10 @@ async function getAllStaff(req, res, next) {
 // ─── GET /api/staff/:id ───────────────────────────────────────────────────────
 async function getStaffMember(req, res, next) {
   try {
+    const rawId = parseInt(String(req.params.id).replace('STF-', ''), 10)
     const { rows } = await query(
       `SELECT s.*, u.email FROM staff s LEFT JOIN users u ON u.id = s.user_id WHERE s.id = $1`,
-      [req.params.id]
+      [rawId]
     )
     if (!rows.length) return res.status(404).json({ error: 'Staff member not found' })
     res.json(fmt(rows[0]))
@@ -131,6 +132,7 @@ async function createStaff(req, res, next) {
 // ─── PUT /api/staff/:id ───────────────────────────────────────────────────────
 async function updateStaff(req, res, next) {
   if (!checkValidation(req, res)) return
+  const rawId = parseInt(String(req.params.id).replace('STF-', ''), 10)
   const { name, role, status, avatar, tablesAssigned } = req.body
 
   const staffSets = [], staffParams = []
@@ -146,7 +148,7 @@ async function updateStaff(req, res, next) {
   try {
     await client.query('BEGIN')
 
-    staffParams.push(req.params.id)
+    staffParams.push(rawId)
     const { rows } = await client.query(
       `UPDATE staff SET ${staffSets.join(', ')}, updated_at = NOW()
        WHERE id = $${staffParams.length} RETURNING *`,
@@ -183,7 +185,8 @@ async function updateStaff(req, res, next) {
 // ─── DELETE /api/staff/:id ────────────────────────────────────────────────────
 async function deleteStaff(req, res, next) {
   try {
-    const { rowCount } = await query('DELETE FROM staff WHERE id = $1', [req.params.id])
+    const rawId = parseInt(String(req.params.id).replace('STF-', ''), 10)
+    const { rowCount } = await query('DELETE FROM staff WHERE id = $1', [rawId])
     if (!rowCount) return res.status(404).json({ error: 'Staff member not found' })
     res.status(204).end()
   } catch (err) { next(err) }
