@@ -20,6 +20,9 @@ primary_region = "sin"        # Singapore — closest to Southeast Asia
   auto_stop_machines  = false   # Never sleep — required for Socket.IO + real client
   auto_start_machines = true
   min_machines_running = 1
+  # Sticky sessions: ensures each client's HTTP + WebSocket always hits the same machine.
+  # Critical for Socket.IO — without Redis adapter, events don't cross machine boundaries.
+  session_affinity    = "cookie"
 
   [http_service.concurrency]
     type       = "connections"

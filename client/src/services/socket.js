@@ -3,7 +3,9 @@ import { io } from 'socket.io-client'
 let socket = null
 
 export function connectSocket(token) {
-  if (socket?.connected) return socket
+  // Return existing socket regardless of connection state — Socket.IO handles
+  // reconnection internally. Creating a new instance would lose all listeners.
+  if (socket) return socket
 
   socket = io('/', {
     auth: { token },
