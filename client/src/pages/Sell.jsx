@@ -1177,7 +1177,7 @@ export default function Sell() {
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm disabled:opacity-40 transition-colors"
             >
               <ChefHat size={15} />
-              {sending ? 'Sending…' : 'Send to Kitchen'}
+              {sending ? t('sell.sending') : t('sell.sendToKitchen')}
             </button>
             <div className="flex gap-2">
               <button
@@ -1219,7 +1219,7 @@ export default function Sell() {
       {sentToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 bg-orange-500 text-white text-sm font-semibold rounded-2xl shadow-xl">
           <ChefHat size={15} className="opacity-90" />
-          Order sent to kitchen!
+          {t('sell.sentToKitchen')}
         </div>
       )}
 

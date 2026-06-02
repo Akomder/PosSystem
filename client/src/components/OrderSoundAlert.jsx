@@ -17,6 +17,7 @@ import { Bell, X, ShoppingBag, Plus } from 'lucide-react'
 import clsx from 'clsx'
 import { onOrderCreated, onOrderItemsAdded } from '../services/socket'
 import { playCashierAlert, unlock, isUnlocked } from '../lib/soundAlert'
+import { useSettings } from '../context/SettingsContext'
 import { useAuth } from '../context/AuthContext'
 
 // ── Browser Notification helper ───────────────────────────────────────────────
@@ -46,6 +47,7 @@ function showBrowserNotif(title, body, tag, onClickPath, navigate) {
 
 export default function OrderSoundAlert() {
   const { user }   = useAuth()
+  const { t }      = useSettings()
   const navigate   = useNavigate()
   const [soundEnabled, setSoundEnabled] = useState(false)
   const [toasts,       setToasts]       = useState([])   // [{ id, label, type }]
@@ -146,7 +148,7 @@ export default function OrderSoundAlert() {
           onClick={() => { unlock(); setSoundEnabled(true) }}
         >
           <Bell size={13} className="text-amber-400" />
-          Tap anywhere to enable order sound alerts
+          {t('alert.enableSound')}
         </div>
       )}
 
@@ -175,7 +177,7 @@ export default function OrderSoundAlert() {
               onClick={() => { dismissToast(toast.id); navigate('/orders') }}
             >
               <p className="text-violet-300 text-[10px] uppercase tracking-wider font-semibold mb-0.5">
-                {toast.type === 'added' ? 'Items Added' : 'New Order'}
+                {toast.type === 'added' ? t('alert.itemsAdded') : t('alert.newOrder')}
               </p>
               <p className="text-gray-200">{toast.label}</p>
             </div>

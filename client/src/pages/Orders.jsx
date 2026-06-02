@@ -448,7 +448,7 @@ export default function Orders() {
                 <div key={ret.id} className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3">
                   <div className="flex items-center gap-2 mb-2">
                     <RotateCcw size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Return Request Pending</p>
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('orders.returnPending')}</p>
                   </div>
                   {ret.items?.length > 0 && (
                     <ul className="text-xs text-amber-700 dark:text-amber-400 mb-1 space-y-0.5">
@@ -467,7 +467,7 @@ export default function Orders() {
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                     >
                       <CheckCircle size={12} />
-                      Approve
+                      {t('orders.approveReturn')}
                     </button>
                     <button
                       onClick={() => handleReturnAction(ret.id, 'rejected')}
@@ -475,7 +475,7 @@ export default function Orders() {
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
                     >
                       <XCircle size={12} />
-                      Reject
+                      {t('orders.rejectReturn')}
                     </button>
                   </div>
                 </div>
@@ -492,7 +492,7 @@ export default function Orders() {
                       onClick={startEditItems}
                       className="flex items-center gap-1 text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium transition-colors"
                     >
-                      <Pencil size={11} /> Edit
+                      <Pencil size={11} /> {t('orders.editItems')}
                     </button>
                   )}
                 </div>
@@ -520,7 +520,7 @@ export default function Orders() {
                         </div>
                       ))}
                       {editItems.length === 0 && (
-                        <p className="text-xs text-gray-400 text-center py-3">No items — add some below</p>
+                        <p className="text-xs text-gray-400 text-center py-3">{t('orders.noItemsEdit')}</p>
                       )}
                     </div>
 
@@ -531,7 +531,7 @@ export default function Orders() {
                         <input
                           value={editSearch}
                           onChange={e => setEditSearch(e.target.value)}
-                          placeholder="Search menu to add…"
+                          placeholder={t('orders.searchMenuAdd')}
                           className="w-full pl-7 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
                         />
                       </div>
@@ -568,14 +568,14 @@ export default function Orders() {
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors"
                       >
                         <Save size={12} />
-                        {editSaving ? 'Saving…' : 'Save Changes'}
+                        {editSaving ? t('common.saving') : t('orders.saveItems')}
                       </button>
                       <button
                         onClick={cancelEditItems}
                         disabled={editSaving}
                         className="px-3 py-1.5 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   </div>
@@ -619,8 +619,8 @@ export default function Orders() {
               {/* Cancellation reason */}
               {selectedOrder.status === 'Cancelled' && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
-                  <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1">Cancellation Reason</p>
-                  <p className="text-sm text-red-700 dark:text-red-300">{selectedOrder.cancelReason || 'No reason recorded'}</p>
+                  <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1">{t('orders.cancellationReason')}</p>
+                  <p className="text-sm text-red-700 dark:text-red-300">{selectedOrder.cancelReason || t('common.noReason')}</p>
                 </div>
               )}
 

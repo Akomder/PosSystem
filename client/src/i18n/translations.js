@@ -66,6 +66,7 @@ const translations = {
     'login.roles.admin.hint':   'Full system access',
     'login.roles.waiter.hint':  'Orders & tables',
     'login.roles.cashier.hint': 'Billing & checkout',
+    'login.roles.chef.hint':   'Kitchen & cooking',
     'login.version':      'v1.0.0 · ERROR POS',
 
     // Dashboard
@@ -120,6 +121,14 @@ const translations = {
     'orders.notesPlaceholder':  'Allergies, preferences, special requests…',
     'orders.selectTable':    'Select table…',
     'orders.noItems':        'No items found',
+    'orders.editItems':      'Edit',
+    'orders.saveItems':      'Save Changes',
+    'orders.searchMenuAdd':  'Search menu to add…',
+    'orders.noItemsEdit':    'No items — add some below',
+    'orders.returnPending':  'Return Request Pending',
+    'orders.approveReturn':  'Approve',
+    'orders.rejectReturn':   'Reject',
+    'orders.cancellationReason': 'Cancellation Reason',
 
     // Table status tabs
     'status.all':        'All',
@@ -351,6 +360,9 @@ const translations = {
     'sell.method':             'Method',
     'sell.amount':             'Amount',
     'sell.tax':                'Tax (10%)',
+    'sell.sendToKitchen':      'Send to Kitchen',
+    'sell.sending':            'Sending…',
+    'sell.sentToKitchen':      'Order sent to kitchen!',
 
     // Invoices
     'nav.invoices':            'Invoices',
@@ -454,6 +466,7 @@ const translations = {
     'staff.role.admin':         'Admin',
     'staff.role.waiter':        'Waiter',
     'staff.role.cashier':       'Cashier',
+    'staff.role.chef':          'Chef',
     'staff.status.active':      'Active',
     'staff.status.inactive':    'Inactive',
     'staff.status.onLeave':     'On Leave',
@@ -464,6 +477,7 @@ const translations = {
     'common.name':       'Name',
     'common.description':'Description',
     'common.add':        'Add',
+    'common.edit':       'Edit',
     'common.refresh':    'Refresh',
     'common.noReason':   'No reason given',
     'common.noItems':    'No items added',
@@ -682,6 +696,11 @@ const translations = {
     'settings.tab.processingSectors':  'Processing Sectors',
     'settings.tab.printTemplates':     'Print Templates',
     'settings.tab.salesChannels':      'Sales Channels',
+
+    // Order alert toasts (OrderSoundAlert)
+    'alert.newOrder':    'New Order',
+    'alert.itemsAdded':  'Items Added',
+    'alert.enableSound': 'Tap anywhere to enable order sound alerts',
   },
 
   lo: {
@@ -751,6 +770,7 @@ const translations = {
     'login.roles.admin.hint':   'ການເຂົ້າເຖິງລະບົບທັງໝົດ',
     'login.roles.waiter.hint':  'ຄໍາສັ່ງ & ໂຕະ',
     'login.roles.cashier.hint': 'ການຈ່າຍເງິນ',
+    'login.roles.chef.hint':   'ຄົວ & ອາຫານ',
     'login.version':      'v1.0.0 · ERROR POS',
 
     // Dashboard
@@ -805,6 +825,14 @@ const translations = {
     'orders.notesPlaceholder':  'ການແພ້, ຄວາມຕ້ອງການ, ຄໍາຮ້ອງຂໍພິເສດ…',
     'orders.selectTable':    'ເລືອກໂຕະ…',
     'orders.noItems':        'ບໍ່ພົບລາຍການ',
+    'orders.editItems':      'ແກ້ໄຂ',
+    'orders.saveItems':      'ບັນທຶກການປ່ຽນແປງ',
+    'orders.searchMenuAdd':  'ຄົ້ນຫາເມນູເພື່ອເພີ່ມ…',
+    'orders.noItemsEdit':    'ບໍ່ມີລາຍການ — ເພີ່ມຢູ່ຂ້າງລຸ່ມ',
+    'orders.returnPending':  'ມີຄຳຂໍສົ່ງຄືນ',
+    'orders.approveReturn':  'ອະນຸມັດ',
+    'orders.rejectReturn':   'ປະຕິເສດ',
+    'orders.cancellationReason': 'ເຫດຜົນຍົກເລີກ',
 
     // Table status tabs
     'status.all':        'ທັງໝົດ',
@@ -1036,6 +1064,9 @@ const translations = {
     'sell.method':             'ວິທີ',
     'sell.amount':             'ຈໍານວນ',
     'sell.tax':                'ພາສີ (10%)',
+    'sell.sendToKitchen':      'ສົ່ງໄປຫ້ອງຄົວ',
+    'sell.sending':            'ກຳລັງສົ່ງ…',
+    'sell.sentToKitchen':      'ສົ່ງອໍເດີໄປຫ້ອງຄົວແລ້ວ!',
 
     // Invoices
     'nav.invoices':            'ໃບແຈ້ງໜີ້',
@@ -1139,6 +1170,7 @@ const translations = {
     'staff.role.admin':         'ຜູ້ດູແລ',
     'staff.role.waiter':        'ຜູ້ຮັບໃຊ້',
     'staff.role.cashier':       'ນາຍເງິນ',
+    'staff.role.chef':          'ພໍ່ຄົວ',
     'staff.status.active':      'ເຮັດວຽກ',
     'staff.status.inactive':    'ບໍ່ເຮັດວຽກ',
     'staff.status.onLeave':     'ລາພັກ',
@@ -1149,6 +1181,7 @@ const translations = {
     'common.name':       'ຊື່',
     'common.description':'ລາຍລະອຽດ',
     'common.add':        'ເພີ່ມ',
+    'common.edit':       'ແກ້ໄຂ',
     'common.refresh':    'ໂຫລດໃໝ່',
     'common.noReason':   'ບໍ່ມີເຫດຜົນ',
     'common.noItems':    'ບໍ່ມີລາຍການ',
@@ -1367,6 +1400,11 @@ const translations = {
     'settings.tab.processingSectors':  'ພາກສ່ວນ',
     'settings.tab.printTemplates':     'ແບບພິມ',
     'settings.tab.salesChannels':      'ຊ່ອງທາງຂາຍ',
+
+    // Order alert toasts
+    'alert.newOrder':    'ອໍເດີໃໝ່',
+    'alert.itemsAdded':  'ເພີ່ມລາຍການ',
+    'alert.enableSound': 'ແຕະໃສ່ໜ້າຈໍເພື່ອເປີດສຽງແຈ້ງເຕືອນ',
   },
 }
 
