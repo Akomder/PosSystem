@@ -16,7 +16,7 @@ router.post(
   requireRole('Admin'),
   [
     body('name').notEmpty().withMessage('Name required'),
-    body('role').isIn(['Admin','Waiter','Cashier']).withMessage('Invalid role'),
+    body('role').isIn(['Admin','Waiter','Cashier','Chef']).withMessage('Invalid role'),
     body('email').isEmail().withMessage('Valid email required'),
   ],
   createStaff

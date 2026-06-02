@@ -19,6 +19,7 @@ const ROLE_OPTIONS = [
   { value: 'Admin',   label: 'Admin'   },
   { value: 'Waiter',  label: 'Waiter'  },
   { value: 'Cashier', label: 'Cashier' },
+  { value: 'Chef',    label: 'Chef'    },
 ]
 
 const STATUS_OPTIONS = [
@@ -27,13 +28,13 @@ const STATUS_OPTIONS = [
   { value: 'on-leave', label: 'On Leave' },
 ]
 
-const ROLE_VARIANT = { Admin: 'teal', Waiter: 'blue', Cashier: 'amber' }
+const ROLE_VARIANT = { Admin: 'teal', Waiter: 'blue', Cashier: 'amber', Chef: 'warning' }
 const STATUS_VARIANT = { active: 'success', inactive: 'default', 'on-leave': 'warning' }
 
 const EMPTY_FORM = { name: '', role: 'Waiter', email: '', password: '' }
 const EMPTY_EDIT = { name: '', role: 'Waiter', status: 'active' }
 
-const ROLE_TABS = ['All', 'Admin', 'Waiter', 'Cashier']
+const ROLE_TABS = ['All', 'Admin', 'Waiter', 'Cashier', 'Chef']
 
 export default function Staff() {
   const { user } = useAuth()

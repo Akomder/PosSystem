@@ -25,7 +25,7 @@ router.post(
 
 router.patch(
   '/:id/status',
-  requireRole('Admin','Waiter','Cashier'),
+  requireRole('Admin','Waiter','Cashier','Chef'),
   [body('status').notEmpty().withMessage('status is required')],
   updateStatus
 )
@@ -42,6 +42,6 @@ router.put(
 )
 
 // Mark a single item as done (kitchen bump)
-router.patch('/:orderId/items/:itemId/done', requireRole('Admin','Waiter','Cashier'), markItemDone)
+router.patch('/:orderId/items/:itemId/done', requireRole('Admin','Waiter','Cashier','Chef'), markItemDone)
 
 module.exports = router

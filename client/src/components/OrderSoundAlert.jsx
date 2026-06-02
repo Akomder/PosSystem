@@ -52,7 +52,7 @@ export default function OrderSoundAlert() {
   const toastIdRef = useRef(0)
 
   // ── Roles that get cashier alerts ────────────────────────────────────────────
-  const eligible = user && ['Admin', 'Cashier', 'Waiter'].includes(user.role)
+  const eligible = user && ['Admin', 'Cashier', 'Waiter', 'Chef'].includes(user.role)
 
   // ── Read setting from localStorage (default ON) ───────────────────────────────
   const [alertsOn, setAlertsOn] = useState(() => {

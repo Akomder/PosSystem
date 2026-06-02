@@ -18,6 +18,7 @@ const ROLE_GRADIENT = {
   Admin:   'from-teal-500 to-cyan-400',
   Waiter:  'from-blue-500 to-indigo-400',
   Cashier: 'from-amber-500 to-orange-400',
+  Chef:    'from-orange-500 to-red-400',
   default: 'from-slate-500 to-gray-400',
 }
 
@@ -27,53 +28,65 @@ export default function Sidebar() {
   const { t } = useSettings()
   const [profileOpen, setProfileOpen] = useState(false)
 
-  const isAdmin  = user?.role === 'Admin'
-  const gradient = ROLE_GRADIENT[user?.role] || ROLE_GRADIENT.default
+  const role     = user?.role
+  const gradient = ROLE_GRADIENT[role] || ROLE_GRADIENT.default
 
-  const navSections = [
+  // Each item declares which roles can see it. All = no restriction beyond authentication.
+  const ALL     = ['Admin','Waiter','Cashier','Chef']
+  const NO_CHEF = ['Admin','Waiter','Cashier']
+
+  const allSections = [
     {
       label: null,
       items: [
-        { to: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard') },
-        { to: '/sell',      icon: ShoppingCart,    label: t('nav.sell')      },
-        { to: '/orders',    icon: ClipboardList,   label: t('nav.orders')    },
-        { to: '/kitchen',   icon: ChefHat,         label: t('nav.kitchen')   },
-        { to: '/tables',    icon: Grid3X3,         label: t('nav.tables')    },
-        { to: '/menu',      icon: UtensilsCrossed, label: t('nav.menu')      },
-        { to: '/customers', icon: Users,           label: t('nav.customers') },
-        { to: '/staff',     icon: UserCheck,       label: t('nav.staff')     },
-        { to: '/suppliers', icon: Truck,           label: t('nav.suppliers') },
-        { to: '/cashflow',  icon: BookOpen,        label: t('nav.cashflow')  },
-        { to: '/invoices',  icon: FileText,        label: t('nav.invoices')  },
-        { to: '/returns',   icon: RotateCcw,       label: t('nav.returns')   },
-        { to: '/reports',   icon: BarChart2,       label: t('nav.reports')   },
-        { to: '/shifts',    icon: Clock,           label: t('nav.shifts')    },
+        { to: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard'), roles: ALL },
+        { to: '/sell',      icon: ShoppingCart,    label: t('nav.sell'),      roles: NO_CHEF },
+        { to: '/orders',    icon: ClipboardList,   label: t('nav.orders'),    roles: ALL },
+        { to: '/kitchen',   icon: ChefHat,         label: t('nav.kitchen'),   roles: ['Admin','Waiter','Chef'] },
+        { to: '/tables',    icon: Grid3X3,         label: t('nav.tables'),    roles: ['Admin','Waiter'] },
+        { to: '/menu',      icon: UtensilsCrossed, label: t('nav.menu'),      roles: ['Admin','Waiter','Chef'] },
+        { to: '/customers', icon: Users,           label: t('nav.customers'), roles: ['Admin','Waiter','Cashier'] },
+        { to: '/staff',     icon: UserCheck,       label: t('nav.staff'),     roles: ['Admin'] },
+        { to: '/suppliers', icon: Truck,           label: t('nav.suppliers'), roles: ['Admin'] },
+        { to: '/cashflow',  icon: BookOpen,        label: t('nav.cashflow'),  roles: ['Admin','Cashier'] },
+        { to: '/invoices',  icon: FileText,        label: t('nav.invoices'),  roles: ['Admin','Cashier'] },
+        { to: '/returns',   icon: RotateCcw,       label: t('nav.returns'),   roles: ['Admin','Cashier'] },
+        { to: '/reports',   icon: BarChart2,       label: t('nav.reports'),   roles: ['Admin','Cashier'] },
+        { to: '/shifts',    icon: Clock,           label: t('nav.shifts'),    roles: ['Admin','Cashier'] },
       ],
     },
     {
       label: t('nav.section.inventory'),
       items: [
-        { to: '/stock-takes',    icon: PackageSearch, label: t('nav.stockTakes')    },
-        { to: '/price-books',    icon: BookMarked,    label: t('nav.priceBooks')    },
-        { to: '/damage-records', icon: AlertTriangle, label: t('nav.damageRecords') },
+        { to: '/stock-takes',    icon: PackageSearch, label: t('nav.stockTakes'),    roles: ['Admin'] },
+        { to: '/price-books',    icon: BookMarked,    label: t('nav.priceBooks'),    roles: ['Admin'] },
+        { to: '/damage-records', icon: AlertTriangle, label: t('nav.damageRecords'), roles: ['Admin'] },
       ],
     },
     {
       label: t('nav.section.purchasing'),
       items: [
-        { to: '/purchase-orders',  icon: ShoppingBag, label: t('nav.purchaseOrders')  },
-        { to: '/purchase-returns', icon: PackageX,    label: t('nav.purchaseReturns') },
+        { to: '/purchase-orders',  icon: ShoppingBag, label: t('nav.purchaseOrders'),  roles: ['Admin'] },
+        { to: '/purchase-returns', icon: PackageX,    label: t('nav.purchaseReturns'), roles: ['Admin'] },
       ],
     },
     {
       label: t('nav.section.settings'),
       items: [
-        { to: '/promotions', icon: Tag,      label: t('nav.promotions') },
-        { to: '/settings',   icon: Settings2, label: t('nav.settings')  },
-        ...(isAdmin ? [{ to: '/audit-log', icon: Shield, label: t('nav.auditLog') }] : []),
+        { to: '/promotions', icon: Tag,     label: t('nav.promotions'), roles: ['Admin'] },
+        { to: '/settings',   icon: Settings2, label: t('nav.settings'), roles: ['Admin'] },
+        { to: '/audit-log',  icon: Shield,  label: t('nav.auditLog'),   roles: ['Admin'] },
       ],
     },
   ]
+
+  // Filter items by current user role, then drop empty sections
+  const navSections = allSections
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => item.roles.includes(role)),
+    }))
+    .filter(section => section.items.length > 0)
 
   return (
     <>

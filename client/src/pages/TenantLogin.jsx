@@ -5,6 +5,7 @@ import {
   ShieldCheck,
   ClipboardList,
   CreditCard,
+  ChefHat,
   Eye,
   EyeOff,
   AlertCircle,
@@ -21,6 +22,7 @@ const STAFF_ROLES = [
   { id: 'Admin',   icon: ShieldCheck,   email: '' },
   { id: 'Waiter',  icon: ClipboardList, email: '' },
   { id: 'Cashier', icon: CreditCard,    email: '' },
+  { id: 'Chef',    icon: ChefHat,       email: '' },
 ]
 
 export default function TenantLogin() {

@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS users (
   restaurant_id INTEGER      REFERENCES restaurants(id) ON DELETE SET NULL,
   email         VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  role          VARCHAR(20)  NOT NULL CHECK (role IN ('SuperAdmin','Admin','Waiter','Cashier')),
+  role          VARCHAR(20)  NOT NULL CHECK (role IN ('SuperAdmin','Admin','Waiter','Cashier','Chef')),
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
