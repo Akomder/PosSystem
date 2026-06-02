@@ -26,6 +26,8 @@ router.put(
   '/:id',
   requireRole('Admin'),
   [
+    body('name').optional().notEmpty().withMessage('Name cannot be empty'),
+    body('role').optional().isIn(['Admin','Waiter','Cashier','Chef']).withMessage('Invalid role'),
     body('status').optional().isIn(['active','inactive','on-leave']),
     body('tablesAssigned').optional().isArray(),
   ],

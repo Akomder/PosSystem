@@ -131,29 +131,53 @@ async function createStaff(req, res, next) {
 // ─── PUT /api/staff/:id ───────────────────────────────────────────────────────
 async function updateStaff(req, res, next) {
   if (!checkValidation(req, res)) return
-  const { name, avatar, tablesAssigned } = req.body
-  const sets = [], params = []
+  const { name, role, status, avatar, tablesAssigned } = req.body
 
-  if (name           !== undefined) { params.push(name);           sets.push(`name = $${params.length}`) }
-  if (avatar         !== undefined) { params.push(avatar);         sets.push(`avatar = $${params.length}`) }
-  if (tablesAssigned !== undefined) { params.push(tablesAssigned); sets.push(`tables_assigned = $${params.length}`) }
+  const staffSets = [], staffParams = []
+  if (name           !== undefined) { staffParams.push(name);           staffSets.push(`name = $${staffParams.length}`) }
+  if (role           !== undefined) { staffParams.push(role);           staffSets.push(`role = $${staffParams.length}`) }
+  if (status         !== undefined) { staffParams.push(status);         staffSets.push(`status = $${staffParams.length}`) }
+  if (avatar         !== undefined) { staffParams.push(avatar);         staffSets.push(`avatar = $${staffParams.length}`) }
+  if (tablesAssigned !== undefined) { staffParams.push(tablesAssigned); staffSets.push(`tables_assigned = $${staffParams.length}`) }
 
-  if (!sets.length) return res.status(400).json({ error: 'Nothing to update' })
-  params.push(req.params.id)
+  if (!staffSets.length) return res.status(400).json({ error: 'Nothing to update' })
+
+  const client = await pool.connect()
   try {
-    const { rows } = await query(
-      `UPDATE staff SET ${sets.join(', ')}, updated_at = NOW()
-       WHERE id = $${params.length} RETURNING *`,
-      params
+    await client.query('BEGIN')
+
+    staffParams.push(req.params.id)
+    const { rows } = await client.query(
+      `UPDATE staff SET ${staffSets.join(', ')}, updated_at = NOW()
+       WHERE id = $${staffParams.length} RETURNING *`,
+      staffParams
     )
-    if (!rows.length) return res.status(404).json({ error: 'Staff member not found' })
-    // fetch with email
+    if (!rows.length) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ error: 'Staff member not found' })
+    }
+
+    // Keep users table in sync for role changes (auth reads role from users)
+    if (role !== undefined && rows[0].user_id) {
+      await client.query(
+        `UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2`,
+        [role, rows[0].user_id]
+      )
+    }
+
+    await client.query('COMMIT')
+
     const full = await query(
       `SELECT s.*, u.email FROM staff s LEFT JOIN users u ON u.id = s.user_id WHERE s.id = $1`,
       [rows[0].id]
     )
     res.json(fmt(full.rows[0]))
-  } catch (err) { next(err) }
+  } catch (err) {
+    await client.query('ROLLBACK')
+    next(err)
+  } finally {
+    client.release()
+  }
 }
 
 // ─── DELETE /api/staff/:id ────────────────────────────────────────────────────
