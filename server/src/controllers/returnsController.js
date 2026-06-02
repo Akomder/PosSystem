@@ -1,4 +1,6 @@
-const { query } = require('../config/db')
+const { query, pool } = require('../config/db')
+const { emitOrderUpdated } = require('../config/socket')
+const { ORDER_SELECT, fmtOrder } = require('./ordersController')
 
 function fmtReturn(r) {
   return {
@@ -115,12 +117,75 @@ async function updateStatus(req, res, next) {
     const { status } = req.body
     if (!['pending', 'approved', 'rejected', 'completed'].includes(status))
       return res.status(400).json({ error: 'Invalid status' })
+
     const { rows } = await query(
       'UPDATE returns SET status=$1, updated_at=NOW() WHERE id=$2 AND restaurant_id=$3 RETURNING *',
       [status, req.params.id, req.restaurantId]
     )
     if (!rows.length) return res.status(404).json({ error: 'Return not found' })
-    res.json(fmtReturn(rows[0]))
+    const ret = rows[0]
+
+    // When approved: reduce matching order_items quantities and recalculate totals
+    if (status === 'approved' && ret.order_id) {
+      const { rows: retItems } = await query(
+        'SELECT * FROM return_items WHERE return_id = $1 AND order_item_id IS NOT NULL',
+        [ret.id]
+      )
+
+      if (retItems.length) {
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          for (const ri of retItems) {
+            const { rows: oi } = await client.query(
+              'SELECT quantity FROM order_items WHERE id = $1 AND order_id = $2',
+              [ri.order_item_id, ret.order_id]
+            )
+            if (!oi.length) continue
+            const newQty = oi[0].quantity - ri.quantity
+            if (newQty <= 0) {
+              await client.query('DELETE FROM order_items WHERE id = $1', [ri.order_item_id])
+            } else {
+              await client.query(
+                'UPDATE order_items SET quantity = $1 WHERE id = $2',
+                [newQty, ri.order_item_id]
+              )
+            }
+          }
+          // Recalculate order totals
+          const { rows: totals } = await client.query(
+            `SELECT COALESCE(SUM(quantity * unit_price), 0) AS subtotal
+             FROM order_items WHERE order_id = $1`,
+            [ret.order_id]
+          )
+          const subtotal = parseFloat(totals[0].subtotal)
+          const { rows: existingOrder } = await client.query(
+            'SELECT tax FROM orders WHERE id = $1', [ret.order_id]
+          )
+          const tax   = parseFloat(existingOrder[0]?.tax || 0)
+          const total = Math.round((subtotal + tax) * 100) / 100
+          await client.query(
+            'UPDATE orders SET subtotal = $1, total = $2, updated_at = NOW() WHERE id = $3',
+            [subtotal, total, ret.order_id]
+          )
+          await client.query('COMMIT')
+
+          // Notify staff and customer of updated order via socket
+          const fullRes = await query(`${ORDER_SELECT} WHERE o.id = $1 GROUP BY o.id`, [ret.order_id])
+          if (fullRes.rows.length) {
+            const fullOrder = fmtOrder(fullRes.rows[0])
+            emitOrderUpdated(fullOrder.id, fullOrder.status, fullOrder)
+          }
+        } catch (err) {
+          await client.query('ROLLBACK')
+          throw err
+        } finally {
+          client.release()
+        }
+      }
+    }
+
+    res.json(fmtReturn(ret))
   } catch (err) { next(err) }
 }
 

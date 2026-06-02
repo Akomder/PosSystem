@@ -348,4 +348,6 @@ export const publicApi = {
   requestCheckout: (orderId, tableId) => publicRequest('POST',  `/public/orders/${encodeURIComponent(orderId)}/request-checkout`, { tableId }),
   // Cancel a Pending order — only works before the kitchen starts preparing
   cancelOrder:     (orderId, tableId) => publicRequest('PATCH', `/public/orders/${encodeURIComponent(orderId)}/cancel`, { tableId }),
+  // Submit a return request for specific items (e.g. return 2 of 5 beers)
+  requestReturn:   (orderId, body)    => publicRequest('POST',  `/public/orders/${encodeURIComponent(orderId)}/return-request`, body),
 }

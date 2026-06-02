@@ -77,4 +77,10 @@ function emitOrderItemsAdded(order) {
   if (order?.tableId) io.to(`table:${order.tableId}`).emit('order:customer_update', { order })
 }
 
-module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow, emitQrPaymentAlert, emitOrderItemsAdded }
+// Fired when a customer submits a return request (e.g. wants to return 2 beers)
+function emitOrderReturnRequested(order, returnRecord) {
+  if (!io) return
+  io.to('pos').emit('order:return_requested', { order, returnRecord })
+}
+
+module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow, emitQrPaymentAlert, emitOrderItemsAdded, emitOrderReturnRequested }

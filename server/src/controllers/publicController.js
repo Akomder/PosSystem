@@ -1,6 +1,6 @@
 const { query, pool }      = require('../config/db')
 const { checkValidation }  = require('../middleware/errorHandler')
-const { emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitQrPaymentAlert, emitOrderItemsAdded } = require('../config/socket')
+const { emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitQrPaymentAlert, emitOrderItemsAdded, emitOrderReturnRequested } = require('../config/socket')
 const { ORDER_SELECT, fmtOrder } = require('./ordersController')
 
 // ─── Helpers: parse formatted IDs → raw integers ─────────────────────────────
@@ -394,4 +394,74 @@ async function getPublicOrder(req, res, next) {
   } catch (err) { next(err) }
 }
 
-module.exports = { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder, addItemsToPublicOrder, requestCheckout }
+// ─── POST /api/public/orders/:id/return-request ───────────────────────────────
+// Customer submits a return request for specific items (e.g. return 2 of 5 beers).
+// Security: orderId + tableId proves ownership (no auth token required).
+async function createReturnRequest(req, res, next) {
+  try {
+    const rawOrderId = parseOrderId(req.params.id)
+    if (!rawOrderId) return res.status(400).json({ error: 'Invalid order ID' })
+
+    const { tableId, reason, items } = req.body
+    if (!tableId) return res.status(400).json({ error: 'tableId required' })
+    if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items required' })
+    if (!reason?.trim()) return res.status(400).json({ error: 'reason required' })
+
+    const rawTableId = parseRawTableId(tableId)
+    if (!rawTableId) return res.status(400).json({ error: 'Invalid tableId format' })
+
+    // Verify ownership and that the order is still active
+    const { rows: orderRows } = await query(
+      `SELECT o.id, o.status, o.restaurant_id FROM orders o
+       WHERE o.id = $1 AND o.table_id = $2`,
+      [rawOrderId, rawTableId]
+    )
+    if (!orderRows.length) return res.status(404).json({ error: 'Order not found for this table' })
+    const { status, restaurant_id: restaurantId } = orderRows[0]
+    if (['Closed', 'Cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Cannot request a return on a closed or cancelled order' })
+    }
+
+    // Validate each item's return quantity against current order quantity
+    for (const item of items) {
+      if (!item.orderItemId || item.quantity < 1) {
+        return res.status(400).json({ error: 'Each item needs orderItemId and quantity >= 1' })
+      }
+      const { rows: oi } = await query(
+        `SELECT quantity FROM order_items WHERE id = $1 AND order_id = $2`,
+        [item.orderItemId, rawOrderId]
+      )
+      if (!oi.length) return res.status(400).json({ error: `Order item ${item.orderItemId} not found` })
+      if (item.quantity > oi[0].quantity) {
+        return res.status(400).json({ error: `Cannot return more than ordered for item ${item.orderItemId}` })
+      }
+    }
+
+    // Create the return record (status = 'pending', linked to the order)
+    const total = items.reduce((s, i) => s + parseFloat(i.unitPrice || 0) * parseInt(i.quantity), 0)
+    const { rows: retRows } = await query(
+      `INSERT INTO returns (restaurant_id, order_id, reason, total, status)
+       VALUES ($1, $2, $3, $4, 'pending') RETURNING *`,
+      [restaurantId, rawOrderId, reason.trim(), total]
+    )
+    const ret = retRows[0]
+
+    // Insert return items (with order_item_id for precise approval)
+    for (const item of items) {
+      await query(
+        `INSERT INTO return_items (return_id, order_item_id, menu_item_id, item_name, quantity, unit_price)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [ret.id, item.orderItemId, item.menuItemId || null, item.name, item.quantity, item.unitPrice || 0]
+      )
+    }
+
+    // Fetch full order to include in socket event
+    const fullRes = await query(`${ORDER_SELECT} WHERE o.id = $1 GROUP BY o.id`, [rawOrderId])
+    const fullOrder = fmtOrder(fullRes.rows[0])
+    emitOrderReturnRequested(fullOrder, { id: ret.id, orderId: rawOrderId, reason: ret.reason, total, items })
+
+    res.status(201).json({ id: ret.id, orderId: rawOrderId, reason: ret.reason, total, status: 'pending' })
+  } catch (err) { next(err) }
+}
+
+module.exports = { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder, addItemsToPublicOrder, requestCheckout, createReturnRequest }

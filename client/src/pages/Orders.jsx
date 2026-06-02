@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   PlusCircle, Search, Printer, X,
-  Clock, ChevronRight, Minus, Plus,
+  Clock, ChevronRight, Minus, Plus, RotateCcw, CheckCircle, XCircle,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../context/SettingsContext'
-import { ordersApi, salesChannelsApi, settingsApi } from '../services/api'
+import { ordersApi, salesChannelsApi, settingsApi, returnsApi } from '../services/api'
+import { onOrderReturnRequested } from '../services/socket'
 import ReceiptModal from '../components/ReceiptModal'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -57,6 +58,10 @@ export default function Orders() {
   const [creating,     setCreating]     = useState(false)
   const [createError,  setCreateError]  = useState(null)
 
+  // Return request state
+  const [pendingReturns,    setPendingReturns]    = useState([])   // returns for selected order
+  const [processingReturn,  setProcessingReturn]  = useState(null) // returnId being approved/rejected
+
   // Cancel-order modal state
   const [cancelOpen,    setCancelOpen]    = useState(false)
   const [cancelReasons, setCancelReasons] = useState([])
@@ -84,6 +89,30 @@ export default function Orders() {
     salesChannelsApi.getAll().then(data => setChannels(data.filter(c => c.active))).catch(() => {})
   }, [])
 
+  // Fetch pending return requests whenever the selected order changes
+  useEffect(() => {
+    if (!selectedId) { setPendingReturns([]); return }
+    const selectedOrder = orders.find(o => o.id === selectedId)
+    if (!selectedOrder) return
+    returnsApi.getAll({ status: 'pending' })
+      .then(data => setPendingReturns(data.filter(r => r.orderId === selectedOrder.rawId)))
+      .catch(() => {})
+  }, [selectedId, orders])
+
+  // Subscribe to return request socket events — refresh pending returns if relevant
+  useEffect(() => {
+    const off = onOrderReturnRequested(({ order }) => {
+      if (!order) return
+      // If this return is for the currently selected order, refresh the pending list
+      if (selectedId && order.id === selectedId) {
+        returnsApi.getAll({ status: 'pending' })
+          .then(data => setPendingReturns(data.filter(r => r.orderId === order.rawId)))
+          .catch(() => {})
+      }
+    })
+    return () => off?.()
+  }, [selectedId])
+
   // Load cancel reasons when the modal opens
   useEffect(() => {
     if (!cancelOpen) return
@@ -103,6 +132,18 @@ export default function Orders() {
       alert(e.message)
     } finally {
       setCancelling(false)
+    }
+  }
+
+  const handleReturnAction = async (returnId, action) => {
+    setProcessingReturn(returnId)
+    try {
+      await returnsApi.updateStatus(returnId, action)
+      setPendingReturns(prev => prev.filter(r => r.id !== returnId))
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setProcessingReturn(null)
     }
   }
 
@@ -343,6 +384,45 @@ export default function Orders() {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+
+              {/* ── Pending return request banners ── */}
+              {pendingReturns.map(ret => (
+                <div key={ret.id} className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <RotateCcw size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Return Request Pending</p>
+                  </div>
+                  {ret.items?.length > 0 && (
+                    <ul className="text-xs text-amber-700 dark:text-amber-400 mb-1 space-y-0.5">
+                      {ret.items.map((item, i) => (
+                        <li key={i}>× {item.quantity} {item.itemName}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {ret.reason && (
+                    <p className="text-xs text-amber-600 dark:text-amber-500 italic mb-3">"{ret.reason}"</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleReturnAction(ret.id, 'approved')}
+                      disabled={processingReturn === ret.id}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      <CheckCircle size={12} />
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleReturnAction(ret.id, 'rejected')}
+                      disabled={processingReturn === ret.id}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                    >
+                      <XCircle size={12} />
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+
               {/* Items table */}
               <div>
                 <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">

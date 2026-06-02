@@ -64,3 +64,8 @@ export function onOrderItemsAdded(cb) {
   socket?.on('order:items_added', cb)
   return () => socket?.off('order:items_added', cb)
 }
+
+export function onOrderReturnRequested(cb) {
+  socket?.on('order:return_requested', cb)
+  return () => socket?.off('order:return_requested', cb)
+}

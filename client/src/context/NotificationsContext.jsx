@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
-import { onOrderCreated, onOrderUpdated, onStockLow, onQrPaymentAlert, onOrderItemsAdded } from '../services/socket'
+import { onOrderCreated, onOrderUpdated, onStockLow, onQrPaymentAlert, onOrderItemsAdded, onOrderReturnRequested } from '../services/socket'
 import { notificationsApi } from '../services/api'
 import { playUrgentAlert } from '../lib/soundAlert'
 
@@ -140,7 +140,20 @@ export function NotificationsProvider({ children }) {
       playUrgentAlert()
     })
 
-    return () => { offCreated?.(); offUpdated?.(); offStock?.(); offQrPay?.(); offItemsAdded?.() }
+    const offReturn = onOrderReturnRequested(({ order, returnRecord }) => {
+      if (!order) return
+      const where = order.tableNumber ? `Table ${order.tableNumber}` : (order.orderType || 'Dine In')
+      const count = returnRecord?.items?.length ?? 0
+      add({
+        type:  'order_return',
+        title: '↩ Return Request',
+        body:  `${order.id} · ${where} · ${count} item${count !== 1 ? 's' : ''}`,
+        link:  '/orders',
+      })
+      playUrgentAlert()
+    })
+
+    return () => { offCreated?.(); offUpdated?.(); offStock?.(); offQrPay?.(); offItemsAdded?.(); offReturn?.() }
   }, [add])
 
   const unreadCount = notifications.filter(n => !n.read).length

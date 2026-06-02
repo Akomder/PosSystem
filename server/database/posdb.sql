@@ -267,15 +267,18 @@ CREATE TABLE IF NOT EXISTS returns (
 );
 
 CREATE TABLE IF NOT EXISTS return_items (
-  id            SERIAL PRIMARY KEY,
-  return_id     INTEGER        NOT NULL REFERENCES returns(id) ON DELETE CASCADE,
-  menu_item_id  INTEGER        REFERENCES menu_items(id) ON DELETE SET NULL,
-  item_name     VARCHAR(150)   NOT NULL,
-  quantity      INTEGER        NOT NULL CHECK (quantity > 0),
-  unit_price    NUMERIC(10,2)  NOT NULL DEFAULT 0,
-  line_total    NUMERIC(10,2)  GENERATED ALWAYS AS (quantity * unit_price) STORED,
-  created_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+  id              SERIAL PRIMARY KEY,
+  return_id       INTEGER        NOT NULL REFERENCES returns(id) ON DELETE CASCADE,
+  order_item_id   INTEGER        REFERENCES order_items(id) ON DELETE SET NULL,
+  menu_item_id    INTEGER        REFERENCES menu_items(id) ON DELETE SET NULL,
+  item_name       VARCHAR(150)   NOT NULL,
+  quantity        INTEGER        NOT NULL CHECK (quantity > 0),
+  unit_price      NUMERIC(10,2)  NOT NULL DEFAULT 0,
+  line_total      NUMERIC(10,2)  GENERATED ALWAYS AS (quantity * unit_price) STORED,
+  created_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
+-- Migration (run once on existing databases):
+-- ALTER TABLE return_items ADD COLUMN IF NOT EXISTS order_item_id INTEGER REFERENCES order_items(id) ON DELETE SET NULL;
 
 
 -- ─── 3. Keivi FNB feature tables ─────────────────────────────────────────────

@@ -53,6 +53,15 @@ const TR = {
     order_complete_msg:   'Your order has been completed. Enjoy your meal!',
     order_again:          'Order something else',
     cancel_link:          'Cancel this order',
+    return_items:         'Return Items',
+    return_title:         'Return Items',
+    return_desc:          'Select how many of each item you want to return.',
+    return_reason_ph:     'Reason (e.g. changed our minds)',
+    return_submit:        'Submit Return Request',
+    return_submitting:    'Submitting…',
+    return_sent:          'Request sent!',
+    return_sent_desc:     'Staff will review and adjust your order.',
+    return_qty:           qty => `Return ${qty}`,
     cancelled_title:      'Order Cancelled',
     cancelled_msg:        id => `Order ${id} has been cancelled.`,
     no_charges:           'No charges will be made.',
@@ -107,6 +116,15 @@ const TR = {
     order_complete_msg:   'ການສັ່ງສຳເລັດ. ຊົງລົດຊາດ!',
     order_again:          'ສັ່ງໃໝ່',
     cancel_link:          'ຍົກເລີກ',
+    return_items:         'ສົ່ງຄືນ',
+    return_title:         'ສົ່ງຄືນລາຍການ',
+    return_desc:          'ເລືອກຈຳນວນທີ່ຕ້ອງການສົ່ງຄືນ.',
+    return_reason_ph:     'ເຫດຜົນ (ເຊັ່ນ: ປ່ຽນໃຈ)',
+    return_submit:        'ສົ່ງຄຳຂໍ',
+    return_submitting:    'ກຳລັງສົ່ງ…',
+    return_sent:          'ສົ່ງແລ້ວ!',
+    return_sent_desc:     'ພະນັກງານຈະກວດສອບ.',
+    return_qty:           qty => `ສົ່ງຄືນ ${qty}`,
     cancelled_title:      'ຍົກເລີກແລ້ວ',
     cancelled_msg:        id => `ການສັ່ງ ${id} ຖືກຍົກເລີກ.`,
     no_charges:           'ບໍ່ມີຄ່າໃຊ້ຈ່າຍ',
@@ -191,6 +209,13 @@ export default function CustomerOrder() {
   const [checkoutSentAt, setCheckoutSentAt] = useState(null)
   const [requesting,     setRequesting]     = useState(false)
   const [servedAlerted,  setServedAlerted]  = useState(false)
+
+  // return request
+  const [returnOpen,      setReturnOpen]      = useState(false)
+  const [returnQtys,      setReturnQtys]      = useState({})   // { orderItemId: qty }
+  const [returnReason,    setReturnReason]    = useState('')
+  const [returnState,     setReturnState]     = useState('idle') // 'idle'|'submitting'|'sent'|'error'
+  const [returnError,     setReturnError]     = useState('')
 
   // cart
   const [cart,           setCart]           = useState([])
@@ -397,6 +422,42 @@ export default function CustomerOrder() {
       setCancelConfirm(false)
       alert(err.message || 'Could not cancel. Please ask a staff member.')
     } finally { setCancelling(false) }
+  }
+
+  // ── Submit return request ─────────────────────────────────────────────────────
+  const handleReturnSubmit = async () => {
+    if (!activeOrder) return
+    const items = Object.entries(returnQtys)
+      .filter(([, qty]) => qty > 0)
+      .map(([orderItemId, qty]) => {
+        const oi = activeOrder.items.find(i => String(i.orderItemId) === String(orderItemId))
+        return {
+          orderItemId: parseInt(orderItemId),
+          menuItemId:  oi?.menuItemId || null,
+          name:        oi?.name || '',
+          quantity:    qty,
+          unitPrice:   oi?.unitPrice || 0,
+        }
+      })
+    if (!items.length) return
+    if (!returnReason.trim()) { setReturnError('Please enter a reason.'); return }
+    setReturnState('submitting')
+    setReturnError('')
+    try {
+      await publicApi.requestReturn(activeOrder.rawId, { tableId, reason: returnReason.trim(), items })
+      setReturnState('sent')
+    } catch (err) {
+      setReturnState('error')
+      setReturnError(err.message || 'Could not send request. Please ask a staff member.')
+    }
+  }
+
+  const openReturnPanel = () => {
+    setReturnQtys({})
+    setReturnReason('')
+    setReturnState('idle')
+    setReturnError('')
+    setReturnOpen(true)
   }
 
   // ── Scroll spy: highlight the category tab whose section is at the top ──────
@@ -738,6 +799,100 @@ export default function CustomerOrder() {
               </button>
             )}
           </div>
+
+          {/* Return Items — shown when order is In Progress or Served */}
+          {['In Progress', 'Served'].includes(activeOrder.status) && !returnOpen && (
+            <button
+              onClick={openReturnPanel}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 text-gray-600 font-medium text-sm rounded-2xl hover:bg-gray-50 transition-colors"
+            >
+              <Minus size={14} />
+              {t('return_items')}
+            </button>
+          )}
+
+          {/* Return request panel */}
+          {returnOpen && (
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-amber-100 flex items-center justify-between bg-amber-50">
+                <p className="text-sm font-semibold text-amber-800">{t('return_title')}</p>
+                <button onClick={() => setReturnOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <X size={15} />
+                </button>
+              </div>
+
+              {returnState === 'sent' ? (
+                <div className="px-5 py-8 text-center">
+                  <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle2 size={22} className="text-green-500" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800">{t('return_sent')}</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('return_sent_desc')}</p>
+                  <button
+                    onClick={() => setReturnOpen(false)}
+                    className="mt-4 px-5 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200"
+                  >
+                    OK
+                  </button>
+                </div>
+              ) : (
+                <div className="px-5 py-4 space-y-3">
+                  <p className="text-xs text-gray-500">{t('return_desc')}</p>
+
+                  {/* Per-item quantity steppers */}
+                  {(activeOrder.items || []).map(item => {
+                    const cur = returnQtys[item.orderItemId] || 0
+                    return (
+                      <div key={item.orderItemId} className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                          <p className="text-xs text-gray-400">×{item.quantity} ordered</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => setReturnQtys(p => ({ ...p, [item.orderItemId]: Math.max(0, (p[item.orderItemId] || 0) - 1) }))}
+                            disabled={cur === 0}
+                            className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <span className={`w-6 text-center text-sm font-bold ${cur > 0 ? 'text-amber-600' : 'text-gray-300'}`}>{cur}</span>
+                          <button
+                            onClick={() => setReturnQtys(p => ({ ...p, [item.orderItemId]: Math.min(item.quantity, (p[item.orderItemId] || 0) + 1) }))}
+                            disabled={cur >= item.quantity}
+                            className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* Reason */}
+                  <textarea
+                    value={returnReason}
+                    onChange={e => setReturnReason(e.target.value)}
+                    placeholder={t('return_reason_ph')}
+                    rows={2}
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 text-gray-700 placeholder:text-gray-300"
+                  />
+
+                  {returnError && (
+                    <p className="text-xs text-red-500">{returnError}</p>
+                  )}
+
+                  <button
+                    onClick={handleReturnSubmit}
+                    disabled={returnState === 'submitting' || Object.values(returnQtys).every(q => q === 0)}
+                    className="w-full py-3 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-600 disabled:opacity-50 transition-colors"
+                  >
+                    {returnState === 'submitting' ? t('return_submitting') : t('return_submit')}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Cancel (Pending only) */}
           {activeOrder.status === 'Pending' && (
