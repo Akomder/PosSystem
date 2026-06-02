@@ -405,7 +405,7 @@ async function createReturnRequest(req, res, next) {
     const { tableId, reason, items } = req.body
     if (!tableId) return res.status(400).json({ error: 'tableId required' })
     if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items required' })
-    if (!reason?.trim()) return res.status(400).json({ error: 'reason required' })
+    // reason is optional
 
     const rawTableId = parseRawTableId(tableId)
     if (!rawTableId) return res.status(400).json({ error: 'Invalid tableId format' })

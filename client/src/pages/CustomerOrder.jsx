@@ -440,7 +440,6 @@ export default function CustomerOrder() {
         }
       })
     if (!items.length) return
-    if (!returnReason.trim()) { setReturnError('Please enter a reason.'); return }
     setReturnState('submitting')
     setReturnError('')
     try {

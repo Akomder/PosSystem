@@ -40,7 +40,7 @@ router.post(
   '/orders/:id/return-request',
   [
     body('tableId').notEmpty().withMessage('tableId is required'),
-    body('reason').notEmpty().withMessage('reason is required'),
+    body('reason').optional(),
     body('items').isArray({ min: 1 }).withMessage('At least one item required'),
     body('items.*.orderItemId').isInt({ min: 1 }).withMessage('Each item needs orderItemId'),
     body('items.*.quantity').isInt({ min: 1 }).withMessage('Each item needs quantity >= 1'),
