@@ -1,6 +1,6 @@
 const { query, pool }      = require('../config/db')
 const { checkValidation }  = require('../middleware/errorHandler')
-const { emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitQrPaymentAlert } = require('../config/socket')
+const { emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitQrPaymentAlert, emitOrderItemsAdded } = require('../config/socket')
 const { ORDER_SELECT, fmtOrder } = require('./ordersController')
 
 // ─── Helpers: parse formatted IDs → raw integers ─────────────────────────────
@@ -342,6 +342,7 @@ async function addItemsToPublicOrder(req, res, next) {
       const fullRes = await query(`${ORDER_SELECT} WHERE o.id=$1 GROUP BY o.id`, [rawOrderId])
       const fullOrder = fmtOrder(fullRes.rows[0])
       emitOrderUpdated(fullOrder.id, fullOrder.status, fullOrder)
+      emitOrderItemsAdded(fullOrder)
       res.json(fullOrder)
     } catch (err) {
       await client.query('ROLLBACK')

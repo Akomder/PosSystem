@@ -137,8 +137,9 @@ export default function Navbar() {
   }, [notifOpen])
 
   const handleLogout = () => {
+    const slug = localStorage.getItem('pos_restaurant_slug')
     logout()
-    navigate('/login')
+    navigate(slug ? `/${slug}` : '/login')
   }
 
   return (

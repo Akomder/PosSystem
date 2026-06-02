@@ -116,6 +116,9 @@ export function AuthProvider({ children }) {
   const login = async (email, password, restaurantSlug) => {
     const data = await authApi.login(email, password, restaurantSlug)
     const userData = { ...data.user, token: data.token, refreshToken: data.refreshToken }
+    if (!userData.isSuperAdmin && restaurantSlug) {
+      localStorage.setItem('pos_restaurant_slug', restaurantSlug)
+    }
     setAuthToken(data.token)
     // Store under role-appropriate key so sessions don't overwrite each other
     localStorage.setItem(storageKey(userData), JSON.stringify(userData))

@@ -57,3 +57,8 @@ export function onQrPaymentAlert(cb) {
   socket?.on('payment:qr_alert', cb)
   return () => socket?.off('payment:qr_alert', cb)
 }
+
+export function onOrderItemsAdded(cb) {
+  socket?.on('order:items_added', cb)
+  return () => socket?.off('order:items_added', cb)
+}

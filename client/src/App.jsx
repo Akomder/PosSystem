@@ -46,7 +46,11 @@ import SuperAdminAuditLog from './pages/superadmin/AuditLog'
 // ─── Route Guards ──────────────────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) {
+    const slug = localStorage.getItem('pos_restaurant_slug')
+    if (slug) return <Navigate to={`/${slug}`} replace />
+    return <Navigate to="/login" replace />
+  }
   // SuperAdmin should always go to /superadmin
   if (user.isSuperAdmin) return <Navigate to="/superadmin" replace />
   return children

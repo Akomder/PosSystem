@@ -70,4 +70,11 @@ function emitQrPaymentAlert(order) {
   io.to('pos').emit('payment:qr_alert', { order })
 }
 
-module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow, emitQrPaymentAlert }
+// Fired when a customer adds items to an existing open order
+function emitOrderItemsAdded(order) {
+  if (!io) return
+  io.to('pos').emit('order:items_added', { order })
+  if (order?.tableId) io.to(`table:${order.tableId}`).emit('order:customer_update', { order })
+}
+
+module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow, emitQrPaymentAlert, emitOrderItemsAdded }

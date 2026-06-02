@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
-import { onOrderCreated, onOrderUpdated, onStockLow, onQrPaymentAlert } from '../services/socket'
+import { onOrderCreated, onOrderUpdated, onStockLow, onQrPaymentAlert, onOrderItemsAdded } from '../services/socket'
 import { notificationsApi } from '../services/api'
 import { playUrgentAlert } from '../lib/soundAlert'
 
@@ -114,6 +114,18 @@ export function NotificationsProvider({ children }) {
       })
     })
 
+    const offItemsAdded = onOrderItemsAdded(({ order }) => {
+      if (!order) return
+      const where = order.tableNumber ? `Table ${order.tableNumber}` : (order.orderType || 'Dine In')
+      const count = order.items?.length ?? 0
+      add({
+        type:  'order_new',
+        title: 'Items Added',
+        body:  `${order.id} · ${where} · now ${count} item${count !== 1 ? 's' : ''}`,
+        link:  '/orders',
+      })
+    })
+
     const offQrPay = onQrPaymentAlert(({ order }) => {
       if (!order) return
       const amount = order.total?.toLocaleString?.() ?? order.total
@@ -128,7 +140,7 @@ export function NotificationsProvider({ children }) {
       playUrgentAlert()
     })
 
-    return () => { offCreated?.(); offUpdated?.(); offStock?.(); offQrPay?.() }
+    return () => { offCreated?.(); offUpdated?.(); offStock?.(); offQrPay?.(); offItemsAdded?.() }
   }, [add])
 
   const unreadCount = notifications.filter(n => !n.read).length
