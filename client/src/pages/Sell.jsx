@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Minus, X, ShoppingCart, Grid3X3, UtensilsCrossed,
   Printer, CreditCard, Pause, ArrowLeft, User, ChevronRight,
-  Tag, Clock, Wifi,
+  Tag, Clock, Wifi, ChefHat,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
@@ -16,7 +16,6 @@ import ModifierModal from '../components/ModifierModal'
 import ReceiptModal  from '../components/ReceiptModal'
 import { queueOrder } from '../lib/offlineDb'
 
-const TAX_RATE = 0.1
 
 // ─── Pay Modal ────────────────────────────────────────────────────────────────
 const METHODS = [
@@ -87,7 +86,7 @@ function SplitRow({ row, total, remaining, onChange, onRemove, canRemove }) {
   )
 }
 
-function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving }) {
+function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
   const { t }        = useSettings()
   const [splitMode,  setSplitMode]  = useState(false)
   const [currency,   setCurrency]   = useState('LAK')
@@ -106,7 +105,7 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
 
   const discountAmt = parseFloat(discount) || 0
   const pointsDisc  = usePoints && customer ? Math.min(customer.points, subtotal * 0.1) : 0
-  const total       = Math.max(0, subtotal + tax - discountAmt - pointsDisc)
+  const total       = Math.max(0, subtotal - discountAmt - pointsDisc)
 
   // Single mode
   const tenderedNum = parseFloat(tendered) || 0
@@ -189,7 +188,7 @@ function PayModal({ isOpen, subtotal, tax, customer, onClose, onConfirm, saving 
             <p className="text-3xl font-bold">{formatCurrency(total)}</p>
             {(discountAmt > 0 || pointsDisc > 0) && (
               <p className="text-xs opacity-70 mt-0.5">
-                Subtotal {formatCurrency(subtotal + tax)}
+                Subtotal {formatCurrency(subtotal)}
                 {discountAmt > 0 && ` · Disc -${formatCurrency(discountAmt)}`}
                 {pointsDisc > 0 && ` · Points -${formatCurrency(pointsDisc)}`}
               </p>
@@ -378,6 +377,8 @@ export default function Sell() {
 
   // Offline toast — shown when an order is saved to the local queue
   const [offlineToast, setOfflineToast] = useState(false)
+  const [sentToast,    setSentToast]    = useState(false)
+  const [sending,      setSending]      = useState(false)
 
   // Shift + channels + promotions
   const [currentShift,    setCurrentShift]    = useState(null)
@@ -535,9 +536,8 @@ export default function Sell() {
 
   // ── Pay ────────────────────────────────────────────────────────────────────
   const subtotal       = activeOrder?.items.reduce((s, i) => s + i.qty * (i.unitPrice || 0), 0) || 0
-  const tax            = subtotal * TAX_RATE
   const promoDiscount  = promoResult && !promoResult.error ? (promoResult.discount || 0) : 0
-  const total          = Math.max(0, subtotal + tax - promoDiscount)
+  const total          = Math.max(0, subtotal - promoDiscount)
 
   const handlePay = async (paymentInfo) => {
     if (!activeOrder.items.length) return
@@ -597,6 +597,40 @@ export default function Sell() {
       alert(e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  // ── Send to Kitchen (creates Pending order — payment processed later) ─────────
+  const handleSendToKitchen = async () => {
+    if (!activeOrder?.items.length) return
+    setSending(true)
+    try {
+      const isDineIn = (activeOrder.orderType || 'Dine In') === 'Dine In'
+      const body = {
+        orderType:   activeOrder.orderType || 'Dine In',
+        tableId:     isDineIn ? activeOrder.tableId : undefined,
+        tableNumber: isDineIn ? activeOrder.tableNumber : undefined,
+        waiter:      activeOrder.waiter || user?.name || 'Staff',
+        customerId:  activeOrder.customer?.id || null,
+        items: activeOrder.items.map(i => ({
+          menuItemId: i.menuItemId,
+          name:       i.name,
+          quantity:   i.qty,
+          unitPrice:  i.unitPrice,
+          modifiers:  i.modifiers || [],
+          notes:      i.notes     || '',
+        })),
+        notes: '',
+        // No payments — order stays Pending; cashier pays later via Orders page
+      }
+      await ordersApi.create(body)
+      closeTab(activeTab)
+      setSentToast(true)
+      setTimeout(() => setSentToast(false), 3000)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setSending(false)
     }
   }
 
@@ -1122,10 +1156,6 @@ export default function Sell() {
               <span>{t('common.subtotal')}</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
-              <span>{t('sell.tax')}</span>
-              <span>{formatCurrency(tax)}</span>
-            </div>
             {promoDiscount > 0 && (
               <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
                 <span>{t('sell.promoDiscount')}</span>
@@ -1139,29 +1169,40 @@ export default function Sell() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex-shrink-0 flex gap-2 px-4 pb-4">
+          <div className="flex-shrink-0 flex flex-col gap-2 px-4 pb-4">
+            {/* Send to Kitchen — creates Pending order, alerts Chef, locks table */}
             <button
-              onClick={handleHold}
-              disabled={!activeOrder?.items.length}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition-colors"
+              onClick={handleSendToKitchen}
+              disabled={!activeOrder?.items.length || sending}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm disabled:opacity-40 transition-colors"
             >
-              <Pause size={15} />
-              {t('sell.hold')}
+              <ChefHat size={15} />
+              {sending ? 'Sending…' : 'Send to Kitchen'}
             </button>
-            <button
-              disabled={!activeOrder?.items.length}
-              className="flex items-center justify-center gap-1.5 px-3 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition-colors"
-            >
-              <Printer size={15} />
-            </button>
-            <button
-              onClick={() => setPayOpen(true)}
-              disabled={!activeOrder?.items.length}
-              className="flex-[2] flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm disabled:opacity-40 transition-colors"
-            >
-              <CreditCard size={15} />
-              {t('sell.pay')}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleHold}
+                disabled={!activeOrder?.items.length}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition-colors"
+              >
+                <Pause size={15} />
+                {t('sell.hold')}
+              </button>
+              <button
+                disabled={!activeOrder?.items.length}
+                className="flex items-center justify-center gap-1.5 px-3 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition-colors"
+              >
+                <Printer size={15} />
+              </button>
+              <button
+                onClick={() => setPayOpen(true)}
+                disabled={!activeOrder?.items.length}
+                className="flex-[2] flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm disabled:opacity-40 transition-colors"
+              >
+                <CreditCard size={15} />
+                {t('sell.pay')}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1174,11 +1215,18 @@ export default function Sell() {
         </div>
       )}
 
+      {/* Sent to kitchen toast */}
+      {sentToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 bg-orange-500 text-white text-sm font-semibold rounded-2xl shadow-xl">
+          <ChefHat size={15} className="opacity-90" />
+          Order sent to kitchen!
+        </div>
+      )}
+
       {/* Pay Modal */}
       <PayModal
         isOpen={payOpen}
         subtotal={subtotal}
-        tax={tax}
         customer={activeOrder?.customer}
         onClose={() => setPayOpen(false)}
         onConfirm={handlePay}

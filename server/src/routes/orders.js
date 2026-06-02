@@ -13,7 +13,7 @@ router.get('/:id', getOrder)
 
 router.post(
   '/',
-  requireRole('Admin','Waiter'),
+  requireRole('Admin','Waiter','Cashier'),
   [
     body('tableId').optional({ nullable: true }).isInt({ min: 1 }).withMessage('tableId must be a positive integer'),
     body('items').isArray({ min: 1 }).withMessage('At least one item required'),
