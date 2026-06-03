@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ChefHat, Clock, CheckCircle2, Flame, Bell, RefreshCw, Utensils, Check } from 'lucide-react'
+import { ChefHat, Clock, CheckCircle2, Flame, Bell, RefreshCw, Utensils, Check, Printer } from 'lucide-react'
 import clsx from 'clsx'
 import { ordersApi } from '../services/api'
 import { onOrderCreated, onOrderUpdated } from '../services/socket'
 import { useSettings } from '../context/SettingsContext'
 import { playKitchenAlert, unlock } from '../lib/soundAlert'
+import { printKitchenTicket } from '../utils/printKitchenTicket'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function normalize(data) {
@@ -67,7 +68,7 @@ const LANES = [
 const ACTIVE_STATUSES = new Set(['Pending', 'In Progress', 'Served'])
 
 // ─── Order card ───────────────────────────────────────────────────────────────
-function OrderCard({ order, onAdvance, onItemDone, selectedStation, isNew }) {
+function OrderCard({ order, onAdvance, onItemDone, onPrint, selectedStation, isNew }) {
   const { t } = useSettings()
   const lane = LANES.find(l => l.key === order.status)
   const urg  = urgencyStyle(order.createdAt)
@@ -126,10 +127,19 @@ function OrderCard({ order, onAdvance, onItemDone, selectedStation, isNew }) {
           </div>
         </div>
 
-        {/* Timer */}
-        <div className={clsx('flex items-center gap-1 text-xs font-mono font-semibold', urg.timer)}>
-          <Clock size={11} />
-          {elapsedStr(order.createdAt)}
+        {/* Timer + reprint */}
+        <div className="flex items-center gap-2">
+          <div className={clsx('flex items-center gap-1 text-xs font-mono font-semibold', urg.timer)}>
+            <Clock size={11} />
+            {elapsedStr(order.createdAt)}
+          </div>
+          <button
+            onClick={() => onPrint(order)}
+            title="Reprint kitchen ticket"
+            className="w-6 h-6 flex items-center justify-center bg-gray-700/60 hover:bg-gray-600 text-gray-400 hover:text-white rounded-lg transition-colors"
+          >
+            <Printer size={11} />
+          </button>
         </div>
       </div>
 
@@ -224,6 +234,20 @@ export default function Kitchen() {
   const [loading,         setLoading]         = useState(true)
   const [newIds,          setNewIds]          = useState(new Set())
   const [selectedStation, setSelectedStation] = useState('All')
+
+  // Auto-print toggle — persisted in localStorage
+  const [autoPrint, setAutoPrint] = useState(() => {
+    const stored = localStorage.getItem('pos_kitchen_autoprint')
+    return stored === null ? true : stored === 'true'
+  })
+  const toggleAutoPrint = () => {
+    setAutoPrint(prev => {
+      const next = !prev
+      localStorage.setItem('pos_kitchen_autoprint', String(next))
+      return next
+    })
+  }
+
   // Unlock Web Audio on first tap/click (browser policy)
   useEffect(() => {
     window.addEventListener('pointerdown', unlock, { once: true })
@@ -256,9 +280,11 @@ export default function Kitchen() {
       setTimeout(() => {
         setNewIds(prev => { const s = new Set(prev); s.delete(order.id); return s })
       }, 8000)
+      // Auto-print kitchen ticket
+      if (autoPrint) printKitchenTicket(order)
     })
     return off
-  }, [])
+  }, [autoPrint])
 
   // Socket — order status changed or item marked done
   useEffect(() => {
@@ -335,9 +361,24 @@ export default function Kitchen() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Current time */}
           <LiveClock />
+
+          {/* Auto-print toggle */}
+          <button
+            onClick={toggleAutoPrint}
+            title={autoPrint ? t('kitchen.autoPrintOn') : t('kitchen.autoPrintOff')}
+            className={clsx(
+              'flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors',
+              autoPrint
+                ? 'bg-orange-600/20 border-orange-500/50 text-orange-300 hover:bg-orange-600/30'
+                : 'bg-gray-800 border-gray-700 text-gray-500 hover:bg-gray-700 hover:text-gray-300',
+            )}
+          >
+            <Printer size={13} />
+            {autoPrint ? t('kitchen.autoPrintOn') : t('kitchen.autoPrintOff')}
+          </button>
 
           {/* Live dot */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 rounded-full border border-gray-700">
@@ -409,6 +450,7 @@ export default function Kitchen() {
                       order={order}
                       onAdvance={advance}
                       onItemDone={markItemDone}
+                      onPrint={printKitchenTicket}
                       selectedStation={selectedStation}
                       isNew={newIds.has(order.id)}
                     />
