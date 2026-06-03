@@ -31,7 +31,7 @@ import Promotions from './pages/Promotions'
 import Settings from './pages/Settings'
 import AuditLog from './pages/AuditLog'
 import Kitchen from './pages/Kitchen'
-import HouseAccounts from './pages/HouseAccounts'
+import Debt from './pages/Debt'
 import OfflineBanner from './components/OfflineBanner'
 import StockLowToast from './components/StockLowToast'
 
@@ -139,8 +139,8 @@ function AppRoutes() {
       <Route path="/cashflow"  element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<CashFlow />} />
       </Route>
-      <Route path="/house-accounts" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route index element={<HouseAccounts />} />
+      <Route path="/debt" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<Debt />} />
       </Route>
       <Route path="/reports"   element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Reports />} />

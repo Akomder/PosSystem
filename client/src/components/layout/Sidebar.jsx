@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Users, UserCheck, Truck,
   BookOpen, BarChart2, ShoppingCart, FileText, RotateCcw,
   PackageSearch, BookMarked, AlertTriangle, ShoppingBag,
-  PackageX, Clock, Tag, Settings2, Shield, ChevronUp, ChefHat, BookUser,
+  PackageX, Clock, Tag, Settings2, Shield, ChevronUp, ChefHat, Landmark,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '../../context/AuthContext'
@@ -49,7 +49,7 @@ export default function Sidebar() {
         { to: '/staff',     icon: UserCheck,       label: t('nav.staff'),     roles: ['Admin'] },
         { to: '/suppliers', icon: Truck,           label: t('nav.suppliers'), roles: ['Admin'] },
         { to: '/cashflow',       icon: BookOpen,   label: t('nav.cashflow'),       roles: ['Admin','Cashier'] },
-        { to: '/house-accounts', icon: BookUser,   label: t('nav.houseAccounts'),  roles: ['Admin','Cashier'] },
+        { to: '/debt',           icon: Landmark,   label: t('nav.debt'),            roles: ['Admin','Cashier'] },
         { to: '/invoices',  icon: FileText,        label: t('nav.invoices'),       roles: ['Admin','Cashier'] },
         { to: '/returns',   icon: RotateCcw,       label: t('nav.returns'),        roles: ['Admin','Cashier'] },
         { to: '/reports',   icon: BarChart2,       label: t('nav.reports'),        roles: ['Admin','Cashier'] },

@@ -125,16 +125,14 @@ export const suppliersApi = {
   delete:  (id)          => del(`/suppliers/${id}`),
 }
 
-// ─── House Accounts ───────────────────────────────────────────────────────────
-export const houseAccountsApi = {
-  getAll:          (params = {}) => get('/house-accounts?' + new URLSearchParams(params)),
-  getOne:          (id)          => get(`/house-accounts/${id}`),
-  create:          (body)        => post('/house-accounts', body),
-  update:          (id, body)    => put(`/house-accounts/${id}`, body),
-  getTransactions: (id)          => get(`/house-accounts/${id}/transactions`),
-  charge:          (id, body)    => post(`/house-accounts/${id}/charge`, body),
-  manualCharge:    (id, body)    => post(`/house-accounts/${id}/manual-charge`, body),
-  recordPayment:   (id, body)    => post(`/house-accounts/${id}/payment`, body),
+// ─── Debts ────────────────────────────────────────────────────────────────────
+export const debtsApi = {
+  getAll:        (params = {}) => get('/debts?' + new URLSearchParams(params)),
+  getOne:        (id)          => get(`/debts/${id}`),
+  create:        (body)        => post('/debts', body),
+  update:        (id, body)    => put(`/debts/${id}`, body),
+  delete:        (id)          => del(`/debts/${id}`),
+  recordPayment: (id, body)    => post(`/debts/${id}/payment`, body),
 }
 
 // ─── Cash Flow ────────────────────────────────────────────────────────────────
