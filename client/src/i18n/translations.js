@@ -524,6 +524,7 @@ const translations = {
     "staff.status.onLeave": "On Leave",
 
     // Common (extended)
+    "common.confirmDelete": "Confirm Delete",
     "common.delete": "Delete",
     "common.create": "Create",
     "common.name": "Name",
@@ -1280,6 +1281,7 @@ const translations = {
     "staff.status.onLeave": "ລາພັກ",
 
     // Common (extended)
+    "common.confirmDelete": "ຢືນຢັນການລຶບ",
     "common.delete": "ລົບ",
     "common.create": "ສ້າງ",
     "common.name": "ຊື່",

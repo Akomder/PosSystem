@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, AlertCircle, CheckCircle, Clock, Wallet, Trash2, CreditCard, ChevronDown, ChevronUp, User } from 'lucide-react'
+import { Plus, Search, AlertCircle, CheckCircle, Clock, Wallet, Trash2, CreditCard, ChevronDown, ChevronUp } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
 import { debtsApi, customersApi } from '../services/api'
@@ -10,10 +10,10 @@ import EmptyState from '../components/ui/EmptyState'
 import Badge from '../components/ui/Badge'
 import { formatCurrency } from '../utils/formatters'
 
-const STATUS_COLORS = {
-  unpaid:  'red',
-  partial: 'yellow',
-  paid:    'green',
+const STATUS_VARIANTS = {
+  unpaid:  'danger',
+  partial: 'warning',
+  paid:    'success',
 }
 
 const STATUS_ICONS = {
@@ -95,7 +95,7 @@ function DebtRow({ debt, onPay, onDelete }) {
 
         {/* Status */}
         <div className="flex-shrink-0">
-          <Badge color={STATUS_COLORS[debt.status]}>
+          <Badge variant={STATUS_VARIANTS[debt.status]}>
             <Icon size={11} className="inline mr-1" />
             {t(`debt.status.${debt.status}`)}
           </Badge>
@@ -306,7 +306,7 @@ export default function Debt() {
               placeholder={t('debt.searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              icon={<Search size={15} />}
+              icon={Search}
             />
           </div>
           <select
