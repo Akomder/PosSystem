@@ -133,6 +133,7 @@ export const houseAccountsApi = {
   update:          (id, body)    => put(`/house-accounts/${id}`, body),
   getTransactions: (id)          => get(`/house-accounts/${id}/transactions`),
   charge:          (id, body)    => post(`/house-accounts/${id}/charge`, body),
+  manualCharge:    (id, body)    => post(`/house-accounts/${id}/manual-charge`, body),
   recordPayment:   (id, body)    => post(`/house-accounts/${id}/payment`, body),
 }
 

@@ -9,7 +9,7 @@ import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../context/SettingsContext'
-import { ordersApi, customersApi, shiftsApi, salesChannelsApi, promotionsApi, menuApi } from '../services/api'
+import { ordersApi, customersApi, shiftsApi, salesChannelsApi, promotionsApi, menuApi, houseAccountsApi } from '../services/api'
 import { formatCurrency } from '../utils/formatters'
 import Badge from '../components/ui/Badge'
 import ModifierModal from '../components/ModifierModal'
@@ -22,6 +22,7 @@ const METHODS = [
   { key: 'cash',     label: '💵 Cash'     },
   { key: 'transfer', label: '🏦 Transfer'  },
   { key: 'card',     label: '💳 Card'      },
+  { key: 'account',  label: '📒 Account'   },
 ]
 
 function SplitRow({ row, total, remaining, onChange, onRemove, canRemove }) {
@@ -98,6 +99,16 @@ function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
   const [method,    setMethod]    = useState('cash')
   const [tendered,  setTendered]  = useState('')
 
+  // House account fields
+  const [houseAccounts, setHouseAccounts] = useState([])
+  const [selectedAccount, setSelectedAccount] = useState('')
+  useEffect(() => {
+    if (!isOpen || method !== 'account') return
+    houseAccountsApi.getAll({ status: 'active' })
+      .then(d => setHouseAccounts((d.accounts || []).filter(a => a.balance >= 0)))
+      .catch(() => {})
+  }, [isOpen, method])
+
   // Split-payment rows
   const [rows, setRows] = useState([{ method: 'cash', amount: '', tendered: '' }])
 
@@ -141,6 +152,8 @@ function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
     changeGiven:  r.method === 'cash' ? Math.max(0, (parseFloat(r.tendered) || 0) - parseFloat(r.amount)) : 0,
   }))
 
+  const isAccount = method === 'account'
+
   const handleConfirm = () => {
     if (splitMode) {
       if (!splitValid) return
@@ -150,10 +163,22 @@ function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
         discount:   discountAmt,
         voucherCode: voucher,
         pointsUsed: pointsDisc,
-        // legacy fields filled from first payment for backward compat
         paymentMethod:  rows[0]?.method || 'cash',
         cashTendered:   parseFloat(rows[0]?.tendered) || parseFloat(rows[0]?.amount) || 0,
         changeAmount:   Math.max(0, (parseFloat(rows[0]?.tendered) || 0) - (parseFloat(rows[0]?.amount) || 0)),
+      })
+    } else if (isAccount) {
+      if (!selectedAccount) return
+      onConfirm({
+        payments: [{ method: 'House Account', amount: total, currency, cashTendered: 0, changeGiven: 0 }],
+        paymentMethod: 'House Account',
+        currency,
+        discount:      discountAmt,
+        voucherCode:   voucher,
+        cashTendered:  0,
+        changeAmount:  0,
+        pointsUsed:    pointsDisc,
+        houseAccountId: parseInt(selectedAccount),
       })
     } else {
       if (isCash && tenderedNum < total) return
@@ -176,7 +201,9 @@ function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
     }
   }
 
-  const singleReady = splitMode ? splitValid : (!isCash || tenderedNum >= total)
+  const singleReady = splitMode ? splitValid
+    : isAccount ? !!selectedAccount
+    : (!isCash || tenderedNum >= total)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -245,16 +272,39 @@ function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
           {/* ── Single payment mode ── */}
           {!splitMode && (
             <>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {METHODS.map(m => (
                   <button key={m.key} onClick={() => setMethod(m.key)}
-                    className={clsx('flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                    className={clsx('flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-w-[70px]',
                       method === m.key ? 'bg-teal-600 text-white shadow-sm'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600')}>
                     {m.label}
                   </button>
                 ))}
               </div>
+              {/* House Account selector */}
+              {isAccount && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('sell.selectAccount')}</label>
+                  {houseAccounts.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-2 text-center">{t('sell.noActiveAccounts')}</p>
+                  ) : (
+                    <select
+                      value={selectedAccount}
+                      onChange={e => setSelectedAccount(e.target.value)}
+                      required
+                      className="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-100"
+                    >
+                      <option value="">{t('sell.selectAccount')}…</option>
+                      {houseAccounts.map(a => (
+                        <option key={a.id} value={a.id}>
+                          {a.displayName}{a.creditLimit > 0 ? ` — Balance: ${a.balance.toLocaleString()}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
               {isCash && (
                 <>
                   <div>
@@ -571,8 +621,19 @@ export default function Sell() {
 
       try {
         // ── Online path ────────────────────────────────────────────────────
-        const order      = await ordersApi.create(body)
-        await ordersApi.updateStatus(order.rawId, 'Closed')
+        const order = await ordersApi.create(body)
+
+        if (paymentInfo.houseAccountId) {
+          // Charge to house account — server closes order + increments balance
+          await houseAccountsApi.charge(paymentInfo.houseAccountId, {
+            orderId:     order.rawId || order.id,
+            amount:      total,
+            description: `Order ${order.id}`,
+          })
+        } else {
+          await ordersApi.updateStatus(order.rawId, 'Closed')
+        }
+
         setPayOpen(false)
         closeTab(activeTab)
         setReceiptOrderId(rawOrderId)

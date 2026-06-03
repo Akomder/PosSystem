@@ -1,22 +1,33 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   BookUser, Plus, X, ChevronRight, ArrowDownLeft, ArrowUpRight,
-  CreditCard, AlertTriangle, CheckCircle2, Search, Ban, RefreshCw,
-  Wallet, Users, TrendingUp,
+  CreditCard, AlertTriangle, CheckCircle2, Search, RefreshCw,
+  Wallet, Users, TrendingUp, UserPlus, MinusCircle,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
 import { useAuth } from '../context/AuthContext'
 
+// ─── Token helper ─────────────────────────────────────────────────────────────
+function getToken() {
+  try {
+    return (
+      JSON.parse(localStorage.getItem('pos_user') || '{}').token ||
+      JSON.parse(localStorage.getItem('pos_sa_user') || '{}').token
+    )
+  } catch { return null }
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 const BASE = '/api/house-accounts'
 async function apiFetch(path, opts = {}) {
-  const token = localStorage.getItem('pos_sa_user')
-    ? JSON.parse(localStorage.getItem('pos_sa_user') || '{}').token
-    : JSON.parse(localStorage.getItem('pos_user') || '{}').token
   const res = await fetch(`${BASE}${path}`, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken()}`,
+      ...(opts.headers || {}),
+    },
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || 'Request failed')
@@ -51,7 +62,7 @@ const GROUP_STYLE = {
 }
 
 // ─── Summary card ─────────────────────────────────────────────────────────────
-function SummaryCard({ icon: Icon, label, value, sub, color }) {
+function SummaryCard({ icon: Icon, label, value, color }) {
   return (
     <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl p-5 flex items-start gap-4">
       <div className={clsx('w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0', color)}>
@@ -60,52 +71,73 @@ function SummaryCard({ icon: Icon, label, value, sub, color }) {
       <div>
         <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">{label}</p>
         <p className="text-xl font-extrabold text-white mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
       </div>
     </div>
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Modal wrapper ────────────────────────────────────────────────────────────
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
+          <h3 className="font-bold text-white">{title}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function HouseAccounts() {
   const { t } = useSettings()
   const { user } = useAuth()
   const isAdmin = user?.role === 'Admin'
 
-  const [accounts,    setAccounts]    = useState([])
-  const [summary,     setSummary]     = useState({ activeCount: 0, totalOutstanding: 0, totalLimit: 0 })
-  const [loading,     setLoading]     = useState(true)
-  const [search,      setSearch]      = useState('')
+  const [accounts,     setAccounts]     = useState([])
+  const [summary,      setSummary]      = useState({ activeCount: 0, totalOutstanding: 0, totalLimit: 0 })
+  const [loading,      setLoading]      = useState(true)
+  const [search,       setSearch]       = useState('')
   const [filterStatus, setFilterStatus] = useState('')
 
-  // Selected account for detail drawer
-  const [selected,    setSelected]    = useState(null)
-  const [txLoading,   setTxLoading]   = useState(false)
+  const [selected,     setSelected]     = useState(null)
+  const [txLoading,    setTxLoading]    = useState(false)
   const [transactions, setTransactions] = useState([])
 
-  // Modals
-  const [showCreate,  setShowCreate]  = useState(false)
-  const [showPayment, setShowPayment] = useState(false)
-  const [showEdit,    setShowEdit]    = useState(false)
-  const [saving,      setSaving]      = useState(false)
-  const [error,       setError]       = useState('')
+  // Modal visibility
+  const [showCreate,     setShowCreate]     = useState(false)
+  const [showPayment,    setShowPayment]    = useState(false)
+  const [showAddDebt,    setShowAddDebt]    = useState(false)
+  const [showEdit,       setShowEdit]       = useState(false)
+  const [saving,         setSaving]         = useState(false)
+  const [error,          setError]          = useState('')
 
-  // Form state — create
-  const [customers,   setCustomers]   = useState([])
-  const [newCustomer, setNewCustomer] = useState('')
-  const [newLimit,    setNewLimit]    = useState('')
-  const [newNotes,    setNewNotes]    = useState('')
+  // Create form — toggles between registered customer and new person
+  const [createMode,    setCreateMode]     = useState('customer') // 'customer' | 'person'
+  const [customers,     setCustomers]      = useState([])
+  const [newCustomer,   setNewCustomer]    = useState('')
+  const [newDebtorName, setNewDebtorName]  = useState('')
+  const [newDebtorPhone,setNewDebtorPhone] = useState('')
+  const [newLimit,      setNewLimit]       = useState('')
+  const [newNotes,      setNewNotes]       = useState('')
 
-  // Form state — payment
-  const [payAmount,   setPayAmount]   = useState('')
-  const [payNote,     setPayNote]     = useState('')
+  // Payment form
+  const [payAmount, setPayAmount] = useState('')
+  const [payNote,   setPayNote]   = useState('')
 
-  // Form state — edit account
-  const [editLimit,   setEditLimit]   = useState('')
-  const [editStatus,  setEditStatus]  = useState('active')
-  const [editNotes,   setEditNotes]   = useState('')
+  // Add Debt (manual charge) form
+  const [debtAmount, setDebtAmount] = useState('')
+  const [debtReason, setDebtReason] = useState('')
 
-  // ── Fetch accounts ──
+  // Edit form
+  const [editLimit,  setEditLimit]  = useState('')
+  const [editStatus, setEditStatus] = useState('active')
+  const [editNotes,  setEditNotes]  = useState('')
+
+  // ── Load accounts ──
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -114,17 +146,14 @@ export default function HouseAccounts() {
       if (filterStatus) params.set('status', filterStatus)
       const data = await apiFetch(`?${params}`)
       setAccounts(data.accounts || [])
-      setSummary(data.summary || { activeCount: 0, totalOutstanding: 0, totalLimit: 0 })
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
+      setSummary(data.summary  || { activeCount: 0, totalOutstanding: 0, totalLimit: 0 })
+    } catch (e) { setError(e.message) }
+    setLoading(false)
   }, [search, filterStatus])
 
   useEffect(() => { load() }, [load])
 
-  // ── Fetch transactions when account is selected ──
+  // ── Open account detail ──
   const openAccount = useCallback(async (acc) => {
     setSelected(acc)
     setTransactions([])
@@ -139,26 +168,47 @@ export default function HouseAccounts() {
 
   // Load customer list when create modal opens
   useEffect(() => {
-    if (!showCreate) return
-    fetch('/api/customers', { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('pos_user') || '{}').token}` } })
+    if (!showCreate || createMode !== 'customer') return
+    fetch('/api/customers', {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
       .then(r => r.json())
       .then(d => setCustomers(Array.isArray(d) ? d : (d.customers || [])))
       .catch(() => {})
-  }, [showCreate])
+  }, [showCreate, createMode])
 
   // ── Create account ──
   const handleCreate = async (e) => {
     e.preventDefault()
-    if (!newCustomer) return
     setSaving(true); setError('')
     try {
-      const acc = await apiFetch('', {
-        method: 'POST',
-        body: JSON.stringify({ customerId: parseInt(newCustomer), creditLimit: parseFloat(newLimit) || 0, notes: newNotes }),
-      })
-      setAccounts(prev => [acc, ...prev])
+      const body = createMode === 'customer'
+        ? { customerId: parseInt(newCustomer), creditLimit: parseFloat(newLimit) || 0, notes: newNotes }
+        : { debtorName: newDebtorName, debtorPhone: newDebtorPhone || undefined, creditLimit: parseFloat(newLimit) || 0, notes: newNotes }
+
+      await apiFetch('', { method: 'POST', body: JSON.stringify(body) })
       setShowCreate(false)
-      setNewCustomer(''); setNewLimit(''); setNewNotes('')
+      setNewCustomer(''); setNewDebtorName(''); setNewDebtorPhone(''); setNewLimit(''); setNewNotes('')
+      load()
+    } catch (e) { setError(e.message) }
+    setSaving(false)
+  }
+
+  // ── Add Debt (manual charge, no order) ──
+  const handleAddDebt = async (e) => {
+    e.preventDefault()
+    if (!debtAmount || !selected) return
+    setSaving(true); setError('')
+    try {
+      const res = await apiFetch(`/${selected.id}/manual-charge`, {
+        method: 'POST',
+        body: JSON.stringify({ amount: parseFloat(debtAmount), description: debtReason }),
+      })
+      setSelected(prev => ({ ...prev, balance: res.newBalance }))
+      setTransactions(prev => [res.transaction, ...prev])
+      setAccounts(prev => prev.map(a => a.id === selected.id ? { ...a, balance: res.newBalance } : a))
+      setShowAddDebt(false)
+      setDebtAmount(''); setDebtReason('')
       load()
     } catch (e) { setError(e.message) }
     setSaving(false)
@@ -226,6 +276,7 @@ export default function HouseAccounts() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
+
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -239,7 +290,7 @@ export default function HouseAccounts() {
         </div>
         {isAdmin && (
           <button
-            onClick={() => { setShowCreate(true); setError('') }}
+            onClick={() => { setShowCreate(true); setError(''); setCreateMode('customer') }}
             className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl transition-colors"
           >
             <Plus size={15} />
@@ -250,8 +301,8 @@ export default function HouseAccounts() {
 
       {/* ── Summary cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <SummaryCard icon={Users}      label={t('houseAccounts.activeAccounts')} value={summary.activeCount}                         color="bg-violet-600"  />
-        <SummaryCard icon={Wallet}     label={t('houseAccounts.totalOwed')}      value={fmtCurrency(summary.totalOutstanding)}        color="bg-rose-600"    />
+        <SummaryCard icon={Users}      label={t('houseAccounts.activeAccounts')} value={summary.activeCount}                                                                    color="bg-violet-600" />
+        <SummaryCard icon={Wallet}     label={t('houseAccounts.totalOwed')}      value={fmtCurrency(summary.totalOutstanding)}                                                  color="bg-rose-600" />
         <SummaryCard icon={TrendingUp} label={t('houseAccounts.totalLimit')}     value={summary.totalLimit > 0 ? fmtCurrency(summary.totalLimit) : t('houseAccounts.noLimit')} color="bg-emerald-600" />
       </div>
 
@@ -280,6 +331,7 @@ export default function HouseAccounts() {
 
       {/* ── Split layout: list + drawer ── */}
       <div className={clsx('flex gap-5', selected && 'xl:grid xl:grid-cols-5')}>
+
         {/* Account list */}
         <div className={clsx('flex-1', selected && 'xl:col-span-3')}>
           {loading ? (
@@ -306,29 +358,38 @@ export default function HouseAccounts() {
                     )}
                   >
                     {/* Avatar */}
-                    <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-300 flex-shrink-0">
-                      {acc.customerName?.charAt(0)?.toUpperCase() || '?'}
+                    <div className={clsx(
+                      'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0',
+                      acc.isCustomer ? 'bg-violet-600/30 text-violet-300' : 'bg-amber-600/30 text-amber-300',
+                    )}>
+                      {acc.displayName?.charAt(0)?.toUpperCase() || '?'}
                     </div>
 
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white text-sm truncate">{acc.customerName}</span>
-                        <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-semibold', GROUP_STYLE[acc.customerGroup] || GROUP_STYLE.General)}>
-                          {acc.customerGroup}
-                        </span>
+                        <span className="font-semibold text-white text-sm truncate">{acc.displayName}</span>
+                        {acc.customerGroup && (
+                          <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-semibold', GROUP_STYLE[acc.customerGroup] || GROUP_STYLE.General)}>
+                            {acc.customerGroup}
+                          </span>
+                        )}
+                        {!acc.isCustomer && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300">
+                            {t('houseAccounts.debtorLabel')}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5">
                         <span className={clsx('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', st.cls)}>
                           {st.label}
                         </span>
+                        {acc.displayPhone && <span className="text-xs text-gray-600">{acc.displayPhone}</span>}
                         {acc.creditLimit > 0 && (
                           <span className="text-xs text-gray-500">{t('houseAccounts.limit')}: {fmtCurrency(acc.creditLimit)}</span>
                         )}
                       </div>
                     </div>
 
-                    {/* Balance */}
                     <div className="text-right flex-shrink-0">
                       <p className={clsx('text-base font-extrabold', acc.balance > 0 ? (overLimit ? 'text-rose-400' : 'text-amber-400') : 'text-emerald-400')}>
                         {fmtCurrency(acc.balance)}
@@ -352,14 +413,17 @@ export default function HouseAccounts() {
         {/* ── Detail drawer ── */}
         {selected && (
           <div className="xl:col-span-2 bg-gray-800/60 border border-gray-700/50 rounded-2xl p-5 flex flex-col h-fit sticky top-6">
-            {/* Drawer header */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-violet-600/20 flex items-center justify-center text-base font-bold text-violet-300">
-                  {selected.customerName?.charAt(0)?.toUpperCase()}
+                <div className={clsx(
+                  'w-10 h-10 rounded-full flex items-center justify-center text-base font-bold',
+                  selected.isCustomer ? 'bg-violet-600/20 text-violet-300' : 'bg-amber-600/20 text-amber-300',
+                )}>
+                  {selected.displayName?.charAt(0)?.toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-bold text-white">{selected.customerName}</p>
+                  <p className="font-bold text-white">{selected.displayName}</p>
+                  {selected.displayPhone && <p className="text-xs text-gray-500">{selected.displayPhone}</p>}
                   <span className={clsx('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', (STATUS_STYLE[selected.status] || STATUS_STYLE.active).cls)}>
                     {(STATUS_STYLE[selected.status] || STATUS_STYLE.active).label}
                   </span>
@@ -388,30 +452,38 @@ export default function HouseAccounts() {
             </div>
 
             {/* Action buttons */}
-            <div className="flex gap-2 mb-5">
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button
+                onClick={() => { setShowAddDebt(true); setError('') }}
+                disabled={selected.status !== 'active' || saving}
+                className="flex items-center justify-center gap-1.5 py-2.5 bg-rose-600/80 hover:bg-rose-600 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-colors"
+              >
+                <ArrowUpRight size={13} />
+                {t('houseAccounts.addDebt')}
+              </button>
               <button
                 onClick={() => { setShowPayment(true); setError('') }}
                 disabled={selected.balance <= 0 || saving}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-colors"
+                className="flex items-center justify-center gap-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-colors"
               >
-                <ArrowDownLeft size={14} />
+                <ArrowDownLeft size={13} />
                 {t('houseAccounts.recordPayment')}
               </button>
               <button
                 onClick={handleSettleFull}
                 disabled={selected.balance <= 0 || saving}
-                className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-colors"
-                title={t('houseAccounts.settleAll')}
+                className="flex items-center justify-center gap-1.5 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-colors"
               >
-                <CheckCircle2 size={14} />
+                <CheckCircle2 size={13} />
+                {t('houseAccounts.settleAll')}
               </button>
               {isAdmin && (
                 <button
                   onClick={openEdit}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold rounded-xl transition-colors"
-                  title={t('common.edit')}
+                  className="flex items-center justify-center gap-1.5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold rounded-xl transition-colors"
                 >
-                  <CreditCard size={14} />
+                  <CreditCard size={13} />
+                  {t('houseAccounts.editAccount')}
                 </button>
               )}
             </div>
@@ -430,16 +502,19 @@ export default function HouseAccounts() {
                   <div key={tx.id} className="flex items-start gap-3 py-2.5 border-b border-gray-700/40 last:border-0">
                     <div className={clsx(
                       'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
-                      tx.type === 'charge'  ? 'bg-rose-500/20'    : 'bg-emerald-500/20',
+                      tx.type === 'charge' ? 'bg-rose-500/20' : 'bg-emerald-500/20',
                     )}>
                       {tx.type === 'charge'
-                        ? <ArrowUpRight   size={12} className="text-rose-400" />
-                        : <ArrowDownLeft  size={12} className="text-emerald-400" />
+                        ? <ArrowUpRight  size={12} className="text-rose-400" />
+                        : <ArrowDownLeft size={12} className="text-emerald-400" />
                       }
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-gray-300 font-medium truncate">{tx.description || tx.type}</p>
-                      <p className="text-[10px] text-gray-600">{fmtDateTime(tx.createdAt)}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[10px] text-gray-600">{fmtDateTime(tx.createdAt)}</p>
+                        {tx.orderId && <span className="text-[10px] px-1 py-0.5 bg-violet-900/30 text-violet-400 rounded">Order #{tx.orderId}</span>}
+                      </div>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={clsx('text-sm font-bold', tx.type === 'charge' ? 'text-rose-400' : 'text-emerald-400')}>
@@ -460,22 +535,83 @@ export default function HouseAccounts() {
         <Modal title={t('houseAccounts.newAccount')} onClose={() => setShowCreate(false)}>
           <form onSubmit={handleCreate} className="space-y-4">
             {error && <p className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-lg">{error}</p>}
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">{t('houseAccounts.customer')} *</label>
-              <select
-                value={newCustomer}
-                onChange={e => setNewCustomer(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
+
+            {/* Toggle: registered customer vs new person */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCreateMode('customer')}
+                className={clsx(
+                  'flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-xl border transition-colors',
+                  createMode === 'customer'
+                    ? 'bg-violet-600/20 border-violet-500/50 text-violet-300'
+                    : 'bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-600',
+                )}
               >
-                <option value="">{t('houseAccounts.selectCustomer')}</option>
-                {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name} {c.groupName !== 'General' ? `(${c.groupName})` : ''}</option>
-                ))}
-              </select>
+                <Users size={13} />
+                {t('houseAccounts.registeredCustomer')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreateMode('person')}
+                className={clsx(
+                  'flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-xl border transition-colors',
+                  createMode === 'person'
+                    ? 'bg-amber-600/20 border-amber-500/50 text-amber-300'
+                    : 'bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-600',
+                )}
+              >
+                <UserPlus size={13} />
+                {t('houseAccounts.newPerson')}
+              </button>
             </div>
+
+            {/* Customer select OR debtor name */}
+            {createMode === 'customer' ? (
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">{t('houseAccounts.customer')} *</label>
+                <select
+                  value={newCustomer}
+                  onChange={e => setNewCustomer(e.target.value)}
+                  required
+                  className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
+                >
+                  <option value="">{t('houseAccounts.selectCustomer')}</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}{c.groupName !== 'General' ? ` (${c.groupName})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">{t('houseAccounts.debtorName')} *</label>
+                  <input
+                    type="text"
+                    value={newDebtorName}
+                    onChange={e => setNewDebtorName(e.target.value)}
+                    required
+                    placeholder="e.g. Souk (Owner's friend)"
+                    className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">{t('houseAccounts.debtorPhone')}</label>
+                  <input
+                    type="text"
+                    value={newDebtorPhone}
+                    onChange={e => setNewDebtorPhone(e.target.value)}
+                    placeholder="+856 20 xxx xxxx"
+                    className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </>
+            )}
+
             <div>
-              <label className="block text-xs text-gray-400 mb-1">{t('houseAccounts.creditLimit')} <span className="text-gray-600">({t('houseAccounts.zeroMeansUnlimited')})</span></label>
+              <label className="block text-xs text-gray-400 mb-1">
+                {t('houseAccounts.creditLimit')} <span className="text-gray-600">({t('houseAccounts.zeroMeansUnlimited')})</span>
+              </label>
               <input
                 type="number" min="0" step="1000"
                 value={newLimit}
@@ -494,11 +630,53 @@ export default function HouseAccounts() {
               />
             </div>
             <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold rounded-xl transition-colors">
+              <button type="button" onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold rounded-xl">
                 {t('common.cancel')}
               </button>
-              <button type="submit" disabled={saving} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
+              <button type="submit" disabled={saving} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl">
                 {saving ? t('common.saving') : t('houseAccounts.create')}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ══ Add Debt Modal (manual charge, no order) ══ */}
+      {showAddDebt && selected && (
+        <Modal title={t('houseAccounts.addDebtTitle')} onClose={() => setShowAddDebt(false)}>
+          <form onSubmit={handleAddDebt} className="space-y-4">
+            {error && <p className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-lg">{error}</p>}
+            <div className="bg-gray-700/40 rounded-xl p-3 text-center">
+              <p className="text-xs text-gray-400">{selected.displayName}</p>
+              <p className="text-lg font-bold text-amber-400">{t('houseAccounts.balance')}: {fmtCurrency(selected.balance)}</p>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">{t('houseAccounts.debtAmount')} *</label>
+              <input
+                type="number" min="1" step="1000"
+                value={debtAmount}
+                onChange={e => setDebtAmount(e.target.value)}
+                required
+                className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-rose-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">{t('houseAccounts.debtReason')} *</label>
+              <input
+                type="text"
+                value={debtReason}
+                onChange={e => setDebtReason(e.target.value)}
+                required
+                placeholder={t('houseAccounts.debtReasonPlaceholder')}
+                className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-rose-500"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setShowAddDebt(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold rounded-xl">
+                {t('common.cancel')}
+              </button>
+              <button type="submit" disabled={saving} className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl">
+                {saving ? t('common.saving') : t('houseAccounts.addDebt')}
               </button>
             </div>
           </form>
@@ -535,10 +713,10 @@ export default function HouseAccounts() {
               />
             </div>
             <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setShowPayment(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold rounded-xl transition-colors">
+              <button type="button" onClick={() => setShowPayment(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold rounded-xl">
                 {t('common.cancel')}
               </button>
-              <button type="submit" disabled={saving} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
+              <button type="submit" disabled={saving} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl">
                 {saving ? t('common.saving') : t('houseAccounts.confirmPayment')}
               </button>
             </div>
@@ -599,21 +777,6 @@ export default function HouseAccounts() {
           </form>
         </Modal>
       )}
-    </div>
-  )
-}
-
-// ─── Generic modal wrapper ────────────────────────────────────────────────────
-function Modal({ title, onClose, children }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
-          <h3 className="font-bold text-white">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
     </div>
   )
 }
