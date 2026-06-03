@@ -240,6 +240,10 @@ export default function Kitchen() {
     const stored = localStorage.getItem('pos_kitchen_autoprint')
     return stored === null ? true : stored === 'true'
   })
+  // Ref so the socket callback always reads the latest value without re-subscribing
+  const autoPrintRef = useRef(autoPrint)
+  useEffect(() => { autoPrintRef.current = autoPrint }, [autoPrint])
+
   const toggleAutoPrint = () => {
     setAutoPrint(prev => {
       const next = !prev
@@ -268,9 +272,9 @@ export default function Kitchen() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Socket — new order incoming
+  // Socket subscriptions — single stable effect with [] so listeners are never torn down mid-session
   useEffect(() => {
-    const off = onOrderCreated(({ order }) => {
+    const offCreated = onOrderCreated(({ order }) => {
       if (!ACTIVE_STATUSES.has(order?.status)) return
       playKitchenAlert()
       setOrders(prev =>
@@ -280,15 +284,11 @@ export default function Kitchen() {
       setTimeout(() => {
         setNewIds(prev => { const s = new Set(prev); s.delete(order.id); return s })
       }, 8000)
-      // Auto-print kitchen ticket
-      if (autoPrint) printKitchenTicket(order)
+      // Read latest autoPrint value via ref — no re-subscription needed
+      if (autoPrintRef.current) printKitchenTicket(order)
     })
-    return off
-  }, [autoPrint])
 
-  // Socket — order status changed or item marked done
-  useEffect(() => {
-    const off = onOrderUpdated(({ order }) => {
+    const offUpdated = onOrderUpdated(({ order }) => {
       if (!order) return
       setOrders(prev => {
         // Remove from board when Closed or Cancelled
@@ -300,7 +300,11 @@ export default function Kitchen() {
           : ACTIVE_STATUSES.has(order.status) ? [order, ...prev] : prev
       })
     })
-    return off
+
+    return () => {
+      offCreated?.()
+      offUpdated?.()
+    }
   }, [])
 
   // Advance an order to the next status
