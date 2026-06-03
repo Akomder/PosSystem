@@ -117,6 +117,7 @@ export function AuthProvider({ children }) {
     const data = await authApi.login(email, password, restaurantSlug)
     const userData = { ...data.user, token: data.token, refreshToken: data.refreshToken }
     if (!userData.isSuperAdmin && restaurantSlug) {
+      userData.restaurantSlug = restaurantSlug  // embed as fallback for redirect-on-expiry
       localStorage.setItem('pos_restaurant_slug', restaurantSlug)
     }
     setAuthToken(data.token)

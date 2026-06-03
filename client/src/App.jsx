@@ -43,11 +43,24 @@ import EmailSettings from './pages/superadmin/EmailSettings'
 import Admins from './pages/superadmin/Admins'
 import SuperAdminAuditLog from './pages/superadmin/AuditLog'
 
+// ─── Slug helper — validated read with fallback ────────────────────────────────
+function getStoredSlug() {
+  let slug = localStorage.getItem('pos_restaurant_slug')
+  // Fallback: slug embedded inside the pos_user session object
+  if (!slug || slug === 'null' || slug === 'undefined') {
+    try {
+      const u = JSON.parse(localStorage.getItem('pos_user') || '{}')
+      slug = u?.restaurantSlug || null
+    } catch {}
+  }
+  return (slug && slug !== 'null' && slug !== 'undefined') ? slug : null
+}
+
 // ─── Route Guards ──────────────────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
   if (!user) {
-    const slug = localStorage.getItem('pos_restaurant_slug')
+    const slug = getStoredSlug()
     if (slug) return <Navigate to={`/${slug}`} replace />
     return <Navigate to="/login" replace />
   }
@@ -65,8 +78,11 @@ function SuperAdminRoute({ children }) {
 
 function RootRedirect() {
   const { user } = useAuth()
-  // Not logged in → SuperAdmin login page (restaurant staff use /{slug})
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) {
+    const slug = getStoredSlug()
+    if (slug) return <Navigate to={`/${slug}`} replace />
+    return <Navigate to="/login" replace />
+  }
   return <Navigate to={user.isSuperAdmin ? '/superadmin' : '/dashboard'} replace />
 }
 
