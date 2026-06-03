@@ -14,6 +14,7 @@ function fmtDebt(r) {
     displayName,
     displayPhone,
     isCustomer:   !!r.customer_id,
+    orderId:      r.order_id      || null,
     amount:       parseFloat(r.amount),
     paidAmount:   parseFloat(r.paid_amount),
     remaining:    Math.max(0, remaining),
@@ -104,7 +105,7 @@ async function getOne(req, res, next) {
 async function create(req, res, next) {
   if (!checkValidation(req, res)) return
   try {
-    const { customerId, debtorName, debtorPhone, amount, description, dueDate } = req.body
+    const { customerId, debtorName, debtorPhone, amount, description, dueDate, orderId } = req.body
 
     if (!customerId && !debtorName) {
       return res.status(400).json({ error: 'Provide either customerId or debtorName' })
@@ -112,11 +113,11 @@ async function create(req, res, next) {
 
     const { rows } = await query(`
       INSERT INTO debts
-        (restaurant_id, customer_id, debtor_name, debtor_phone, amount, description, due_date)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+        (restaurant_id, customer_id, debtor_name, debtor_phone, amount, description, due_date, order_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `, [req.restaurantId, customerId || null, debtorName || null, debtorPhone || null,
-        amount, description || null, dueDate || null])
+        amount, description || null, dueDate || null, orderId || null])
 
     const full = await query(`
       SELECT d.*, c.name AS customer_name, c.phone AS customer_phone

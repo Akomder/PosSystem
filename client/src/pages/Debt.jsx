@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, AlertCircle, CheckCircle, Clock, Wallet, Trash2, CreditCard, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Search, AlertCircle, CheckCircle, Clock, Wallet, Trash2, CreditCard, ChevronDown, ChevronUp, Receipt } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
-import { debtsApi, customersApi } from '../services/api'
+import { debtsApi, customersApi, ordersApi } from '../services/api'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Modal from '../components/ui/Modal'
@@ -23,13 +23,15 @@ const STATUS_ICONS = {
 }
 
 const EMPTY_FORM = {
-  type: 'customer',   // 'customer' | 'manual'
-  customerId: '',
-  debtorName: '',
+  type:        'customer',   // 'customer' | 'manual'
+  customerId:  '',
+  debtorName:  '',
   debtorPhone: '',
-  amount: '',
+  amount:      '',
   description: '',
-  dueDate: '',
+  dueDate:     '',
+  orderId:     '',           // raw numeric order id
+  orderLabel:  '',           // display string
 }
 
 function StatCard({ label, value, sub, color = 'gray' }) {
@@ -73,10 +75,16 @@ function DebtRow({ debt, onPay, onDelete }) {
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">{debt.displayName}</p>
             {debt.isCustomer && (
               <span className="text-[10px] bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 px-1.5 py-0.5 rounded-full font-medium">Customer</span>
+            )}
+            {debt.orderId && (
+              <span className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                <Receipt size={9} />
+                {t('debt.bill')} #{debt.orderId}
+              </span>
             )}
           </div>
           {debt.displayPhone && (
@@ -172,13 +180,15 @@ export default function Debt() {
 
   // Modals
   const [addOpen,  setAddOpen]  = useState(false)
-  const [payDebt,  setPayDebt]  = useState(null)    // debt to pay
-  const [delDebt,  setDelDebt]  = useState(null)    // debt to delete
+  const [payDebt,  setPayDebt]  = useState(null)
+  const [delDebt,  setDelDebt]  = useState(null)
   const [saving,   setSaving]   = useState(false)
 
-  // Form
-  const [form, setForm] = useState(EMPTY_FORM)
+  // Form state
+  const [form,      setForm]      = useState(EMPTY_FORM)
   const [customers, setCustomers] = useState([])
+  const [openOrders, setOpenOrders] = useState([])
+  const [ordersLoading, setOrdersLoading] = useState(false)
 
   // Payment form
   const [payAmount, setPayAmount] = useState('')
@@ -201,13 +211,38 @@ export default function Debt() {
 
   const openAdd = async () => {
     setForm(EMPTY_FORM)
-    if (!customers.length) {
-      try {
-        const d = await customersApi.getAll({ limit: 500 })
-        setCustomers(d.customers || d || [])
-      } catch {}
-    }
+
+    // Load customers + open orders in parallel
+    setOrdersLoading(true)
+    try {
+      const [custData, orderData] = await Promise.all([
+        customers.length ? Promise.resolve(customers) : customersApi.getAll({ limit: 500 }).then(d => d.customers || d || []),
+        ordersApi.getAll({ status: 'Pending', limit: 200 }),
+      ])
+      setCustomers(Array.isArray(custData) ? custData : [])
+      // Also fetch served orders (bill printed but not closed)
+      const servedData = await ordersApi.getAll({ status: 'Served', limit: 200 })
+      setOpenOrders([...(orderData || []), ...(servedData || [])])
+    } catch {}
+    setOrdersLoading(false)
     setAddOpen(true)
+  }
+
+  // When a bill is selected, auto-fill amount and description
+  const handleOrderSelect = (orderId) => {
+    if (!orderId) {
+      setForm(f => ({ ...f, orderId: '', orderLabel: '', amount: '', description: '' }))
+      return
+    }
+    const order = openOrders.find(o => String(o.rawId) === String(orderId))
+    if (!order) return
+    setForm(f => ({
+      ...f,
+      orderId:     String(order.rawId),
+      orderLabel:  order.id,
+      amount:      String(order.total),
+      description: `${t('debt.bill')} ${order.id}${order.tableNumber ? ` — ${t('debt.table')} ${order.tableNumber}` : ''}`,
+    }))
   }
 
   const handleCreate = async () => {
@@ -221,6 +256,7 @@ export default function Debt() {
         amount:      parseFloat(form.amount),
         description: form.description || undefined,
         dueDate:     form.dueDate     || undefined,
+        orderId:     form.orderId     ? parseInt(form.orderId) : undefined,
       }
       if (form.type === 'customer') {
         body.customerId = parseInt(form.customerId)
@@ -347,25 +383,67 @@ export default function Debt() {
       {/* ── Add Debt Modal ─────────────────────────────────────────────────────── */}
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title={t('debt.addDebtTitle')}>
         <div className="space-y-4">
-          {/* Type toggle */}
+
+          {/* ── Bill picker ─────────────────────────────────────────────────────── */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">{t('debt.debtorType')}</label>
-            <div className="flex gap-2">
-              {['customer', 'manual'].map(type => (
-                <button
-                  key={type}
-                  onClick={() => setForm(f => ({ ...f, type, customerId: '', debtorName: '', debtorPhone: '' }))}
-                  className={clsx(
-                    'flex-1 py-2 rounded-xl text-sm font-medium transition-colors',
-                    form.type === type
-                      ? 'bg-teal-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  )}
-                >
-                  {type === 'customer' ? t('debt.registeredCustomer') : t('debt.newPerson')}
-                </button>
-              ))}
-            </div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              {t('debt.attachBill')}
+              <span className="ml-1 text-gray-400 font-normal">({t('common.optional')})</span>
+            </label>
+            {ordersLoading ? (
+              <p className="text-xs text-gray-400 py-2">{t('common.loading')}…</p>
+            ) : openOrders.length === 0 ? (
+              <p className="text-xs text-gray-400 py-2 italic">{t('debt.noOpenBills')}</p>
+            ) : (
+              <select
+                value={form.orderId}
+                onChange={e => handleOrderSelect(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-100"
+              >
+                <option value="">{t('debt.selectBillPlaceholder')}</option>
+                {openOrders.map(o => (
+                  <option key={o.rawId} value={o.rawId}>
+                    {o.id}
+                    {o.tableNumber ? ` — ${t('debt.table')} ${o.tableNumber}` : ''}
+                    {o.waiter ? ` (${o.waiter})` : ''}
+                    {` — ${formatCurrency(o.total)}`}
+                  </option>
+                ))}
+              </select>
+            )}
+            {form.orderId && (
+              <button
+                onClick={() => handleOrderSelect('')}
+                className="mt-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
+              >
+                ✕ {t('debt.clearBill')}
+              </button>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 border-t border-gray-100 dark:border-gray-700" />
+            <span className="text-xs text-gray-400">{t('debt.debtorType')}</span>
+            <div className="flex-1 border-t border-gray-100 dark:border-gray-700" />
+          </div>
+
+          {/* Type toggle */}
+          <div className="flex gap-2">
+            {['customer', 'manual'].map(type => (
+              <button
+                key={type}
+                onClick={() => setForm(f => ({ ...f, type, customerId: '', debtorName: '', debtorPhone: '' }))}
+                className={clsx(
+                  'flex-1 py-2 rounded-xl text-sm font-medium transition-colors',
+                  form.type === type
+                    ? 'bg-teal-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                )}
+              >
+                {type === 'customer' ? t('debt.registeredCustomer') : t('debt.newPerson')}
+              </button>
+            ))}
           </div>
 
           {/* Customer selector */}
@@ -404,9 +482,12 @@ export default function Debt() {
             </div>
           )}
 
-          {/* Amount */}
+          {/* Amount — auto-filled when a bill is selected, still editable */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('debt.amount')}</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              {t('debt.amount')}
+              {form.orderId && <span className="ml-1 text-teal-500 text-[10px]">({t('debt.fromBill')})</span>}
+            </label>
             <Input
               type="number"
               min="0"
@@ -451,6 +532,11 @@ export default function Debt() {
           <div className="space-y-4">
             <div className="bg-gray-50 dark:bg-gray-700/40 rounded-xl px-4 py-3 text-sm">
               <p className="font-semibold text-gray-800 dark:text-gray-100">{payDebt.displayName}</p>
+              {payDebt.orderId && (
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
+                  <Receipt size={11} /> {t('debt.bill')} #{payDebt.orderId}
+                </p>
+              )}
               <p className="text-gray-500 dark:text-gray-400 mt-0.5">
                 {t('debt.remaining')}: <span className="font-bold text-red-600 dark:text-red-400">{formatCurrency(payDebt.remaining)}</span>
               </p>
@@ -466,7 +552,6 @@ export default function Debt() {
                 value={payAmount}
                 onChange={e => setPayAmount(e.target.value)}
               />
-              {/* Quick-fill full amount */}
               <button
                 onClick={() => setPayAmount(String(payDebt.remaining))}
                 className="mt-1.5 text-xs text-teal-600 dark:text-teal-400 hover:underline"
