@@ -23,7 +23,7 @@ import {
 } from '../utils/formatters'
 import {
   getStatusVariant, getNextStatus, getNextStatusLabel,
-  sortOrders, calculateSubtotal, calculateTax, calculateTotal,
+  sortOrders, calculateSubtotal, calculateTotal,
 } from '../utils/orderHelpers'
 
 // Schema status values: 'Pending' | 'In Progress' | 'Served' | 'Closed' | 'Cancelled'
@@ -630,10 +630,6 @@ export default function Orders() {
                   <span>{t('common.subtotal')}</span>
                   <span>{formatCurrency(selectedOrder.subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
-                  <span>{t('orders.tax')}</span>
-                  <span>{formatCurrency(selectedOrder.tax)}</span>
-                </div>
                 {selectedOrder.discount > 0 && (
                   <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
                     <span>Discount</span>
@@ -860,7 +856,7 @@ export default function Orders() {
               <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 flex justify-between text-sm font-semibold text-gray-900 dark:text-gray-100">
                 <span>{t('common.total')}</span>
                 <span className="text-teal-600 dark:text-teal-400">
-                  {formatCurrency(calculateTotal(calculateSubtotal(noItems), calculateTax(calculateSubtotal(noItems))))}
+                  {formatCurrency(calculateTotal(calculateSubtotal(noItems)))}
                 </span>
               </div>
             </div>

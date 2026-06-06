@@ -88,7 +88,7 @@ const printTemplates = makeSimpleCrud('print_templates', r => ({
 async function getStore(req, res, next) {
   try {
     const { rows } = await query(
-      `SELECT name, phone, email, address, tax_rate, currency, logo_url, settings
+      `SELECT name, phone, email, address, currency, logo_url, settings
        FROM restaurants WHERE id = $1`,
       [req.restaurantId]
     )
@@ -99,7 +99,6 @@ async function getStore(req, res, next) {
       phone:    r.phone,
       email:    r.email,
       address:  r.address,
-      taxRate:  r.tax_rate,
       currency: r.currency,
       logoUrl:  r.logo_url,
       settings: r.settings || {},
@@ -108,14 +107,13 @@ async function getStore(req, res, next) {
 }
 
 async function updateStore(req, res, next) {
-  const { name, phone, email, address, taxRate, currency, settings } = req.body
+  const { name, phone, email, address, currency, settings } = req.body
   const sets = [], params = []
 
   if (name     !== undefined) { params.push(name);                    sets.push(`name     = $${params.length}`) }
   if (phone    !== undefined) { params.push(phone);                   sets.push(`phone    = $${params.length}`) }
   if (email    !== undefined) { params.push(email);                   sets.push(`email    = $${params.length}`) }
   if (address  !== undefined) { params.push(address);                 sets.push(`address  = $${params.length}`) }
-  if (taxRate  !== undefined) { params.push(parseFloat(taxRate));     sets.push(`tax_rate = $${params.length}`) }
   if (currency !== undefined) { params.push(currency);                sets.push(`currency = $${params.length}`) }
   if (settings !== undefined) { params.push(JSON.stringify(settings)); sets.push(`settings = $${params.length}`) }
 
@@ -135,7 +133,6 @@ async function updateStore(req, res, next) {
       phone:    r.phone,
       email:    r.email,
       address:  r.address,
-      taxRate:  r.tax_rate,
       currency: r.currency,
       logoUrl:  r.logo_url,
       settings: r.settings || {},

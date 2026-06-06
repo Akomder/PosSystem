@@ -36,7 +36,6 @@ const DEFAULT_CONFIG = {
   showUnitPrice:       false,
   // ── Totals & Payment ────────────────────────────────────────────────────────
   showSubtotal:        true,
-  showTax:             true,
   showDiscount:        true,
   showPaymentDetails:  true,
   showSignatureLine:   false,
@@ -56,7 +55,6 @@ const DEFAULT_CONFIG = {
   labelOrder:          'Order',
   labelOrderType:      'Type',
   labelSubtotal:       'Subtotal',
-  labelTax:            'Tax',
   labelTotal:          'TOTAL',
   labelDiscount:       'Discount',
   labelPayment:        'Payment',
@@ -167,7 +165,6 @@ function buildReceiptHtml(order, restaurant, isKitchen = false) {
     ${cfg.showDividers ? dividerEl : ''}
     <div style="font-size:${fontSize - 1}px;">
       ${cfg.showSubtotal ? `<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${lbl(cfg,'labelSubtotal','Subtotal')}</span><span>${fmtCurrency(order.subtotal, cur)}</span></div>` : ''}
-      ${cfg.showTax      ? `<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${lbl(cfg,'labelTax','Tax')}</span><span>${fmtCurrency(order.tax, cur)}</span></div>` : ''}
       ${cfg.showDiscount && order.discount > 0 ? `<div style="display:flex;justify-content:space-between;padding:2px 0;color:#16a34a;"><span>${lbl(cfg,'labelDiscount','Discount')}</span><span>-${fmtCurrency(order.discount, cur)}</span></div>` : ''}
       <div style="display:flex;justify-content:space-between;font-size:${fontSize + 2}px;font-weight:bold;border-top:1px solid #111;margin-top:3px;padding-top:3px;">
         <span>${lbl(cfg,'labelTotal','TOTAL')}</span>

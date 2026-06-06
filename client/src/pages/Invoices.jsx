@@ -190,10 +190,6 @@ export default function Invoices() {
                   <span>-{formatCurrency(selected.discount)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-gray-500 dark:text-gray-400">
-                <span>{t('orders.tax')}</span>
-                <span>{formatCurrency(selected.tax)}</span>
-              </div>
               <div className="flex justify-between font-bold text-gray-900 dark:text-gray-100 text-base pt-1 border-t border-gray-100 dark:border-gray-700">
                 <span>{t('common.total')}</span>
                 <span>{formatCurrency(selected.total)}</span>

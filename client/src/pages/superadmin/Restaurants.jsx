@@ -36,7 +36,6 @@ function RestaurantModal({ onClose, onSave, initial }) {
     email: initial?.email || '',
     plan: initial?.plan || 'basic',
     currency: initial?.currency || 'LAK',
-    taxRate: initial?.taxRate ?? 0.10,
     adminName: '',
     adminEmail: '',
     adminPassword: '',
@@ -113,16 +112,6 @@ function RestaurantModal({ onClose, onSave, initial }) {
               </select>
             </Field>
           </div>
-          <Field label="Tax Rate">
-            <div className="relative">
-              <input className={inputCls} type="number" min="0" max="1" step="0.01"
-                value={form.taxRate} onChange={e => set('taxRate', parseFloat(e.target.value))} />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
-                = {(form.taxRate * 100).toFixed(0)}%
-              </span>
-            </div>
-          </Field>
-
           {/* Admin account — required for new restaurant */}
           {!isEdit && (
             <div className="border-t border-gray-800 pt-3 mt-1">

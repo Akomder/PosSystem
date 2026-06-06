@@ -159,11 +159,7 @@ async function updateStatus(req, res, next) {
             [ret.order_id]
           )
           const subtotal = parseFloat(totals[0].subtotal)
-          const { rows: existingOrder } = await client.query(
-            'SELECT tax FROM orders WHERE id = $1', [ret.order_id]
-          )
-          const tax   = parseFloat(existingOrder[0]?.tax || 0)
-          const total = Math.round((subtotal + tax) * 100) / 100
+          const total = Math.round(subtotal * 100) / 100
           await client.query(
             'UPDATE orders SET subtotal = $1, total = $2, updated_at = NOW() WHERE id = $3',
             [subtotal, total, ret.order_id]

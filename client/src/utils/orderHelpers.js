@@ -2,12 +2,8 @@ export function calculateSubtotal(items) {
   return items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
 }
 
-export function calculateTax(subtotal, rate = 0.08) {
-  return Math.round(subtotal * rate * 100) / 100
-}
-
-export function calculateTotal(subtotal, tax) {
-  return Math.round((subtotal + tax) * 100) / 100
+export function calculateTotal(subtotal) {
+  return Math.round(subtotal * 100) / 100
 }
 
 // Schema status values: 'Pending' | 'In Progress' | 'Served' | 'Closed' | 'Cancelled'

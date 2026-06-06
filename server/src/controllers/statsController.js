@@ -408,7 +408,6 @@ async function getReportEOD(req, res, next) {
         `SELECT
            COUNT(*)                    AS total_orders,
            COALESCE(SUM(subtotal), 0)  AS subtotal,
-           COALESCE(SUM(tax), 0)       AS tax,
            COALESCE(SUM(discount), 0)  AS discount,
            COALESCE(SUM(total), 0)     AS total
          FROM orders
@@ -438,7 +437,6 @@ async function getReportEOD(req, res, next) {
       date:        req.query.date || new Date().toISOString().slice(0, 10),
       totalOrders: parseInt(o.total_orders),
       subtotal:    parseFloat(o.subtotal),
-      tax:         parseFloat(o.tax),
       discount:    parseFloat(o.discount),
       total:       parseFloat(o.total),
       cashIncome:  parseFloat(c.income),

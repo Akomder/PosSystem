@@ -143,17 +143,15 @@ async function createPublicOrder(req, res, next) {
       subtotal += line
       return { ...i, name: m.name, unitPrice: m.price, lineTotal: line, notes: i.notes || '' }
     })
-    // Tax removed from customer QR ordering — price displayed is the final price
-    const tax   = 0
     const total = Math.round(subtotal * 100) / 100
 
     // Insert order — waiter = 'Guest' for customer self-orders
     // IMPORTANT: include restaurant_id so the order appears in the admin's Orders view
     const oRes = await client.query(
       `INSERT INTO orders
-         (restaurant_id, table_id, table_number, waiter, notes, subtotal, tax, total, payment_method, payment_status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid') RETURNING *`,
-      [restaurantId, table.id, table.number, 'Guest', notes || '', subtotal, tax, total, pmMethod]
+         (restaurant_id, table_id, table_number, waiter, notes, subtotal, total, payment_method, payment_status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'unpaid') RETURNING *`,
+      [restaurantId, table.id, table.number, 'Guest', notes || '', subtotal, total, pmMethod]
     )
     const order = oRes.rows[0]
 
@@ -329,11 +327,10 @@ async function addItemsToPublicOrder(req, res, next) {
         [rawOrderId]
       )
       const subtotal = parseFloat(totals.rows[0].subtotal)
-      const tax      = 0
       const total    = Math.round(subtotal * 100) / 100
       await client.query(
-        `UPDATE orders SET subtotal=$1, tax=$2, total=$3, updated_at=NOW() WHERE id=$4`,
-        [subtotal, tax, total, rawOrderId]
+        `UPDATE orders SET subtotal=$1, total=$2, updated_at=NOW() WHERE id=$3`,
+        [subtotal, total, rawOrderId]
       )
 
       await client.query('COMMIT')

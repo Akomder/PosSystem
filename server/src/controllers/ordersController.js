@@ -33,7 +33,6 @@ function fmtOrder(r) {
     status:        r.status,
     notes:         r.notes || '',
     subtotal:      parseFloat(r.subtotal || 0),
-    tax:           parseFloat(r.tax      || 0),
     total:         parseFloat(r.total    || 0),
     discount:      parseFloat(r.discount || 0),
     paymentMethod: r.payment_method || 'cash',
@@ -217,9 +216,8 @@ async function createOrder(req, res, next) {
       subtotal += line
       return { ...i, name: m.name, unitPrice, lineTotal: line, station: m.station || 'Kitchen' }
     })
-    const tax         = Math.round(subtotal * 0.08 * 100) / 100
     const discountAmt = parseFloat(discount) || 0
-    const finalTotal  = Math.max(0, Math.round((subtotal + tax - discountAmt) * 100) / 100)
+    const finalTotal  = Math.max(0, Math.round((subtotal - discountAmt) * 100) / 100)
 
     // 4. Determine payment status from payments array or legacy fields
     const paymentsList = Array.isArray(payments) && payments.length ? payments : null
@@ -234,15 +232,15 @@ async function createOrder(req, res, next) {
     // 5. Insert order
     const oRes = await client.query(
       `INSERT INTO orders
-         (order_type, table_id, table_number, waiter, notes, subtotal, tax, total,
+         (order_type, table_id, table_number, waiter, notes, subtotal, total,
           customer_id, payment_method, currency, discount, voucher_code,
           cash_tendered, change_amount, payment_status, restaurant_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
       [
         orderType,
         resolvedTableId, resolvedTableNum,
         waiter || 'Unassigned', notes || '',
-        subtotal, tax, finalTotal,
+        subtotal, finalTotal,
         customerId || null,
         firstMethod || 'cash', currency || 'LAK',
         discountAmt, voucherCode || '',
@@ -474,8 +472,7 @@ async function updateOrder(req, res, next) {
       subtotal += line
       return { ...i, name: m.name, unitPrice, lineTotal: line, station: m.station || 'Kitchen' }
     })
-    const tax   = Math.round(subtotal * 0.08 * 100) / 100
-    const total = Math.round((subtotal + tax) * 100) / 100
+    const total = Math.round(subtotal * 100) / 100
 
     // Delete old items (cascades to order_item_modifiers)
     await client.query('DELETE FROM order_items WHERE order_id=$1', [req.params.id])
@@ -498,9 +495,9 @@ async function updateOrder(req, res, next) {
 
     const oRes = await client.query(
       rid
-        ? `UPDATE orders SET notes=$1, subtotal=$2, tax=$3, total=$4, updated_at=NOW() WHERE id=$5 AND restaurant_id=$6 RETURNING *`
-        : `UPDATE orders SET notes=$1, subtotal=$2, tax=$3, total=$4, updated_at=NOW() WHERE id=$5 RETURNING *`,
-      rid ? [notes || '', subtotal, tax, total, req.params.id, rid] : [notes || '', subtotal, tax, total, req.params.id]
+        ? `UPDATE orders SET notes=$1, subtotal=$2, total=$3, updated_at=NOW() WHERE id=$4 AND restaurant_id=$5 RETURNING *`
+        : `UPDATE orders SET notes=$1, subtotal=$2, total=$3, updated_at=NOW() WHERE id=$4 RETURNING *`,
+      rid ? [notes || '', subtotal, total, req.params.id, rid] : [notes || '', subtotal, total, req.params.id]
     )
     if (!oRes.rows.length) {
       await client.query('ROLLBACK')

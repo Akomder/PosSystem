@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS restaurants (
                 CHECK (plan IN ('basic','pro','enterprise')),
   status      VARCHAR(20)  NOT NULL DEFAULT 'active'
                 CHECK (status IN ('active','suspended','inactive')),
-  tax_rate    NUMERIC(5,4) NOT NULL DEFAULT 0.10,
   currency    VARCHAR(10)  NOT NULL DEFAULT 'LAK',
   settings    JSONB        NOT NULL DEFAULT '{}',
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
@@ -191,7 +190,6 @@ CREATE TABLE IF NOT EXISTS orders (
   status           VARCHAR(20)    NOT NULL DEFAULT 'Pending'
                      CHECK (status IN ('Pending','In Progress','Served','Closed')),
   subtotal         NUMERIC(10,2)  NOT NULL DEFAULT 0,
-  tax              NUMERIC(10,2)  NOT NULL DEFAULT 0,
   discount         NUMERIC(10,2)  NOT NULL DEFAULT 0,
   total            NUMERIC(10,2)  NOT NULL DEFAULT 0,
   payment_method   VARCHAR(50)    NOT NULL DEFAULT 'cash',

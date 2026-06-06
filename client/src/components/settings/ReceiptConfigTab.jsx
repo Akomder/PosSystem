@@ -40,7 +40,6 @@ const DEFAULT_CONFIG = {
   showDate:            true,
   showUnitPrice:       false,
   showSubtotal:        true,
-  showTax:             true,
   showDiscount:        true,
   showPaymentDetails:  true,
   showSignatureLine:   false,
@@ -58,7 +57,6 @@ const DEFAULT_CONFIG = {
   labelOrder:          'Order',
   labelOrderType:      'Type',
   labelSubtotal:       'Subtotal',
-  labelTax:            'Tax',
   labelTotal:          'TOTAL',
   labelDiscount:       'Discount',
   labelPayment:        'Payment',
@@ -77,7 +75,6 @@ const MOCK = {
   orderType:   'Dine In',
   createdAt:   new Date().toISOString(),
   subtotal:    142000,
-  tax:         0,
   discount:    0,
   total:       142000,
   items: [
@@ -289,12 +286,6 @@ function TemplatePanel({ config }) {
             <VarTag label="subtotal" />
           </div>
         )}
-        {config.showTax && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-            <span style={{ color: '#888' }}>{lbl('labelTax', 'Tax')}</span>
-            <VarTag label="tax" />
-          </div>
-        )}
         {config.showDiscount && (
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', color: '#16a34a' }}>
             <span>{lbl('labelDiscount', 'Discount')}</span>
@@ -444,11 +435,6 @@ function ReceiptPreview({ config, storeInfo }) {
         {config.showSubtotal && (
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
             <span>{lbl('labelSubtotal', 'Subtotal')}</span><span>{fmt(MOCK.subtotal)}</span>
-          </div>
-        )}
-        {config.showTax && MOCK.tax > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-            <span>{lbl('labelTax', 'Tax')}</span><span>{fmt(MOCK.tax)}</span>
           </div>
         )}
         {config.showDiscount && MOCK.discount > 0 && (
@@ -1274,7 +1260,6 @@ export default function ReceiptConfigTab({ isAdmin }) {
         {/* Totals & Payment */}
         <ConfigSection icon={LayoutList} title="Totals & Payment">
           <ToggleRow label="Subtotal line"    cfgKey="showSubtotal"       config={config} onChange={handleChange} />
-          <ToggleRow label="Tax line"         cfgKey="showTax"            config={config} onChange={handleChange} />
           <ToggleRow label="Discount line"    cfgKey="showDiscount"       config={config} onChange={handleChange} />
           <ToggleRow label="Payment details"  cfgKey="showPaymentDetails" config={config} onChange={handleChange} />
           <ToggleRow label="Signature line"   desc="Add a blank signature field at the bottom" cfgKey="showSignatureLine" config={config} onChange={handleChange}>
@@ -1298,7 +1283,6 @@ export default function ReceiptConfigTab({ isAdmin }) {
             { key: 'labelWaiter',  placeholder: 'Waiter'   },
             { key: 'labelOrderType', placeholder: 'Type'   },
             { key: 'labelSubtotal',  placeholder: 'Subtotal' },
-            { key: 'labelTax',       placeholder: 'Tax'    },
             { key: 'labelTotal',     placeholder: 'TOTAL'  },
             { key: 'labelDiscount',  placeholder: 'Discount' },
             { key: 'labelPayment',   placeholder: 'Payment' },

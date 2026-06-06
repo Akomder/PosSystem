@@ -18,7 +18,6 @@ function fmtRestaurant(r) {
     logoUrl:        r.logo_url || null,
     plan:           r.plan,
     status:         r.status,
-    taxRate:        parseFloat(r.tax_rate  || 0.10),
     currency:       r.currency || 'LAK',
     staffCount:     parseInt(r.staff_count  || 0),
     tablesCount:    parseInt(r.tables_count || 0),
@@ -237,7 +236,7 @@ async function getRestaurant(req, res, next) {
 
 // ─── POST /api/superadmin/restaurants ────────────────────────────────────────
 async function createRestaurant(req, res, next) {
-  const { name, address='', phone='', email='', plan='basic', currency='LAK', taxRate=0.10, adminEmail, adminPassword, adminName } = req.body
+  const { name, address='', phone='', email='', plan='basic', currency='LAK', adminEmail, adminPassword, adminName } = req.body
   if (!name) return res.status(400).json({ error: 'name is required' })
   if (!adminEmail || !adminPassword || !adminName) return res.status(400).json({ error: 'adminName, adminEmail, and adminPassword are required' })
 
@@ -248,9 +247,9 @@ async function createRestaurant(req, res, next) {
 
     // Create restaurant
     const restRes = await client.query(
-      `INSERT INTO restaurants (name,slug,address,phone,email,plan,currency,tax_rate)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [name, slug, address, phone, email||'', plan, currency, taxRate]
+      `INSERT INTO restaurants (name,slug,address,phone,email,plan,currency)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [name, slug, address, phone, email||'', plan, currency]
     )
     const rest = restRes.rows[0]
 
@@ -310,7 +309,7 @@ async function createRestaurant(req, res, next) {
 
 // ─── PUT /api/superadmin/restaurants/:id ─────────────────────────────────────
 async function updateRestaurant(req, res, next) {
-  const { name, address, phone, email, plan, currency, taxRate, status, logoUrl } = req.body
+  const { name, address, phone, email, plan, currency, status, logoUrl } = req.body
   const sets = [], params = []
 
   if (name     !== undefined) { params.push(name);      sets.push(`name=$${params.length}`) }
@@ -319,7 +318,6 @@ async function updateRestaurant(req, res, next) {
   if (email    !== undefined) { params.push(email);     sets.push(`email=$${params.length}`) }
   if (plan     !== undefined) { params.push(plan);      sets.push(`plan=$${params.length}`) }
   if (currency !== undefined) { params.push(currency);  sets.push(`currency=$${params.length}`) }
-  if (taxRate  !== undefined) { params.push(taxRate);   sets.push(`tax_rate=$${params.length}`) }
   if (status   !== undefined) { params.push(status);    sets.push(`status=$${params.length}`) }
   if (logoUrl  !== undefined) { params.push(logoUrl);   sets.push(`logo_url=$${params.length}`) }
 

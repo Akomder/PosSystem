@@ -305,7 +305,6 @@ export default function RestaurantDetail() {
             {[
               ['Tables', r.tablesCount],
               ['Currency', r.currency],
-              ['Tax Rate', (r.taxRate * 100).toFixed(0) + '%'],
               ['Phone', r.phone || '—'],
               ['Email', r.email || '—'],
               ['Address', r.address || '—'],

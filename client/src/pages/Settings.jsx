@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Settings2, PlusCircle, Pencil, Trash2, Check, X,
-  Store, Phone, Mail, MapPin, Percent, DollarSign,
+  Store, Phone, Mail, MapPin, DollarSign,
   Save, RefreshCw,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -86,7 +86,7 @@ function StoreTab({ isAdmin }) {
   const [toast,    setToast]    = useState(null)   // { type, msg }
   const [info,     setInfo]     = useState({
     name: '', phone: '', email: '', address: '',
-    taxRate: '', currency: 'LAK', logoUrl: '',
+    currency: 'LAK', logoUrl: '',
   })
   const [posParams,      setPosParams]      = useState(
     Object.fromEntries(POS_TOGGLES.map(t => [t.key, false]))
@@ -109,7 +109,6 @@ function StoreTab({ isAdmin }) {
           phone:    data.phone     || '',
           email:    data.email     || '',
           address:  data.address   || '',
-          taxRate:  data.taxRate   != null ? String(data.taxRate) : '',
           currency: data.currency  || 'USD',
           logoUrl:  data.logoUrl   || '',
         })
@@ -144,7 +143,6 @@ function StoreTab({ isAdmin }) {
         phone:    info.phone    || undefined,
         email:    info.email    || undefined,
         address:  info.address  || undefined,
-        taxRate:  info.taxRate  ? parseFloat(info.taxRate) : undefined,
         currency: info.currency || undefined,
         logoUrl:  info.logoUrl  || undefined,
         settings: { ...existing, ...posParams, exchangeRates: rates },
@@ -243,24 +241,6 @@ function StoreTab({ isAdmin }) {
               rows={2}
               placeholder="123 Main Street, City, Country"
               className="w-full text-sm bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none disabled:opacity-60 disabled:cursor-not-allowed"
-            />
-          </div>
-
-          {/* Tax Rate */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-              <span className="flex items-center gap-1"><Percent size={11} /> Tax Rate (%)</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              value={info.taxRate}
-              onChange={e => setInfo(p => ({ ...p, taxRate: e.target.value }))}
-              disabled={!isAdmin}
-              placeholder="10"
-              className="w-full text-sm bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
             />
           </div>
 

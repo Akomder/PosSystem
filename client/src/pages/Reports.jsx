@@ -74,7 +74,6 @@ function getExportConfig(tab, data, t) {
         rows: [
           ['Total Orders',   data.totalOrders],
           ['Subtotal',       data.subtotal],
-          ['Tax',            data.tax],
           ['Discount',       data.discount],
           ['Total Sales',    data.total],
           ['Cash Income',    data.cashIncome],
@@ -445,7 +444,6 @@ function EODReport({ data, t }) {
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.eod.summary')}</p>
           {[
             { label: t('common.subtotal'),         value: data.subtotal,    positive: true },
-            { label: t('orders.tax'),              value: data.tax,         positive: true },
             { label: t('sell.discount'),           value: -data.discount,   positive: false },
             { label: t('reports.eod.salesTotal'),  value: data.total,       positive: true,  bold: true },
             { label: t('cashflow.income'),         value: data.cashIncome,  positive: true },
