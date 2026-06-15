@@ -2,7 +2,7 @@ const router  = require('express').Router()
 const { body } = require('express-validator')
 const {
   getAllTables, getTable, updateStatus, assignWaiter, updateTable,
-  createTable, deleteTable,
+  createTable, deleteTable, moveTable, mergeTables,
 } = require('../controllers/tablesController')
 const authenticate  = require('../middleware/auth')
 const requireRole   = require('../middleware/authorize')
@@ -31,6 +31,23 @@ router.patch(
   [body('status').isIn(['Available','Occupied','Reserved'])
     .withMessage('Invalid status')],
   updateStatus
+)
+
+router.patch(
+  '/:id/move',
+  requireRole('Admin','Waiter','Cashier'),
+  [body('targetTableId').notEmpty().withMessage('targetTableId required')],
+  moveTable
+)
+
+router.post(
+  '/merge',
+  requireRole('Admin','Waiter','Cashier'),
+  [
+    body('targetTableId').notEmpty(),
+    body('sourceTableIds').isArray({ min: 1 }),
+  ],
+  mergeTables
 )
 
 router.patch(

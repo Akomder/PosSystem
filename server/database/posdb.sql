@@ -712,3 +712,65 @@ EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_restaurant
   ON users (email, restaurant_id) NULLS NOT DISTINCT;
+
+-- ─── 9. Debt tracker ─────────────────────────────────────────────────────────
+-- Previously applied manually to production; defined here so a fresh deploy is
+-- complete. IF NOT EXISTS makes this a no-op on databases that already have them.
+CREATE TABLE IF NOT EXISTS debts (
+  id            SERIAL        PRIMARY KEY,
+  restaurant_id INTEGER       REFERENCES restaurants(id) ON DELETE CASCADE,
+  customer_id   INTEGER       REFERENCES customers(id) ON DELETE SET NULL,
+  debtor_name   VARCHAR(200),
+  debtor_phone  VARCHAR(50),
+  amount        NUMERIC(10,2) NOT NULL DEFAULT 0,
+  paid_amount   NUMERIC(10,2) NOT NULL DEFAULT 0,
+  description   TEXT,
+  status        VARCHAR(20)   NOT NULL DEFAULT 'unpaid'
+                  CHECK (status IN ('unpaid','partial','paid')),
+  due_date      DATE,
+  created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+ALTER TABLE debts ADD COLUMN IF NOT EXISTS order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS debt_payments (
+  id            SERIAL        PRIMARY KEY,
+  restaurant_id INTEGER       REFERENCES restaurants(id) ON DELETE CASCADE,
+  debt_id       INTEGER       REFERENCES debts(id) ON DELETE CASCADE,
+  amount        NUMERIC(10,2) NOT NULL DEFAULT 0,
+  note          TEXT,
+  created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_debts_rest    ON debts (restaurant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_debt_payments ON debt_payments (debt_id);
+
+-- ─── 10. Business day, employee consumption ──────────────────────────────────
+
+-- Tag each order to the business day = the open shift at order-creation time.
+-- Lets reports/EOD attribute post-midnight bills to the correct shift day.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_orders_shift ON orders (shift_id);
+
+-- Employee consumption (staff taking food/drinks): deducts inventory and is
+-- charged to the employee via a linked debt record.
+CREATE TABLE IF NOT EXISTS staff_consumptions (
+  id            SERIAL        PRIMARY KEY,
+  restaurant_id INTEGER       REFERENCES restaurants(id) ON DELETE CASCADE,
+  staff_id      INTEGER       REFERENCES staff(id) ON DELETE SET NULL,
+  shift_id      INTEGER       REFERENCES shifts(id) ON DELETE SET NULL,
+  debt_id       INTEGER       REFERENCES debts(id) ON DELETE SET NULL,
+  staff_name    VARCHAR(100)  NOT NULL DEFAULT '',
+  total         NUMERIC(10,2) NOT NULL DEFAULT 0,
+  note          TEXT          NOT NULL DEFAULT '',
+  created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_staff_consumptions_rest ON staff_consumptions (restaurant_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS staff_consumption_items (
+  id             SERIAL        PRIMARY KEY,
+  consumption_id INTEGER       NOT NULL REFERENCES staff_consumptions(id) ON DELETE CASCADE,
+  menu_item_id   INTEGER       REFERENCES menu_items(id) ON DELETE SET NULL,
+  name           VARCHAR(150)  NOT NULL,
+  quantity       NUMERIC(10,2) NOT NULL DEFAULT 1,
+  unit_cost      NUMERIC(10,2) NOT NULL DEFAULT 0
+);

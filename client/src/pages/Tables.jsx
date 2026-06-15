@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Users, ClipboardList, PlusCircle, Trash2, Layers, Pencil, LayoutGrid, Map, FolderDown } from 'lucide-react'
+import { X, Users, ClipboardList, PlusCircle, Trash2, Layers, Pencil, LayoutGrid, Map, FolderDown, ArrowRightLeft, Combine } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useSettings } from '../context/SettingsContext'
@@ -46,6 +46,13 @@ export default function Tables() {
   const [confirmClear, setConfirmClear] = useState(false)
   const [saving,       setSaving]       = useState(false)
   const [qrTable,      setQrTable]      = useState(null)
+
+  // Move / merge modals
+  const [moveOpen,   setMoveOpen]   = useState(false)
+  const [moveTarget, setMoveTarget] = useState('')
+  const [mergeOpen,  setMergeOpen]  = useState(false)
+  const [mergeIds,   setMergeIds]   = useState([])
+  const [tableActionSaving, setTableActionSaving] = useState(false)
 
   // Add table modal
   const [addTableOpen, setAddTableOpen] = useState(false)
@@ -142,6 +149,28 @@ export default function Tables() {
 
   function handleTableCreated(table) {
     if (typeof addTableToContext === 'function') addTableToContext(table)
+  }
+
+  const rawTableId = (id) => parseInt(String(id).replace('T-', ''))
+
+  async function handleMove() {
+    if (!moveTarget) return
+    setTableActionSaving(true)
+    try {
+      await tablesApi.move(rawTableId(selected.id), rawTableId(moveTarget))
+      setMoveOpen(false); setMoveTarget(''); closeDrawer()
+    } catch (e) { alert(e.message || 'Failed to move table') }
+    setTableActionSaving(false)
+  }
+
+  async function handleMerge() {
+    if (!mergeIds.length) return
+    setTableActionSaving(true)
+    try {
+      await tablesApi.merge(rawTableId(selected.id), mergeIds.map(rawTableId))
+      setMergeOpen(false); setMergeIds([]); closeDrawer()
+    } catch (e) { alert(e.message || 'Failed to merge tables') }
+    setTableActionSaving(false)
   }
 
   const occ = getOccupancyStats(tables)
@@ -482,6 +511,20 @@ export default function Tables() {
               </div>
             </div>
 
+            {/* Move / Merge actions — only for occupied tables with an order */}
+            {selected.status === 'Occupied' && selected.currentOrderId && (
+              <div className="px-6 pb-2 flex gap-2">
+                <Button variant="secondary" fullWidth icon={ArrowRightLeft}
+                  onClick={() => { setMoveTarget(''); setMoveOpen(true) }}>
+                  {t('tables.move')}
+                </Button>
+                <Button variant="secondary" fullWidth icon={Combine}
+                  onClick={() => { setMergeIds([]); setMergeOpen(true) }}>
+                  {t('tables.merge')}
+                </Button>
+              </div>
+            )}
+
             {/* Drawer Footer */}
             <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex gap-2">
               {selected.status !== 'Available' && (
@@ -629,6 +672,64 @@ export default function Tables() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* ── Move Table Modal ─────────────────────────────────── */}
+      <Modal
+        isOpen={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        title={`${t('tables.move')} — ${t('common.table')} ${selected?.tableNumber ?? ''}`}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setMoveOpen(false)}>{t('common.cancel')}</Button>
+            <Button loading={tableActionSaving} disabled={!moveTarget} onClick={handleMove}>{t('tables.move')}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{t('tables.moveHint')}</p>
+        <Select
+          label={t('tables.moveTo')}
+          value={moveTarget}
+          onChange={e => setMoveTarget(e.target.value)}
+          options={[
+            { value: '', label: '—' },
+            ...tables.filter(tb => tb.status === 'Available').map(tb => ({
+              value: tb.id, label: `${t('common.table')} ${tb.tableNumber}`,
+            })),
+          ]}
+        />
+      </Modal>
+
+      {/* ── Merge Tables Modal ───────────────────────────────── */}
+      <Modal
+        isOpen={mergeOpen}
+        onClose={() => setMergeOpen(false)}
+        title={`${t('tables.merge')} → ${t('common.table')} ${selected?.tableNumber ?? ''}`}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setMergeOpen(false)}>{t('common.cancel')}</Button>
+            <Button loading={tableActionSaving} disabled={!mergeIds.length} onClick={handleMerge}>{t('tables.merge')}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{t('tables.mergeHint')}</p>
+        <div className="space-y-2">
+          {tables.filter(tb => tb.id !== selected?.id && tb.status === 'Occupied' && tb.currentOrderId).map(tb => (
+            <label key={tb.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+              <input
+                type="checkbox"
+                checked={mergeIds.includes(tb.id)}
+                onChange={e => setMergeIds(ids => e.target.checked ? [...ids, tb.id] : ids.filter(x => x !== tb.id))}
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">{t('common.table')} {tb.tableNumber}</span>
+            </label>
+          ))}
+          {tables.filter(tb => tb.id !== selected?.id && tb.status === 'Occupied' && tb.currentOrderId).length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-3">{t('tables.noMergeTargets')}</p>
           )}
         </div>
       </Modal>

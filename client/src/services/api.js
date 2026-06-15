@@ -73,6 +73,8 @@ export const tablesApi = {
   assignWaiter: (id, staffId) => patch(`/tables/${id}/assign`, { staffId }),
   update:       (id, body)    => put(`/tables/${id}`, body),
   delete:       (id)          => del(`/tables/${id}`),
+  move:         (id, targetTableId)            => patch(`/tables/${id}/move`, { targetTableId }),
+  merge:        (targetTableId, sourceTableIds) => post('/tables/merge', { targetTableId, sourceTableIds }),
 }
 
 // ─── Menu ─────────────────────────────────────────────────────────────────────
@@ -161,6 +163,8 @@ export const reportsApi = {
   finance:  (params = {}) => get('/stats/reports/finance?'  + new URLSearchParams(params)),
   eod:      (params = {}) => get('/stats/reports/eod?'      + new URLSearchParams(params)),
   channel:  (params = {}) => get('/stats/reports/channel?'  + new URLSearchParams(params)),
+  stockDaily:  (params = {}) => get('/stats/reports/stock-daily?'  + new URLSearchParams(params)),
+  salesDetail: (params = {}) => get('/stats/reports/sales-detail?' + new URLSearchParams(params)),
 }
 
 // ─── Zones ────────────────────────────────────────────────────────────────────
@@ -183,8 +187,15 @@ export const salesChannelsApi = {
 export const shiftsApi = {
   getAll:   (params={}) => get('/shifts?' + new URLSearchParams(params)),
   getCurrent: ()        => get('/shifts/current'),
+  summary:  (id)        => get(`/shifts/${id}/summary`),
   open:     (body)      => post('/shifts/open', body),
   close:    (id, body)  => patch(`/shifts/${id}/close`, body),
+}
+
+// ─── Staff Consumption ──────────────────────────────────────────────────────
+export const consumptionsApi = {
+  getAll: (params = {}) => get('/consumptions?' + new URLSearchParams(params)),
+  create: (body)        => post('/consumptions', body),
 }
 
 // ─── Stock Takes ──────────────────────────────────────────────────────────────

@@ -103,6 +103,7 @@ app.use('/api/modifiers',        ...scoped, require('./routes/modifiers'))
 app.use('/api/print',            ...scoped, require('./routes/print'))
 app.use('/api/notifications',    ...scoped, require('./routes/notifications'))
 app.use('/api/debts',            ...scoped, require('./routes/debts'))
+app.use('/api/consumptions',     ...scoped, require('./routes/consumptions'))
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date() }))

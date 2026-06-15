@@ -155,6 +155,18 @@ function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
         cashTendered:   parseFloat(rows[0]?.tendered) || parseFloat(rows[0]?.amount) || 0,
         changeAmount:   Math.max(0, (parseFloat(rows[0]?.tendered) || 0) - (parseFloat(rows[0]?.amount) || 0)),
       })
+    } else if (method === 'credit') {
+      // Credit: record the sale unpaid; backend creates the linked debt record.
+      onConfirm({
+        payments:      [],
+        paymentMethod: 'credit',
+        currency,
+        discount:      discountAmt,
+        voucherCode:   voucher,
+        cashTendered:  0,
+        changeAmount:  0,
+        pointsUsed:    pointsDisc,
+      })
     } else {
       if (isCash && tenderedNum < total) return
       onConfirm({
@@ -177,6 +189,7 @@ function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
   }
 
   const singleReady = splitMode ? splitValid
+    : method === 'credit' ? !!customer
     : (!isCash || tenderedNum >= total)
 
   return (
@@ -255,7 +268,20 @@ function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
                     {m.label}
                   </button>
                 ))}
+                {/* Credit — records the sale now, transfers the bill to the customer's debt account */}
+                <button onClick={() => setMethod('credit')} disabled={!customer}
+                  title={!customer ? t('sell.creditNeedsCustomer') : undefined}
+                  className={clsx('flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-w-[70px] disabled:opacity-40 disabled:cursor-not-allowed',
+                    method === 'credit' ? 'bg-purple-600 text-white shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600')}>
+                  📝 {t('sell.credit')}
+                </button>
               </div>
+              {method === 'credit' && (
+                <div className="px-4 py-2.5 rounded-xl text-sm bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300">
+                  {t('sell.creditHint')}
+                </div>
+              )}
               {isCash && (
                 <>
                   <div>

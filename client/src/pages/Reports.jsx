@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BarChart2, TrendingUp, ShoppingBag, Users, UserCheck, DollarSign, Calendar, CreditCard, Download, Printer } from 'lucide-react'
+import { BarChart2, TrendingUp, ShoppingBag, Users, UserCheck, DollarSign, Calendar, CreditCard, Download, Printer, Package, FileText } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
 import { reportsApi } from '../services/api'
@@ -92,6 +92,20 @@ function getExportConfig(tab, data, t) {
           return data.map(r => [r.channel, r.orders, r.revenue, ((r.revenue / total) * 100).toFixed(1)])
         })(),
       }
+    case 'stockDaily':
+      if (!Array.isArray(data)) return null
+      return {
+        filename: 'daily-stock-report.csv',
+        headers:  ['Item', 'Category', 'Opening', 'Sold', 'Remaining'],
+        rows:     data.map(r => [r.name, r.category, r.openingQty, r.soldQty, r.currentQty]),
+      }
+    case 'salesDetail':
+      if (!Array.isArray(data)) return null
+      return {
+        filename: 'sales-detail-report.csv',
+        headers:  ['Order', 'Date', 'Table', 'Waiter', 'Item', 'Modifiers', 'Qty', 'Unit Price', 'Line Total', 'Payment', 'Status'],
+        rows:     data.map(r => [r.orderId, formatDate(r.createdAt), r.tableNumber ?? '', r.waiter ?? '', r.name, r.modifiers, r.quantity, r.unitPrice, r.lineTotal, r.paymentMethod, r.paymentStatus]),
+      }
     default:
       return null
   }
@@ -105,6 +119,8 @@ const TABS = [
   { key: 'finance',   labelKey: 'reports.finance',   icon: DollarSign   },
   { key: 'eod',       labelKey: 'reports.eod',       icon: Calendar     },
   { key: 'channel',   labelKey: 'reports.channel',   icon: CreditCard   },
+  { key: 'stockDaily', labelKey: 'reports.stockDaily',  icon: Package  },
+  { key: 'salesDetail', labelKey: 'reports.salesDetail', icon: FileText },
 ]
 
 const PERIODS = [
@@ -144,6 +160,8 @@ export default function Reports() {
       finance:   () => reportsApi.finance(params),
       eod:       () => reportsApi.eod(dateRange ? params : {}),
       channel:   () => reportsApi.channel(params),
+      stockDaily:  () => reportsApi.stockDaily({}),
+      salesDetail: () => reportsApi.salesDetail(params),
     }
     fetchers[tab]().then(d => {
       if (!cancelled) setData(d)
@@ -257,7 +275,52 @@ export default function Reports() {
       {!loading && data && tab === 'finance'   && <FinanceReport   data={data} t={t} />}
       {!loading && data && tab === 'eod'       && <EODReport       data={data} t={t} />}
       {!loading && data && tab === 'channel'   && <ChannelReport   data={data} t={t} />}
+      {!loading && data && tab === 'stockDaily'  && <StockDailyReport  data={data} t={t} />}
+      {!loading && data && tab === 'salesDetail' && <SalesDetailReport data={data} t={t} />}
     </div>
+  )
+}
+
+function StockDailyReport({ data, t }) {
+  if (!Array.isArray(data)) return null
+  return (
+    <SimpleTable
+      headers={[t('reports.col.item'), t('reports.col.category'), t('reports.stock.opening'), t('reports.stock.sold'), t('reports.stock.remaining')]}
+      rows={data.map(r => [
+        r.name,
+        r.category,
+        r.openingQty,
+        r.soldQty,
+        <span className={r.currentQty <= 0 ? 'text-red-500 font-semibold' : ''}>{r.currentQty}</span>,
+      ])}
+    />
+  )
+}
+
+function SalesDetailReport({ data, t }) {
+  if (!Array.isArray(data)) return null
+  return (
+    <SimpleTable
+      headers={[
+        t('reports.col.order'), t('reports.col.date'), t('reports.col.table'),
+        t('reports.col.item'), t('reports.col.qty'), t('common.price'),
+        t('reports.col.revenue'), t('reports.channel.method'), t('reports.col.status'),
+      ]}
+      rows={data.map(r => [
+        r.orderId,
+        formatDate(r.createdAt),
+        r.tableNumber ?? '—',
+        <div>
+          <div className="font-medium text-gray-900 dark:text-gray-100">{r.name}</div>
+          {r.modifiers && <div className="text-xs text-gray-400">{r.modifiers}</div>}
+        </div>,
+        r.quantity,
+        formatCurrency(r.unitPrice),
+        formatCurrency(r.lineTotal),
+        r.paymentMethod,
+        r.paymentStatus,
+      ])}
+    />
   )
 }
 

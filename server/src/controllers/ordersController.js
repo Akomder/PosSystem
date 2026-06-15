@@ -1,6 +1,7 @@
 const { query, pool }     = require('../config/db')
 const { checkValidation } = require('../middleware/errorHandler')
 const { emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow } = require('../config/socket')
+const { deductStock }     = require('../services/stock')
 
 // ─── Schema status values ─────────────────────────────────────────────────────
 // orders.status CHECK: 'Pending' | 'In Progress' | 'Served' | 'Closed' | 'Cancelled'
@@ -165,7 +166,14 @@ async function createOrder(req, res, next) {
     tableId, waiter, notes, items, orderType = 'Dine In',
     customerId, paymentMethod, currency, discount, voucherCode, cashTendered, changeAmount,
     payments,   // optional array: [{ method, amount, currency, cashTendered, changeGiven }]
+    debtorName, debtorPhone,  // for credit sales without a saved customer
   } = req.body
+
+  // Credit sale: the sale is recorded now, then transferred to a debt account.
+  const isCredit = paymentMethod === 'credit'
+  if (isCredit && !customerId && !debtorName) {
+    return res.status(400).json({ error: 'Credit sales require a customer or debtor name' })
+  }
 
   const isDineIn = orderType === 'Dine In'
 
@@ -219,23 +227,36 @@ async function createOrder(req, res, next) {
     const discountAmt = parseFloat(discount) || 0
     const finalTotal  = Math.max(0, Math.round((subtotal - discountAmt) * 100) / 100)
 
-    // 4. Determine payment status from payments array or legacy fields
-    const paymentsList = Array.isArray(payments) && payments.length ? payments : null
-    const paidTotal = paymentsList
+    // 4. Determine payment status from payments array or legacy fields.
+    //    Credit sales are recorded as unpaid (settled later via the debt account).
+    const paymentsList = isCredit ? null : (Array.isArray(payments) && payments.length ? payments : null)
+    const paidTotal = isCredit ? 0 : (paymentsList
       ? paymentsList.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
-      : (parseFloat(cashTendered) || finalTotal)  // legacy: assume full payment
-    const paymentStatus = paidTotal <= 0 ? 'unpaid'
+      : (parseFloat(cashTendered) || finalTotal))  // legacy: assume full payment
+    const paymentStatus = isCredit ? 'unpaid'
+      : paidTotal <= 0 ? 'unpaid'
       : Math.round(paidTotal * 100) >= Math.round(finalTotal * 100) ? 'paid'
       : 'partial'
-    const firstMethod = paymentsList ? paymentsList[0]?.method : (paymentMethod || 'cash')
+    const firstMethod = isCredit ? 'credit' : (paymentsList ? paymentsList[0]?.method : (paymentMethod || 'cash'))
+
+    // 4b. Resolve the business day = the currently open shift (if any).
+    // Orders created after midnight stay on the shift's day until it is closed.
+    let shiftId = null
+    if (rid) {
+      const sRes = await client.query(
+        `SELECT id FROM shifts WHERE restaurant_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1`,
+        [rid]
+      )
+      shiftId = sRes.rows[0]?.id || null
+    }
 
     // 5. Insert order
     const oRes = await client.query(
       `INSERT INTO orders
          (order_type, table_id, table_number, waiter, notes, subtotal, total,
           customer_id, payment_method, currency, discount, voucher_code,
-          cash_tendered, change_amount, payment_status, restaurant_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+          cash_tendered, change_amount, payment_status, restaurant_id, shift_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
       [
         orderType,
         resolvedTableId, resolvedTableNum,
@@ -246,7 +267,7 @@ async function createOrder(req, res, next) {
         discountAmt, voucherCode || '',
         parseFloat(cashTendered) || 0, parseFloat(changeAmount) || 0,
         paymentStatus,
-        rid,
+        rid, shiftId,
       ]
     )
     const order = oRes.rows[0]
@@ -288,6 +309,16 @@ async function createOrder(req, res, next) {
       )
     }
 
+    // 6b. Credit sale → record the bill against a debt account (sale stays recorded).
+    if (isCredit) {
+      await client.query(
+        `INSERT INTO debts (restaurant_id, customer_id, debtor_name, debtor_phone, amount, description, order_id, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'unpaid')`,
+        [rid, customerId || null, debtorName || null, debtorPhone || null,
+         finalTotal, `Credit sale — order ${fmtOrderId(order.id)}`, order.id]
+      )
+    }
+
     // 7. Mark table Occupied (Dine In only)
     if (isDineIn) {
       await client.query(
@@ -298,37 +329,9 @@ async function createOrder(req, res, next) {
       )
     }
 
-    // 8. Deduct tracked stock quantities; collect low-stock items to alert
-    const lowStockItems = []
-    for (const item of enriched) {
-      const deductRes = await client.query(
-        `UPDATE menu_items
-           SET stock_quantity = stock_quantity - $1
-         WHERE id = $2 AND restaurant_id = $3
-           AND stock_quantity IS NOT NULL
-         RETURNING id, name, stock_quantity, low_stock_threshold`,
-        [item.quantity, item.menuItemId, rid]
-      )
-      if (deductRes.rows.length) {
-        const m = deductRes.rows[0]
-        // Auto-mark unavailable when stock hits zero or below
-        if (parseFloat(m.stock_quantity) <= 0) {
-          await client.query(
-            `UPDATE menu_items SET available = FALSE, stock_quantity = 0 WHERE id = $1`,
-            [m.id]
-          )
-        }
-        // Collect for low-stock alert (below threshold but still positive)
-        if (parseFloat(m.stock_quantity) <= parseFloat(m.low_stock_threshold)) {
-          lowStockItems.push({
-            id:                m.id,
-            name:              m.name,
-            stockQuantity:     parseFloat(m.stock_quantity),
-            lowStockThreshold: parseFloat(m.low_stock_threshold),
-          })
-        }
-      }
-    }
+    // 8. Deduct tracked stock quantities (keeps stock + stock_quantity in sync);
+    //    collect low-stock items to alert after commit.
+    const lowStockItems = await deductStock(client, rid, enriched)
 
     await client.query('COMMIT')
 

@@ -11,6 +11,7 @@ import { useSettings }      from '../../context/SettingsContext'
 import { useNotifications } from '../../context/NotificationsContext'
 import { getInitials }      from '../../utils/formatters'
 import Badge                from '../ui/Badge'
+import StoreToggle          from './StoreToggle'
 
 // ─── Page title map ───────────────────────────────────────────────────────────
 const PAGE_TITLE_KEYS = {
@@ -158,6 +159,9 @@ export default function Navbar() {
 
       {/* ── Right ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1">
+
+        {/* Open/Close Store (business day) */}
+        <StoreToggle />
 
         {/* Language toggle */}
         <button

@@ -46,7 +46,7 @@ async function getCurrent(req, res, next) {
 
     const shift = rows[0]
 
-    // Compute cash sales since this shift opened (for reconciliation preview)
+    // Compute cash sales for this business day (for reconciliation preview)
     const cashRes = await query(
       `SELECT COALESCE(SUM(op.amount),0) AS cash_total
        FROM order_payments op
@@ -54,8 +54,8 @@ async function getCurrent(req, res, next) {
        WHERE op.payment_method = 'cash'
          AND o.restaurant_id = $1
          AND o.status = 'Closed'
-         AND o.created_at >= $2`,
-      [req.restaurantId, shift.opened_at]
+         AND (o.shift_id = $2 OR (o.shift_id IS NULL AND o.created_at >= $3))`,
+      [req.restaurantId, shift.id, shift.opened_at]
     )
     const cashSalesTotal = parseFloat(cashRes.rows[0].cash_total)
     const expectedCash   = parseFloat(shift.opening_cash) + cashSalesTotal
@@ -98,11 +98,15 @@ async function closeShift(req, res, next) {
     )
     if (!rows.length) return res.status(404).json({ error: 'Open shift not found' })
 
-    // Compute totals since shift opened
+    // Compute totals for this business day. Prefer shift_id (correct across
+    // midnight); fall back to opened_at for orders created before tagging existed.
+    const shiftId = rows[0].id
     const statsRes = await client.query(
       `SELECT COALESCE(SUM(total),0) AS total_sales, COUNT(*) AS total_orders
-       FROM orders WHERE status = 'Closed' AND restaurant_id = $1 AND created_at >= $2`,
-      [req.restaurantId, rows[0].opened_at]
+       FROM orders
+       WHERE status = 'Closed' AND restaurant_id = $1
+         AND (shift_id = $2 OR (shift_id IS NULL AND created_at >= $3))`,
+      [req.restaurantId, shiftId, rows[0].opened_at]
     )
 
     // Compute cash sales to derive expected closing balance
@@ -113,8 +117,8 @@ async function closeShift(req, res, next) {
        WHERE op.payment_method = 'cash'
          AND o.restaurant_id = $1
          AND o.status = 'Closed'
-         AND o.created_at >= $2`,
-      [req.restaurantId, rows[0].opened_at]
+         AND (o.shift_id = $2 OR (o.shift_id IS NULL AND o.created_at >= $3))`,
+      [req.restaurantId, shiftId, rows[0].opened_at]
     )
     const closingCashNum = parseFloat(closingCash) || 0
     const expectedCash   = parseFloat(rows[0].opening_cash) + parseFloat(cashRes.rows[0].cash_total)
@@ -162,4 +166,58 @@ async function closeShift(req, res, next) {
   } finally { client.release() }
 }
 
-module.exports = { getAll, getCurrent, openShift, closeShift }
+// ─── GET /api/shifts/:id/summary ──────────────────────────────────────────────
+// Sales + per-item breakdown for one business day (shift). Used by EOD/reports.
+async function getSummary(req, res, next) {
+  try {
+    const { rows } = await query(
+      `SELECT * FROM shifts WHERE id = $1 AND restaurant_id = $2`,
+      [req.params.id, req.restaurantId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Shift not found' })
+    const shift = rows[0]
+
+    // Orders belong to the shift if tagged, or (legacy) by time window.
+    const dayFilter = `(o.shift_id = $2 OR (o.shift_id IS NULL AND o.created_at >= $3
+       AND ($4::timestamptz IS NULL OR o.created_at <= $4)))`
+    const params = [req.restaurantId, shift.id, shift.opened_at, shift.closed_at]
+
+    const [totalsRes, itemsRes] = await Promise.all([
+      query(
+        `SELECT COUNT(*) AS total_orders,
+                COALESCE(SUM(o.subtotal),0) AS subtotal,
+                COALESCE(SUM(o.discount),0) AS discount,
+                COALESCE(SUM(o.total),0)    AS total
+         FROM orders o
+         WHERE o.status = 'Closed' AND o.restaurant_id = $1 AND ${dayFilter}`,
+        params
+      ),
+      query(
+        `SELECT oi.name,
+                SUM(oi.quantity)                 AS qty,
+                SUM(oi.quantity * oi.unit_price) AS revenue
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         WHERE o.status = 'Closed' AND o.restaurant_id = $1 AND ${dayFilter}
+         GROUP BY oi.name ORDER BY qty DESC`,
+        params
+      ),
+    ])
+
+    const t = totalsRes.rows[0]
+    res.json({
+      shift:       fmt(shift),
+      totalOrders: parseInt(t.total_orders),
+      subtotal:    parseFloat(t.subtotal),
+      discount:    parseFloat(t.discount),
+      total:       parseFloat(t.total),
+      items: itemsRes.rows.map(r => ({
+        name:    r.name,
+        qty:     parseInt(r.qty),
+        revenue: parseFloat(r.revenue),
+      })),
+    })
+  } catch (err) { next(err) }
+}
+
+module.exports = { getAll, getCurrent, openShift, closeShift, getSummary }

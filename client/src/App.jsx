@@ -32,6 +32,7 @@ import Settings from './pages/Settings'
 import AuditLog from './pages/AuditLog'
 import Kitchen from './pages/Kitchen'
 import Debt from './pages/Debt'
+import StaffConsumption from './pages/StaffConsumption'
 import OfflineBanner from './components/OfflineBanner'
 import StockLowToast from './components/StockLowToast'
 
@@ -141,6 +142,9 @@ function AppRoutes() {
       </Route>
       <Route path="/debt" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Debt />} />
+      </Route>
+      <Route path="/staff-consumption" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<StaffConsumption />} />
       </Route>
       <Route path="/reports"   element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Reports />} />

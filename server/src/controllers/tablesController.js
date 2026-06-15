@@ -1,6 +1,6 @@
 const { query, pool }     = require('../config/db')
 const { checkValidation } = require('../middleware/errorHandler')
-const { emitTableUpdated } = require('../config/socket')
+const { emitTableUpdated, emitOrderUpdated } = require('../config/socket')
 const PLAN_LIMITS          = require('../config/planLimits')
 
 // ─── format helpers ───────────────────────────────────────────────────────────
@@ -166,4 +166,147 @@ async function deleteTable(req, res, next) {
   } catch (err) { next(err) }
 }
 
-module.exports = { getAllTables, getTable, updateStatus, assignWaiter, updateTable, createTable, deleteTable }
+// ─── PATCH /api/tables/:id/move ───────────────────────────────────────────────
+// Move an occupied table's active order to an Available target table.
+async function moveTable(req, res, next) {
+  const { targetTableId } = req.body
+  const rid = req.restaurantId
+  if (!targetTableId) return res.status(400).json({ error: 'targetTableId is required' })
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const srcRes = await client.query(
+      `SELECT * FROM restaurant_tables WHERE id=$1 AND restaurant_id=$2 FOR UPDATE`,
+      [req.params.id, rid]
+    )
+    const tgtRes = await client.query(
+      `SELECT * FROM restaurant_tables WHERE id=$1 AND restaurant_id=$2 FOR UPDATE`,
+      [targetTableId, rid]
+    )
+    if (!srcRes.rows.length || !tgtRes.rows.length) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ error: 'Table not found' })
+    }
+    const src = srcRes.rows[0], tgt = tgtRes.rows[0]
+    if (!src.current_order_id) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Source table has no active order' })
+    }
+    if (tgt.status !== 'Available') {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Target table is not available' })
+    }
+
+    // Re-point the order to the target table
+    await client.query(
+      `UPDATE orders SET table_id=$1, table_number=$2, updated_at=NOW() WHERE id=$3`,
+      [tgt.id, tgt.number, src.current_order_id]
+    )
+    // Occupy target, free source
+    await client.query(
+      `UPDATE restaurant_tables SET status='Occupied', current_order_id=$1, waiter=$2 WHERE id=$3`,
+      [src.current_order_id, src.waiter, tgt.id]
+    )
+    await client.query(
+      `UPDATE restaurant_tables SET status='Available', current_order_id=NULL, waiter=NULL WHERE id=$1`,
+      [src.id]
+    )
+
+    await client.query('COMMIT')
+
+    const updated = await query(
+      `SELECT * FROM restaurant_tables WHERE id = ANY($1)`, [[src.id, tgt.id]]
+    )
+    updated.rows.forEach(r => { const ft = fmt(r); emitTableUpdated(ft.id, ft.status, ft) })
+    emitOrderUpdated(fmtOrderId(src.current_order_id), 'moved')
+    res.json(updated.rows.map(fmt))
+  } catch (err) {
+    await client.query('ROLLBACK')
+    next(err)
+  } finally { client.release() }
+}
+
+// ─── POST /api/tables/merge ───────────────────────────────────────────────────
+// Merge several tables' open orders into the target table's order (one bill).
+async function mergeTables(req, res, next) {
+  const { targetTableId, sourceTableIds } = req.body
+  const rid = req.restaurantId
+  if (!targetTableId || !Array.isArray(sourceTableIds) || !sourceTableIds.length) {
+    return res.status(400).json({ error: 'targetTableId and sourceTableIds[] are required' })
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const allIds = [targetTableId, ...sourceTableIds]
+    const tRes = await client.query(
+      `SELECT * FROM restaurant_tables WHERE id = ANY($1) AND restaurant_id=$2 FOR UPDATE`,
+      [allIds, rid]
+    )
+    const byId = {}
+    tRes.rows.forEach(r => { byId[r.id] = r })
+    const target = byId[targetTableId]
+    if (!target || !target.current_order_id) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Target table must have an active order' })
+    }
+    const targetOrderId = target.current_order_id
+
+    for (const sid of sourceTableIds) {
+      const src = byId[sid]
+      if (!src || !src.current_order_id) continue
+      const srcOrderId = src.current_order_id
+
+      // Guard: refuse merging paid/closed orders
+      const oRes = await client.query(
+        `SELECT status, payment_status FROM orders WHERE id=$1`, [srcOrderId]
+      )
+      const o = oRes.rows[0]
+      if (!o || o.status === 'Closed' || o.status === 'Cancelled' || o.payment_status !== 'unpaid') {
+        await client.query('ROLLBACK')
+        return res.status(400).json({ error: `Table cannot be merged — its order is paid or closed` })
+      }
+
+      // Move all line items (and their modifiers via order_item_id) to target order
+      await client.query(
+        `UPDATE order_items SET order_id=$1 WHERE order_id=$2`, [targetOrderId, srcOrderId]
+      )
+      // Cancel the now-empty source order and free its table
+      await client.query(
+        `UPDATE orders SET status='Cancelled', cancel_reason='Merged into order', updated_at=NOW() WHERE id=$1`,
+        [srcOrderId]
+      )
+      await client.query(
+        `UPDATE restaurant_tables SET status='Available', current_order_id=NULL, waiter=NULL WHERE id=$1`,
+        [sid]
+      )
+    }
+
+    // Recompute target totals from its (now combined) items
+    await client.query(
+      `UPDATE orders o SET
+         subtotal = COALESCE((SELECT SUM(quantity*unit_price) FROM order_items WHERE order_id=o.id), 0),
+         total    = GREATEST(0, COALESCE((SELECT SUM(quantity*unit_price) FROM order_items WHERE order_id=o.id), 0) - o.discount),
+         updated_at = NOW()
+       WHERE o.id=$1`,
+      [targetOrderId]
+    )
+
+    await client.query('COMMIT')
+
+    const updated = await query(
+      `SELECT * FROM restaurant_tables WHERE id = ANY($1)`, [allIds]
+    )
+    updated.rows.forEach(r => { const ft = fmt(r); emitTableUpdated(ft.id, ft.status, ft) })
+    emitOrderUpdated(fmtOrderId(targetOrderId), 'merged')
+    res.json(updated.rows.map(fmt))
+  } catch (err) {
+    await client.query('ROLLBACK')
+    next(err)
+  } finally { client.release() }
+}
+
+module.exports = { getAllTables, getTable, updateStatus, assignWaiter, updateTable, createTable, deleteTable, moveTable, mergeTables }

@@ -263,16 +263,20 @@ async function createItem(req, res, next) {
       }
     }
 
+    // Keep the two stock fields in sync: if only one is supplied, mirror it to the other.
+    const stockQtyVal = stockQuantity != null ? stockQuantity : (stock != null ? stock : null)
+    const stockVal    = stock != null ? stock : (stockQuantity != null ? Math.round(stockQuantity) : 0)
+
     const ins = await query(
       `INSERT INTO menu_items
          (restaurant_id, name, category, price, description, tags, stock,
           product_code, cost_price, product_group, department, min_stock, max_stock, station,
           stock_quantity, low_stock_threshold, image_url)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
-      [req.restaurantId, name, category, price, description || '', tags || [], stock ?? 0,
+      [req.restaurantId, name, category, price, description || '', tags || [], stockVal,
        productCode || null, costPrice ?? 0, productGroup || '', department || '',
        minStock ?? 0, maxStock ?? 9999, station || 'Kitchen',
-       stockQuantity != null ? stockQuantity : null, lowStockThreshold ?? 10,
+       stockQtyVal, lowStockThreshold ?? 10,
        imageUrl || '']
     )
     const { rows } = await query(`${MENU_SELECT} WHERE mi.id = $1`, [ins.rows[0].id])
@@ -293,11 +297,19 @@ async function updateItem(req, res, next) {
     station: 'station',
     stockQuantity: 'stock_quantity', lowStockThreshold: 'low_stock_threshold',
   }
+  // Mirror stock fields: editing one keeps the other in sync.
+  const body = { ...req.body }
+  if (body.stockQuantity !== undefined && body.stock === undefined && body.stockQuantity != null) {
+    body.stock = Math.round(body.stockQuantity)
+  } else if (body.stock !== undefined && body.stockQuantity === undefined) {
+    body.stockQuantity = body.stock
+  }
+
   const sets = [], params = []
 
   for (const [bodyKey, col] of Object.entries(bodyMap)) {
-    if (req.body[bodyKey] !== undefined) {
-      params.push(req.body[bodyKey])
+    if (body[bodyKey] !== undefined) {
+      params.push(body[bodyKey])
       sets.push(`${col} = $${params.length}`)
     }
   }

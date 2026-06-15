@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Users, UserCheck, Truck,
   BookOpen, BarChart2, ShoppingCart, FileText, RotateCcw,
   PackageSearch, BookMarked, AlertTriangle, ShoppingBag,
-  PackageX, Clock, Tag, Settings2, Shield, ChevronUp, ChefHat, Landmark,
+  PackageX, Clock, Tag, Settings2, Shield, ChevronUp, ChefHat, Landmark, Coffee,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '../../context/AuthContext'
@@ -60,6 +60,7 @@ export default function Sidebar() {
       label: t('nav.section.inventory'),
       items: [
         { to: '/stock-takes',    icon: PackageSearch, label: t('nav.stockTakes'),    roles: ['Admin'] },
+        { to: '/staff-consumption', icon: Coffee,     label: t('nav.staffConsumption'), roles: ['Admin','Cashier'] },
         { to: '/price-books',    icon: BookMarked,    label: t('nav.priceBooks'),    roles: ['Admin'] },
         { to: '/damage-records', icon: AlertTriangle, label: t('nav.damageRecords'), roles: ['Admin'] },
       ],

@@ -479,8 +479,109 @@ async function getReportChannel(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// ─── GET /api/stats/reports/stock-daily?shiftId=|date= ───────────────────────
+// Per-item opening / sold / remaining for one business day (e.g. counting beer).
+async function getReportStockDaily(req, res, next) {
+  try {
+    const rid = req.restaurantId
+    const params = []
+    const rf = rid ? (params.push(rid), `AND mi.restaurant_id = $${params.length}`) : ''
+
+    // Day filter for sales: prefer shiftId, else a date (default today).
+    let soldFilter
+    if (req.query.shiftId) {
+      params.push(parseInt(req.query.shiftId) || 0)
+      soldFilter = `o.shift_id = $${params.length}`
+    } else {
+      const dateStr = (req.query.date || '').replace(/[^0-9-]/g, '')
+      if (dateStr) { params.push(dateStr); soldFilter = `o.created_at::date = $${params.length}::date` }
+      else         { soldFilter = `o.created_at::date = CURRENT_DATE` }
+    }
+    const rfJoin = rid ? `AND o.restaurant_id = $1` : ''
+
+    const { rows } = await query(
+      `SELECT mi.id, mi.name, mi.category,
+              mi.stock_quantity AS current_qty,
+              COALESCE((
+                SELECT SUM(oi.quantity)
+                FROM order_items oi
+                JOIN orders o ON o.id = oi.order_id
+                WHERE oi.menu_item_id = mi.id
+                  AND o.status = 'Closed' AND ${soldFilter} ${rfJoin}
+              ), 0) AS sold_qty
+       FROM menu_items mi
+       WHERE mi.stock_quantity IS NOT NULL ${rf}
+       ORDER BY mi.category, mi.name`,
+      params
+    )
+
+    res.json(rows.map(r => {
+      const current = parseFloat(r.current_qty) || 0
+      const sold    = parseFloat(r.sold_qty) || 0
+      return {
+        id:         r.id,
+        name:       r.name,
+        category:   r.category,
+        openingQty: current + sold,
+        soldQty:    sold,
+        currentQty: current,
+      }
+    }))
+  } catch (err) { next(err) }
+}
+
+// ─── GET /api/stats/reports/sales-detail?period=|shiftId= ────────────────────
+// One row per sold line item with complete detail.
+async function getReportSalesDetail(req, res, next) {
+  try {
+    const rid = req.restaurantId
+    const params = []
+    const rf = rid ? (params.push(rid), `AND o.restaurant_id = $${params.length}`) : ''
+
+    let dayFilter
+    if (req.query.shiftId) {
+      params.push(parseInt(req.query.shiftId) || 0)
+      dayFilter = `o.shift_id = $${params.length}`
+    } else {
+      dayFilter = `o.created_at >= ${periodInterval(req.query.period || 'week')}`
+    }
+
+    const { rows } = await query(
+      `SELECT o.id AS order_id, o.created_at, o.table_number, o.waiter,
+              o.payment_method, o.payment_status, o.discount AS order_discount,
+              oi.name, oi.quantity, oi.unit_price,
+              (oi.quantity * oi.unit_price) AS line_total,
+              COALESCE((
+                SELECT string_agg(oim.name, ', ')
+                FROM order_item_modifiers oim WHERE oim.order_item_id = oi.id
+              ), '') AS modifiers
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id
+       WHERE o.status = 'Closed' AND ${dayFilter} ${rf}
+       ORDER BY o.created_at DESC, oi.id`,
+      params
+    )
+
+    res.json(rows.map(r => ({
+      orderId:       `ORD-${String(r.order_id).padStart(3, '0')}`,
+      createdAt:     r.created_at,
+      tableNumber:   r.table_number,
+      waiter:        r.waiter,
+      name:          r.name,
+      modifiers:     r.modifiers,
+      quantity:      parseFloat(r.quantity),
+      unitPrice:     parseFloat(r.unit_price),
+      lineTotal:     parseFloat(r.line_total),
+      orderDiscount: parseFloat(r.order_discount || 0),
+      paymentMethod: r.payment_method,
+      paymentStatus: r.payment_status,
+    })))
+  } catch (err) { next(err) }
+}
+
 module.exports = {
   getDashboard, getRevenue,
   getReportSales, getReportProducts, getReportCustomers,
   getReportStaff, getReportFinance, getReportEOD, getReportChannel,
+  getReportStockDaily, getReportSalesDetail,
 }
