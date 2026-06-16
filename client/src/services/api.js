@@ -75,6 +75,7 @@ export const tablesApi = {
   delete:       (id)          => del(`/tables/${id}`),
   move:         (id, targetTableId)            => patch(`/tables/${id}/move`, { targetTableId }),
   merge:        (targetTableId, sourceTableIds) => post('/tables/merge', { targetTableId, sourceTableIds }),
+  split:        (id, itemIds)                  => post(`/tables/${id}/split`, { itemIds }),
 }
 
 // ─── Menu ─────────────────────────────────────────────────────────────────────
@@ -196,6 +197,16 @@ export const shiftsApi = {
 export const consumptionsApi = {
   getAll: (params = {}) => get('/consumptions?' + new URLSearchParams(params)),
   create: (body)        => post('/consumptions', body),
+}
+
+// ─── Reservations ─────────────────────────────────────────────────────────────
+export const reservationsApi = {
+  getAll:    (date)  => get(`/reservations?date=${date || ''}`),
+  getUpcoming: ()    => get('/reservations/upcoming'),
+  create:    (body)  => post('/reservations', body),
+  update:    (id, body) => patch(`/reservations/${id}`, body),
+  seat:      (id, tableId) => patch(`/reservations/${id}/seat`, { tableId }),
+  cancel:    (id, noShow = false) => patch(`/reservations/${id}/cancel`, { noShow }),
 }
 
 // ─── Stock Takes ──────────────────────────────────────────────────────────────

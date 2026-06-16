@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useApp } from '../../context/AppContext'
 import { useSettings } from '../../context/SettingsContext'
 import { getInitials } from '../../utils/formatters'
+import { isPosLocked, POS_ALLOWED_PREFIXES } from '../../utils/roleAccess'
 import ProfileModal from './ProfileModal'
 
 const ROLE_GRADIENT = {
@@ -82,11 +83,15 @@ export default function Sidebar() {
     },
   ]
 
-  // Filter items by current user role, then drop empty sections
+  // Filter items by current user role; POS-locked roles only see allowed pages.
+  const posLocked = isPosLocked(user)
   const navSections = allSections
     .map(section => ({
       ...section,
-      items: section.items.filter(item => item.roles.includes(role)),
+      items: section.items.filter(item =>
+        item.roles.includes(role) &&
+        (!posLocked || POS_ALLOWED_PREFIXES.includes(item.to))
+      ),
     }))
     .filter(section => section.items.length > 0)
 

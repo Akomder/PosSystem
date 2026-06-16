@@ -9,10 +9,10 @@ router.use(authenticate)
 router.get('/',         getAll)
 router.get('/current',  getCurrent)
 router.get('/:id/summary', getSummary)
-router.post('/open',    requireRole('Admin','Cashier'),
+router.post('/open',    requireRole('Admin','Cashier','Waiter'),
   [body('openingCash').optional().isFloat({ min: 0 })],
   openShift
 )
-router.patch('/:id/close', requireRole('Admin','Cashier'), closeShift)
+router.patch('/:id/close', requireRole('Admin','Cashier','Waiter'), closeShift)
 
 module.exports = router

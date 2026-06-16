@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Minus, X, ShoppingCart, Grid3X3, UtensilsCrossed,
   Printer, CreditCard, Pause, ArrowLeft, User, ChevronRight,
-  Tag, Clock, Wifi, ChefHat,
+  Tag, Clock, Wifi, ChefHat, LogOut,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
+import { isPosLocked } from '../utils/roleAccess'
 import { useSettings } from '../context/SettingsContext'
 import { ordersApi, customersApi, shiftsApi, salesChannelsApi, promotionsApi, menuApi } from '../services/api'
 import { formatCurrency } from '../utils/formatters'
 import Badge from '../components/ui/Badge'
+import StoreToggle from '../components/layout/StoreToggle'
 import ModifierModal from '../components/ModifierModal'
 import ReceiptModal  from '../components/ReceiptModal'
 import { queueOrder } from '../lib/offlineDb'
@@ -368,7 +370,14 @@ function PayModal({ isOpen, subtotal, customer, onClose, onConfirm, saving }) {
 // ─── Main Sell Screen ─────────────────────────────────────────────────────────
 export default function Sell() {
   const { tables, menuItems } = useApp()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const posLocked = isPosLocked(user)
+
+  const handleLogout = () => {
+    const slug = localStorage.getItem('pos_restaurant_slug')
+    logout()
+    navigate(slug ? `/${slug}` : '/login')
+  }
   const { t } = useSettings()
   const navigate = useNavigate()
 
@@ -705,10 +714,11 @@ export default function Sell() {
       {/* Top Bar */}
       <div className="flex items-center gap-3 px-4 h-12 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={posLocked ? handleLogout : () => navigate('/dashboard')}
+          title={posLocked ? t('common.signOut') : undefined}
           className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
         >
-          <ArrowLeft size={16} />
+          {posLocked ? <LogOut size={16} /> : <ArrowLeft size={16} />}
         </button>
         <div className="w-8 h-8 bg-teal-600 rounded-xl flex items-center justify-center">
           <ShoppingCart size={15} className="text-white" />
@@ -760,23 +770,22 @@ export default function Sell() {
         )}
 
         <div className="ml-auto flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
-          {currentShift ? (
-            <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-              {t('sell.shiftOpen')}
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-amber-500 font-medium">
-              <Clock size={11} />
-              {t('sell.noShift')}
-            </span>
-          )}
+          {/* Open/Close the business day directly from the POS */}
+          <StoreToggle onChange={() => shiftsApi.getCurrent().then(setCurrentShift).catch(() => {})} />
           <span>·</span>
           <span className="font-medium text-gray-600 dark:text-gray-300">{user?.name}</span>
           <span>·</span>
           <span>{new Date().toLocaleDateString()}</span>
         </div>
       </div>
+
+      {/* Store-closed banner — blocks sales until the business day is opened */}
+      {!currentShift && (
+        <div className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-semibold flex-shrink-0">
+          <Clock size={15} />
+          {t('sell.storeClosedBanner')}
+        </div>
+      )}
 
       {/* Keyboard hints bar */}
       <div className="flex items-center gap-3 px-4 py-1 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 flex-shrink-0 overflow-x-auto">
@@ -1202,7 +1211,7 @@ export default function Sell() {
             {/* Send to Kitchen — creates Pending order, alerts Chef, locks table */}
             <button
               onClick={handleSendToKitchen}
-              disabled={!activeOrder?.items.length || sending}
+              disabled={!activeOrder?.items.length || sending || !currentShift}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm disabled:opacity-40 transition-colors"
             >
               <ChefHat size={15} />
@@ -1225,7 +1234,7 @@ export default function Sell() {
               </button>
               <button
                 onClick={() => setPayOpen(true)}
-                disabled={!activeOrder?.items.length}
+                disabled={!activeOrder?.items.length || !currentShift}
                 className="flex-[2] flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm disabled:opacity-40 transition-colors"
               >
                 <CreditCard size={15} />

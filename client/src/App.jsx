@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { isPathAllowed, landingPath } from './utils/roleAccess'
 import { AppProvider } from './context/AppContext'
 import { SettingsProvider } from './context/SettingsContext'
 import { NotificationsProvider } from './context/NotificationsContext'
@@ -61,6 +62,7 @@ function getStoredSlug() {
 // ─── Route Guards ──────────────────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
+  const loc = useLocation()
   if (!user) {
     const slug = getStoredSlug()
     if (slug) return <Navigate to={`/${slug}`} replace />
@@ -68,6 +70,8 @@ function ProtectedRoute({ children }) {
   }
   // SuperAdmin should always go to /superadmin
   if (user.isSuperAdmin) return <Navigate to="/superadmin" replace />
+  // POS-locked roles (Cashier/Waiter) may only reach allowed POS pages
+  if (!isPathAllowed(user, loc.pathname)) return <Navigate to="/sell" replace />
   return children
 }
 
@@ -85,7 +89,7 @@ function RootRedirect() {
     if (slug) return <Navigate to={`/${slug}`} replace />
     return <Navigate to="/login" replace />
   }
-  return <Navigate to={user.isSuperAdmin ? '/superadmin' : '/dashboard'} replace />
+  return <Navigate to={user.isSuperAdmin ? '/superadmin' : landingPath(user)} replace />
 }
 
 function AppRoutes() {

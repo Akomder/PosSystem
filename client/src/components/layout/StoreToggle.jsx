@@ -8,7 +8,7 @@ import Button from '../ui/Button'
 
 // Open/Close Store control — the open shift IS the business day. Lets staff
 // open/close the day from anywhere so post-midnight bills stay on the right day.
-export default function StoreToggle() {
+export default function StoreToggle({ onChange }) {
   const { user } = useAuth()
   const { t }    = useSettings()
   const [shift, setShift]   = useState(null)
@@ -17,7 +17,7 @@ export default function StoreToggle() {
   const [busy, setBusy]     = useState(false)
   const [err, setErr]       = useState('')
 
-  const canManage = ['Admin', 'Cashier'].includes(user?.role)
+  const canManage = ['Admin', 'Cashier', 'Waiter'].includes(user?.role)
 
   const refresh = useCallback(async () => {
     try { setShift(await shiftsApi.getCurrent()) } catch { /* ignore */ }
@@ -32,6 +32,7 @@ export default function StoreToggle() {
       else       await shiftsApi.open({ openingCash: parseFloat(cash) || 0 })
       setOpen(false); setCash('')
       await refresh()
+      onChange?.()
     } catch (e) {
       setErr(e.message || 'Failed')
     } finally { setBusy(false) }

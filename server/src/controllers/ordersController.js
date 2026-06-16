@@ -239,8 +239,9 @@ async function createOrder(req, res, next) {
       : 'partial'
     const firstMethod = isCredit ? 'credit' : (paymentsList ? paymentsList[0]?.method : (paymentMethod || 'cash'))
 
-    // 4b. Resolve the business day = the currently open shift (if any).
+    // 4b. Resolve the business day = the currently open shift.
     // Orders created after midnight stay on the shift's day until it is closed.
+    // The business day MUST be open to take orders, so every sale is attributed.
     let shiftId = null
     if (rid) {
       const sRes = await client.query(
@@ -248,6 +249,9 @@ async function createOrder(req, res, next) {
         [rid]
       )
       shiftId = sRes.rows[0]?.id || null
+      if (!shiftId) {
+        throw Object.assign(new Error('Open the business day before taking orders'), { status: 409 })
+      }
     }
 
     // 5. Insert order

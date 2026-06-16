@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '../context/AuthContext'
+import { landingPath } from '../utils/roleAccess'
 import { publicApi } from '../services/api'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -67,7 +68,7 @@ export default function TenantLogin() {
         setError('SuperAdmin accounts must use the main login page.')
         return
       }
-      navigate('/dashboard')
+      navigate(landingPath(userData))
     } catch (err) {
       setError(err.message || 'Invalid email or password')
     } finally {

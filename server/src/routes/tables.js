@@ -2,7 +2,7 @@ const router  = require('express').Router()
 const { body } = require('express-validator')
 const {
   getAllTables, getTable, updateStatus, assignWaiter, updateTable,
-  createTable, deleteTable, moveTable, mergeTables,
+  createTable, deleteTable, moveTable, mergeTables, splitTable,
 } = require('../controllers/tablesController')
 const authenticate  = require('../middleware/auth')
 const requireRole   = require('../middleware/authorize')
@@ -48,6 +48,13 @@ router.post(
     body('sourceTableIds').isArray({ min: 1 }),
   ],
   mergeTables
+)
+
+router.post(
+  '/:id/split',
+  requireRole('Admin','Waiter','Cashier'),
+  [body('itemIds').isArray({ min: 1 }).withMessage('itemIds[] required')],
+  splitTable
 )
 
 router.patch(

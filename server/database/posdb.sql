@@ -774,3 +774,20 @@ CREATE TABLE IF NOT EXISTS staff_consumption_items (
   quantity       NUMERIC(10,2) NOT NULL DEFAULT 1,
   unit_cost      NUMERIC(10,2) NOT NULL DEFAULT 0
 );
+
+-- ─── Reservations ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS reservations (
+  id            SERIAL PRIMARY KEY,
+  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  guest_name    VARCHAR(120) NOT NULL,
+  guest_phone   VARCHAR(30),
+  party_size    INTEGER NOT NULL DEFAULT 1,
+  reserved_at   TIMESTAMPTZ NOT NULL,
+  table_id      INTEGER REFERENCES restaurant_tables(id) ON DELETE SET NULL,
+  status        VARCHAR(20) NOT NULL DEFAULT 'upcoming'
+                CHECK (status IN ('upcoming','seated','cancelled','no_show')),
+  notes         TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_reservations_rid_date
+  ON reservations(restaurant_id, reserved_at);

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Users, ClipboardList, PlusCircle, Trash2, Layers, Pencil, LayoutGrid, Map, FolderDown, ArrowRightLeft, Combine } from 'lucide-react'
+import { X, Users, ClipboardList, PlusCircle, Trash2, Layers, Pencil, LayoutGrid, Map, FolderDown, ArrowRightLeft, Combine, Scissors, CalendarDays, Plus, PhoneCall, CheckCircle, XCircle } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useSettings } from '../context/SettingsContext'
@@ -15,7 +15,7 @@ import Select from '../components/ui/Select'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import { getOccupancyStats, getTableStatusVariant } from '../utils/tableHelpers'
-import { zonesApi, tablesApi, settingsApi } from '../services/api'
+import { zonesApi, tablesApi, settingsApi, ordersApi, reservationsApi } from '../services/api'
 import PlanLimitBanner from '../components/ui/PlanLimitBanner'
 
 const PLAN_TABLE_LIMITS = { basic: Infinity, pro: Infinity, enterprise: Infinity }
@@ -47,12 +47,27 @@ export default function Tables() {
   const [saving,       setSaving]       = useState(false)
   const [qrTable,      setQrTable]      = useState(null)
 
-  // Move / merge modals
+  // Move / merge / split modals
   const [moveOpen,   setMoveOpen]   = useState(false)
   const [moveTarget, setMoveTarget] = useState('')
   const [mergeOpen,  setMergeOpen]  = useState(false)
   const [mergeIds,   setMergeIds]   = useState([])
+  const [splitOpen,  setSplitOpen]  = useState(false)
+  const [splitItems, setSplitItems] = useState([])  // full order items
+  const [splitSelected, setSplitSelected] = useState([]) // item ids to move
   const [tableActionSaving, setTableActionSaving] = useState(false)
+
+  // Reservations
+  const [resvView,     setResvView]     = useState(false) // toggle table view vs reservation view
+  const [resvDate,     setResvDate]     = useState(new Date().toISOString().slice(0, 10))
+  const [reservations, setReservations] = useState([])
+  const [resvLoading,  setResvLoading]  = useState(false)
+  const [resvNewOpen,  setResvNewOpen]  = useState(false)
+  const [resvSeatOpen, setResvSeatOpen] = useState(false)
+  const [resvSelected, setResvSelected] = useState(null)
+  const [resvSeatTable, setResvSeatTable] = useState('')
+  const [resvForm,     setResvForm]     = useState({ guestName: '', guestPhone: '', partySize: '2', date: new Date().toISOString().slice(0,10), time: '19:00', notes: '', tableId: '' })
+  const [resvSaving,   setResvSaving]   = useState(false)
 
   // Add table modal
   const [addTableOpen, setAddTableOpen] = useState(false)
@@ -173,6 +188,73 @@ export default function Tables() {
     setTableActionSaving(false)
   }
 
+  async function openSplit() {
+    if (!selected?.currentOrderId) return
+    const rawId = parseInt(String(selected.currentOrderId).replace('ORD-', ''))
+    try {
+      const order = await ordersApi.getOne(rawId)
+      setSplitItems(order.items || [])
+      setSplitSelected([])
+      setSplitOpen(true)
+    } catch (e) { alert(e.message || 'Failed to load order items') }
+  }
+
+  async function handleSplit() {
+    if (!splitSelected.length) return
+    setTableActionSaving(true)
+    try {
+      await tablesApi.split(rawTableId(selected.id), splitSelected)
+      setSplitOpen(false); setSplitSelected([]); closeDrawer()
+    } catch (e) { alert(e.message || 'Failed to split bill') }
+    setTableActionSaving(false)
+  }
+
+  const loadReservations = useCallback(async (date) => {
+    setResvLoading(true)
+    try { setReservations(await reservationsApi.getAll(date)) } catch { /* ignore */ }
+    setResvLoading(false)
+  }, [])
+
+  useEffect(() => { if (resvView) loadReservations(resvDate) }, [resvView, resvDate, loadReservations])
+
+  async function handleResvCreate() {
+    if (!resvForm.guestName || !resvForm.date || !resvForm.time) return
+    setResvSaving(true)
+    try {
+      const reservedAt = `${resvForm.date}T${resvForm.time}:00`
+      await reservationsApi.create({
+        guestName:  resvForm.guestName,
+        guestPhone: resvForm.guestPhone || null,
+        partySize:  parseInt(resvForm.partySize) || 2,
+        reservedAt,
+        tableId:    resvForm.tableId ? rawTableId(resvForm.tableId) : null,
+        notes:      resvForm.notes || null,
+      })
+      setResvNewOpen(false)
+      setResvForm({ guestName: '', guestPhone: '', partySize: '2', date: new Date().toISOString().slice(0,10), time: '19:00', notes: '', tableId: '' })
+      loadReservations(resvDate)
+    } catch (e) { alert(e.message || 'Failed to create reservation') }
+    setResvSaving(false)
+  }
+
+  async function handleResvSeat() {
+    if (!resvSelected || !resvSeatTable) return
+    setResvSaving(true)
+    try {
+      await reservationsApi.seat(resvSelected.id, rawTableId(resvSeatTable))
+      setResvSeatOpen(false); setResvSelected(null); setResvSeatTable('')
+      loadReservations(resvDate)
+    } catch (e) { alert(e.message || 'Failed to seat reservation') }
+    setResvSaving(false)
+  }
+
+  async function handleResvCancel(resv, noShow = false) {
+    try {
+      await reservationsApi.cancel(resv.id, noShow)
+      loadReservations(resvDate)
+    } catch (e) { alert(e.message || 'Failed to update reservation') }
+  }
+
   const occ = getOccupancyStats(tables)
 
   const filteredTables = tables.filter(tbl => {
@@ -248,13 +330,13 @@ export default function Tables() {
             </>
           )}
 
-          {/* Grid / Map view toggle */}
+          {/* View toggle */}
           <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => { setResvView(false); setViewMode('grid') }}
               className={clsx(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
-                viewMode === 'grid'
+                !resvView && viewMode === 'grid'
                   ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
               )}
@@ -263,16 +345,28 @@ export default function Tables() {
               Grid
             </button>
             <button
-              onClick={() => setViewMode('map')}
+              onClick={() => { setResvView(false); setViewMode('map') }}
               className={clsx(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
-                viewMode === 'map'
+                !resvView && viewMode === 'map'
                   ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
               )}
             >
               <Map size={13} />
               Floor Plan
+            </button>
+            <button
+              onClick={() => setResvView(true)}
+              className={clsx(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
+                resvView
+                  ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+              )}
+            >
+              <CalendarDays size={13} />
+              {t('reservation.title')}
             </button>
           </div>
         </div>
@@ -294,7 +388,83 @@ export default function Tables() {
         </div>
       </div>
 
-      {viewMode === 'grid' ? (
+      {/* ── Reservations View ──────────────────────────────────────────────── */}
+      {resvView ? (
+        <div>
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={resvDate}
+                onChange={e => setResvDate(e.target.value)}
+                className="text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              />
+            </div>
+            <Button icon={Plus} onClick={() => setResvNewOpen(true)}>{t('reservation.new')}</Button>
+          </div>
+          {resvLoading ? (
+            <p className="text-sm text-gray-400 text-center py-8">Loading…</p>
+          ) : reservations.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <CalendarDays size={36} className="mx-auto mb-3 opacity-40" />
+              <p className="text-sm">{t('reservation.noReservations')}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reservations.map(r => {
+                const time = new Date(r.reservedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                const statusColors = {
+                  upcoming: 'bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-700',
+                  seated:   'bg-green-50 dark:bg-green-900/30 border-green-100 dark:border-green-700',
+                  cancelled:'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-600',
+                  no_show:  'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-700',
+                }
+                return (
+                  <div key={r.id} className={clsx('flex items-center justify-between p-4 rounded-xl border', statusColors[r.status] || statusColors.upcoming)}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="text-center min-w-[44px]">
+                        <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{time}</p>
+                        <p className="text-xs text-gray-400">{r.partySize}x</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">{r.guestName}</p>
+                        {r.guestPhone && <p className="text-xs text-gray-400 flex items-center gap-1"><PhoneCall size={10} />{r.guestPhone}</p>}
+                        {r.notes && <p className="text-xs text-gray-400 truncate">{r.notes}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full', {
+                        'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-200': r.status === 'upcoming',
+                        'bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200': r.status === 'seated',
+                        'bg-gray-100 text-gray-500': r.status === 'cancelled',
+                        'bg-red-100 text-red-600': r.status === 'no_show',
+                      })}>
+                        {t(`reservation.${r.status === 'no_show' ? 'noShow' : r.status}`)}
+                      </span>
+                      {r.status === 'upcoming' && (
+                        <>
+                          <Button size="sm" variant="success" icon={CheckCircle}
+                            onClick={() => { setResvSelected(r); setResvSeatTable(''); setResvSeatOpen(true) }}>
+                            {t('reservation.seat')}
+                          </Button>
+                          <button onClick={() => handleResvCancel(r, true)} title={t('reservation.noShow')}
+                            className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors">
+                            <XCircle size={14} />
+                          </button>
+                          <button onClick={() => handleResvCancel(r, false)} title={t('reservation.cancel')}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      ) : viewMode === 'grid' ? (
         <>
           {/* Filter Bar */}
           <div className="flex gap-2 mb-5 flex-wrap">
@@ -511,9 +681,9 @@ export default function Tables() {
               </div>
             </div>
 
-            {/* Move / Merge actions — only for occupied tables with an order */}
+            {/* Move / Merge / Split actions — only for occupied tables with an order */}
             {selected.status === 'Occupied' && selected.currentOrderId && (
-              <div className="px-6 pb-2 flex gap-2">
+              <div className="px-6 pb-2 flex gap-2 flex-wrap">
                 <Button variant="secondary" fullWidth icon={ArrowRightLeft}
                   onClick={() => { setMoveTarget(''); setMoveOpen(true) }}>
                   {t('tables.move')}
@@ -521,6 +691,10 @@ export default function Tables() {
                 <Button variant="secondary" fullWidth icon={Combine}
                   onClick={() => { setMergeIds([]); setMergeOpen(true) }}>
                   {t('tables.merge')}
+                </Button>
+                <Button variant="secondary" fullWidth icon={Scissors}
+                  onClick={openSplit}>
+                  {t('tables.split')}
                 </Button>
               </div>
             )}
@@ -732,6 +906,121 @@ export default function Tables() {
             <p className="text-sm text-gray-400 text-center py-3">{t('tables.noMergeTargets')}</p>
           )}
         </div>
+      </Modal>
+
+      {/* ── Split Bill Modal ─────────────────────────────────── */}
+      <Modal
+        isOpen={splitOpen}
+        onClose={() => setSplitOpen(false)}
+        title={`${t('tables.split')} — ${t('common.table')} ${selected?.tableNumber ?? ''}`}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSplitOpen(false)}>{t('common.cancel')}</Button>
+            <Button loading={tableActionSaving} disabled={!splitSelected.length} onClick={handleSplit} icon={Scissors}>
+              {t('tables.splitBill')}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{t('tables.splitHint')}</p>
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+          {t('tables.selectItemsToSplit')}
+        </p>
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {splitItems.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-3">{t('tables.noItemsToSplit')}</p>
+          ) : splitItems.map(item => (
+            <label key={item.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+              <input
+                type="checkbox"
+                checked={splitSelected.includes(item.id)}
+                onChange={e => setSplitSelected(ids => e.target.checked ? [...ids, item.id] : ids.filter(x => x !== item.id))}
+              />
+              <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
+                {item.name} {item.quantity > 1 && <span className="text-gray-400">×{item.quantity}</span>}
+              </span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {(item.unitPrice * item.quantity).toLocaleString()}
+              </span>
+            </label>
+          ))}
+        </div>
+      </Modal>
+
+      {/* ── New Reservation Modal ────────────────────────────── */}
+      <Modal
+        isOpen={resvNewOpen}
+        onClose={() => setResvNewOpen(false)}
+        title={t('reservation.new')}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setResvNewOpen(false)}>{t('common.cancel')}</Button>
+            <Button loading={resvSaving} disabled={!resvForm.guestName} onClick={handleResvCreate}>
+              {t('reservation.new')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Input label={t('reservation.guestName')} required value={resvForm.guestName}
+            onChange={e => setResvForm(f => ({...f, guestName: e.target.value}))} placeholder="e.g. John Smith" />
+          <Input label={t('reservation.guestPhone')} value={resvForm.guestPhone}
+            onChange={e => setResvForm(f => ({...f, guestPhone: e.target.value}))} placeholder="+856 20 xxx" />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('reservation.partySize')} type="number" min={1} value={resvForm.partySize}
+              onChange={e => setResvForm(f => ({...f, partySize: e.target.value}))} />
+            <Input label={t('reservation.date')} type="date" value={resvForm.date}
+              onChange={e => setResvForm(f => ({...f, date: e.target.value}))} />
+          </div>
+          <Input label={t('reservation.time')} type="time" value={resvForm.time}
+            onChange={e => setResvForm(f => ({...f, time: e.target.value}))} />
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('reservation.table')}</label>
+            <Select
+              value={resvForm.tableId}
+              onChange={e => setResvForm(f => ({...f, tableId: e.target.value}))}
+              options={[
+                { value: '', label: '—' },
+                ...tables.filter(tb => tb.status === 'Available').map(tb => ({
+                  value: tb.id, label: `${t('common.table')} ${tb.tableNumber}`,
+                })),
+              ]}
+            />
+          </div>
+          <Input label={t('reservation.notes')} value={resvForm.notes}
+            onChange={e => setResvForm(f => ({...f, notes: e.target.value}))} placeholder="Dietary, occasion…" />
+        </div>
+      </Modal>
+
+      {/* ── Seat Reservation Modal ───────────────────────────── */}
+      <Modal
+        isOpen={resvSeatOpen}
+        onClose={() => setResvSeatOpen(false)}
+        title={`${t('reservation.seat')} — ${resvSelected?.guestName ?? ''}`}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setResvSeatOpen(false)}>{t('common.cancel')}</Button>
+            <Button loading={resvSaving} disabled={!resvSeatTable} onClick={handleResvSeat} variant="success">
+              {t('reservation.seat')}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{t('reservation.seatHint')}</p>
+        <Select
+          label={t('reservation.selectTable')}
+          value={resvSeatTable}
+          onChange={e => setResvSeatTable(e.target.value)}
+          options={[
+            { value: '', label: '—' },
+            ...tables.filter(tb => tb.status === 'Available').map(tb => ({
+              value: tb.id, label: `${t('common.table')} ${tb.tableNumber}`,
+            })),
+          ]}
+        />
       </Modal>
     </div>
   )

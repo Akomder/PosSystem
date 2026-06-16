@@ -18,6 +18,20 @@ async function getDashboard(req, res, next) {
     const rfO = rid ? 'AND o.restaurant_id = $1' : ''
     const rfT = rid ? 'AND t.restaurant_id = $1' : ''
 
+    // "Today" follows the open business day (shift) so post-midnight sales stay on
+    // the night they were rung up. When no shift is open, fall back to calendar date.
+    // openShiftId is a DB-derived integer — safe to inline.
+    let openShiftId = null
+    if (rid) {
+      const shiftRes = await query(
+        `SELECT id FROM shifts WHERE restaurant_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1`,
+        rp
+      )
+      openShiftId = shiftRes.rows[0]?.id || null
+    }
+    const dayCond  = openShiftId ? `shift_id = ${openShiftId}`   : `created_at::date = CURRENT_DATE`
+    const dayCondO = openShiftId ? `o.shift_id = ${openShiftId}` : `o.created_at::date = CURRENT_DATE`
+
     const [
       revenueRes,
       ordersRes,
@@ -29,19 +43,19 @@ async function getDashboard(req, res, next) {
       hourlyRes,
       lowStockRes,
     ] = await Promise.all([
-      // Today's revenue from Closed orders
+      // Today's revenue from Closed orders (business day)
       query(
         `SELECT COALESCE(SUM(total), 0) AS today_revenue
          FROM orders
-         WHERE status = 'Closed' AND created_at::date = CURRENT_DATE ${rf}`,
+         WHERE status = 'Closed' AND ${dayCond} ${rf}`,
         rp
       ),
-      // Orders stats — active is ALL open orders; totals are today only
+      // Orders stats — active is ALL open orders; totals are this business day
       query(
         `SELECT
-           (SELECT COUNT(*) FROM orders WHERE created_at::date = CURRENT_DATE ${rf})             AS total_today,
+           (SELECT COUNT(*) FROM orders WHERE ${dayCond} ${rf})                                   AS total_today,
            (SELECT COUNT(*) FROM orders WHERE status IN ('Pending','In Progress','Served') ${rf}) AS active,
-           (SELECT COUNT(*) FROM orders WHERE status = 'Closed' AND created_at::date = CURRENT_DATE ${rf}) AS completed_today`,
+           (SELECT COUNT(*) FROM orders WHERE status = 'Closed' AND ${dayCond} ${rf}) AS completed_today`,
         rp
       ),
       // Table occupancy
@@ -96,14 +110,14 @@ async function getDashboard(req, res, next) {
          FROM orders WHERE 1=1 ${rf} ORDER BY created_at DESC LIMIT 10`,
         rp
       ),
-      // Hourly orders today (for guest count chart)
+      // Hourly orders for this business day (for guest count chart)
       query(
         `SELECT
            EXTRACT(HOUR FROM created_at)::int AS hour,
            COUNT(*)                            AS orders,
            COALESCE(SUM(total), 0)             AS revenue
          FROM orders
-         WHERE status = 'Closed' AND created_at::date = CURRENT_DATE ${rf}
+         WHERE status = 'Closed' AND ${dayCond} ${rf}
          GROUP BY hour ORDER BY hour`,
         rp
       ),
@@ -382,59 +396,84 @@ async function getReportFinance(req, res, next) {
 }
 
 // ─── GET /api/stats/reports/eod ──────────────────────────────────────────────
+// End-of-day by business day. Resolution: explicit ?shiftId → that shift;
+// explicit ?date → that calendar date (historical); neither → current open
+// shift, else most-recent shift, else calendar today. Shift mode attributes
+// post-midnight bills to the night they were rung up.
 async function getReportEOD(req, res, next) {
   try {
-    // Build params array — date first (if provided), then rid
-    const params = []
-    let dateSql
+    const rid = req.restaurantId
 
-    if (req.query.date) {
-      // Validate date format strictly before parameterizing
-      const dateStr = req.query.date.replace(/[^0-9-]/g, '')
-      params.push(dateStr)
-      dateSql = `$${params.length}::date`
-    } else {
-      dateSql = 'CURRENT_DATE'
+    // Decide whether to report by shift (business day) or calendar date.
+    let shift = null
+    if (req.query.shiftId) {
+      const r = await query(
+        `SELECT * FROM shifts WHERE id = $1 ${rid ? 'AND restaurant_id = $2' : ''}`,
+        rid ? [req.query.shiftId, rid] : [req.query.shiftId]
+      )
+      shift = r.rows[0] || null
+    } else if (!req.query.date && rid) {
+      // Default: current open shift, else the most recent shift
+      const r = await query(
+        `SELECT * FROM shifts WHERE restaurant_id = $1
+         ORDER BY (status = 'open') DESC, opened_at DESC LIMIT 1`,
+        [rid]
+      )
+      shift = r.rows[0] || null
     }
 
-    const rid = req.restaurantId
-    const rFilter = rid
-      ? (params.push(rid), `AND restaurant_id = $${params.length}`)
-      : ''
-    const rFilterJoin = rid ? `AND o.restaurant_id = $${params.length}` : ''
+    let ordersSql, itemsSql, cashSql, params, label
+
+    if (shift) {
+      // Shift mode — mirror the predicate used by shiftsController.getSummary.
+      // $1 rid, $2 shiftId, $3 opened_at, $4 closed_at
+      params = [rid, shift.id, shift.opened_at, shift.closed_at]
+      const dayFilter = `(o.shift_id = $2 OR (o.shift_id IS NULL AND o.created_at >= $3
+        AND ($4::timestamptz IS NULL OR o.created_at <= $4)))`
+      const cashWindow = `created_at >= $3 AND ($4::timestamptz IS NULL OR created_at <= $4) AND restaurant_id = $1`
+      ordersSql = `SELECT COUNT(*) AS total_orders, COALESCE(SUM(o.subtotal),0) AS subtotal,
+                          COALESCE(SUM(o.discount),0) AS discount, COALESCE(SUM(o.total),0) AS total
+                   FROM orders o WHERE o.status='Closed' AND o.restaurant_id = $1 AND ${dayFilter}`
+      itemsSql  = `SELECT oi.name, SUM(oi.quantity) AS qty, SUM(oi.quantity*oi.unit_price) AS revenue
+                   FROM order_items oi JOIN orders o ON o.id = oi.order_id
+                   WHERE o.status='Closed' AND o.restaurant_id = $1 AND ${dayFilter}
+                   GROUP BY oi.name ORDER BY qty DESC LIMIT 20`
+      cashSql   = `SELECT COALESCE(SUM(amount) FILTER (WHERE type='income'  AND status='paid'),0) AS income,
+                          COALESCE(SUM(amount) FILTER (WHERE type='expense' AND status='paid'),0) AS expense
+                   FROM cash_flow_entries WHERE ${cashWindow}`
+      label = (shift.opened_at instanceof Date ? shift.opened_at.toISOString() : String(shift.opened_at)).slice(0, 10)
+    } else {
+      // Calendar-date mode (explicit date or no shifts exist yet)
+      params = []
+      let dateSql
+      if (req.query.date) {
+        const dateStr = req.query.date.replace(/[^0-9-]/g, '')
+        params.push(dateStr); dateSql = `$${params.length}::date`
+      } else { dateSql = 'CURRENT_DATE' }
+      const rFilter = rid ? (params.push(rid), `AND restaurant_id = $${params.length}`) : ''
+      const rFilterJoin = rid ? `AND o.restaurant_id = $${params.length}` : ''
+      ordersSql = `SELECT COUNT(*) AS total_orders, COALESCE(SUM(subtotal),0) AS subtotal,
+                          COALESCE(SUM(discount),0) AS discount, COALESCE(SUM(total),0) AS total
+                   FROM orders WHERE status='Closed' AND created_at::date = ${dateSql} ${rFilter}`
+      itemsSql  = `SELECT oi.name, SUM(oi.quantity) AS qty, SUM(oi.quantity*oi.unit_price) AS revenue
+                   FROM order_items oi JOIN orders o ON o.id = oi.order_id
+                   WHERE o.status='Closed' AND o.created_at::date = ${dateSql} ${rFilterJoin}
+                   GROUP BY oi.name ORDER BY qty DESC LIMIT 20`
+      cashSql   = `SELECT COALESCE(SUM(amount) FILTER (WHERE type='income'  AND status='paid'),0) AS income,
+                          COALESCE(SUM(amount) FILTER (WHERE type='expense' AND status='paid'),0) AS expense
+                   FROM cash_flow_entries WHERE created_at::date = ${dateSql} ${rFilter}`
+      label = req.query.date || new Date().toISOString().slice(0, 10)
+    }
 
     const [ordersRes, itemsRes, cashRes] = await Promise.all([
-      query(
-        `SELECT
-           COUNT(*)                    AS total_orders,
-           COALESCE(SUM(subtotal), 0)  AS subtotal,
-           COALESCE(SUM(discount), 0)  AS discount,
-           COALESCE(SUM(total), 0)     AS total
-         FROM orders
-         WHERE status = 'Closed' AND created_at::date = ${dateSql} ${rFilter}`,
-        params
-      ),
-      query(
-        `SELECT oi.name, SUM(oi.quantity) AS qty, SUM(oi.quantity * oi.unit_price) AS revenue
-         FROM order_items oi
-         JOIN orders o ON o.id = oi.order_id
-         WHERE o.status = 'Closed' AND o.created_at::date = ${dateSql} ${rFilterJoin}
-         GROUP BY oi.name ORDER BY qty DESC LIMIT 20`,
-        params
-      ),
-      query(
-        `SELECT
-           COALESCE(SUM(amount) FILTER (WHERE type='income'  AND status='paid'), 0) AS income,
-           COALESCE(SUM(amount) FILTER (WHERE type='expense' AND status='paid'), 0) AS expense
-         FROM cash_flow_entries WHERE created_at::date = ${dateSql} ${rFilter}`,
-        params
-      ),
+      query(ordersSql, params), query(itemsSql, params), query(cashSql, params),
     ])
 
     const o = ordersRes.rows[0]
     const c = cashRes.rows[0]
     res.json({
-      date:        req.query.date || new Date().toISOString().slice(0, 10),
+      date:        label,
+      shiftId:     shift?.id || null,
       totalOrders: parseInt(o.total_orders),
       subtotal:    parseFloat(o.subtotal),
       discount:    parseFloat(o.discount),

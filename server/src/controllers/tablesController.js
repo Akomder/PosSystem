@@ -309,4 +309,86 @@ async function mergeTables(req, res, next) {
   } finally { client.release() }
 }
 
-module.exports = { getAllTables, getTable, updateStatus, assignWaiter, updateTable, createTable, deleteTable, moveTable, mergeTables }
+// ─── POST /api/tables/:id/split ───────────────────────────────────────────────
+// Split selected items from a table's order into a new unassigned order.
+async function splitTable(req, res, next) {
+  const { itemIds } = req.body
+  const rid = req.restaurantId
+  if (!Array.isArray(itemIds) || !itemIds.length) {
+    return res.status(400).json({ error: 'itemIds[] is required' })
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const tRes = await client.query(
+      `SELECT * FROM restaurant_tables WHERE id=$1 AND restaurant_id=$2 FOR UPDATE`,
+      [req.params.id, rid]
+    )
+    if (!tRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Table not found' }) }
+    const src = tRes.rows[0]
+    if (!src.current_order_id) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Table has no active order' }) }
+
+    const srcOrderId = src.current_order_id
+    const oRes = await client.query(`SELECT * FROM orders WHERE id=$1`, [srcOrderId])
+    const srcOrder = oRes.rows[0]
+
+    // Guard: all moved items must belong to this order
+    const itemCheck = await client.query(
+      `SELECT id FROM order_items WHERE id = ANY($1) AND order_id=$2`,
+      [itemIds, srcOrderId]
+    )
+    if (itemCheck.rows.length !== itemIds.length) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Some items do not belong to this order' })
+    }
+
+    // Guard: at least one item must remain on the original order
+    const totalItems = await client.query(
+      `SELECT COUNT(*) FROM order_items WHERE order_id=$1`, [srcOrderId]
+    )
+    if (parseInt(totalItems.rows[0].count) <= itemIds.length) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Cannot split — at least one item must remain on the original bill' })
+    }
+
+    // Create a new order (no table assignment yet — staff can move it)
+    const newOrdRes = await client.query(
+      `INSERT INTO orders (restaurant_id, channel, status, payment_status, waiter, shift_id, subtotal, total, discount, created_at, updated_at)
+       SELECT restaurant_id, channel, status, 'unpaid', waiter, shift_id, 0, 0, 0, NOW(), NOW()
+       FROM orders WHERE id=$1 RETURNING id`,
+      [srcOrderId]
+    )
+    const newOrderId = newOrdRes.rows[0].id
+
+    // Move selected items to new order
+    await client.query(
+      `UPDATE order_items SET order_id=$1 WHERE id = ANY($2)`,
+      [newOrderId, itemIds]
+    )
+
+    // Recompute both order totals
+    for (const oid of [srcOrderId, newOrderId]) {
+      await client.query(
+        `UPDATE orders o SET
+           subtotal = COALESCE((SELECT SUM(quantity*unit_price) FROM order_items WHERE order_id=o.id), 0),
+           total    = GREATEST(0, COALESCE((SELECT SUM(quantity*unit_price) FROM order_items WHERE order_id=o.id), 0) - o.discount),
+           updated_at = NOW()
+         WHERE o.id=$1`,
+        [oid]
+      )
+    }
+
+    await client.query('COMMIT')
+
+    emitOrderUpdated(fmtOrderId(srcOrderId), 'split')
+    emitOrderUpdated(fmtOrderId(newOrderId), 'created')
+    res.json({ originalOrderId: fmtOrderId(srcOrderId), newOrderId: fmtOrderId(newOrderId) })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    next(err)
+  } finally { client.release() }
+}
+
+module.exports = { getAllTables, getTable, updateStatus, assignWaiter, updateTable, createTable, deleteTable, moveTable, mergeTables, splitTable }
