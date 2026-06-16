@@ -59,7 +59,7 @@ export default function ForgotPassword() {
 
 
                 <Link
-                  to="/login"
+                  to="/superadmin/login"
                   className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 font-medium transition-colors"
                 >
                   <ArrowLeft size={14} /> Back to Sign In
@@ -111,7 +111,7 @@ export default function ForgotPassword() {
 
                 <div className="text-center">
                   <Link
-                    to="/login"
+                    to="/superadmin/login"
                     className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
                   >
                     <ArrowLeft size={13} /> Back to Sign In

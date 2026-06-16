@@ -66,7 +66,7 @@ function ProtectedRoute({ children }) {
   if (!user) {
     const slug = getStoredSlug()
     if (slug) return <Navigate to={`/${slug}`} replace />
-    return <Navigate to="/login" replace />
+    return <Navigate to="/superadmin/login" replace />
   }
   // SuperAdmin should always go to /superadmin
   if (user.isSuperAdmin) return <Navigate to="/superadmin" replace />
@@ -77,7 +77,7 @@ function ProtectedRoute({ children }) {
 
 function SuperAdminRoute({ children }) {
   const { user } = useAuth()
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/superadmin/login" replace />
   if (!user.isSuperAdmin) return <Navigate to="/dashboard" replace />
   return children
 }
@@ -87,7 +87,7 @@ function RootRedirect() {
   if (!user) {
     const slug = getStoredSlug()
     if (slug) return <Navigate to={`/${slug}`} replace />
-    return <Navigate to="/login" replace />
+    return <Navigate to="/superadmin/login" replace />
   }
   return <Navigate to={user.isSuperAdmin ? '/superadmin' : landingPath(user)} replace />
 }
@@ -101,8 +101,8 @@ function AppRoutes() {
       {/* Root redirect */}
       <Route path="/" element={<RootRedirect />} />
 
-      {/* SuperAdmin-only login (/login) */}
-      <Route path="/login"           element={<Login />} />
+      {/* SuperAdmin-only login (/superadmin/login) */}
+      <Route path="/superadmin/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password"  element={<ResetPassword />} />
 
@@ -201,7 +201,7 @@ function AppRoutes() {
           are matched first. React Router v6 always prefers static over dynamic. */}
       <Route path="/:slug" element={<TenantLogin />} />
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/superadmin/login" replace />} />
     </Routes>
   )
 }

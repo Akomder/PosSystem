@@ -47,7 +47,7 @@ export default function ResetPassword() {
     try {
       await emailApi.resetPassword(token, password)
       setDone(true)
-      setTimeout(() => navigate('/login'), 3000)
+      setTimeout(() => navigate('/superadmin/login'), 3000)
     } catch (err) {
       setError(err.message || 'Reset failed. The link may have expired.')
     } finally {
@@ -211,7 +211,7 @@ export default function ResetPassword() {
 
                 <div className="text-center">
                   <Link
-                    to="/login"
+                    to="/superadmin/login"
                     className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-teal-500 transition-colors"
                   >
                     <ArrowLeft size={13} /> Back to Sign In

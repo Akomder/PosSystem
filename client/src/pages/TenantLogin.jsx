@@ -97,7 +97,7 @@ export default function TenantLogin() {
             The URL <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded text-xs">/{slug}</code> does not match any registered restaurant.
           </p>
           <Link
-            to="/login"
+            to="/superadmin/login"
             className="text-sm text-teal-600 dark:text-teal-400 hover:underline"
           >
             Go to admin login

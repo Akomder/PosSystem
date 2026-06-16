@@ -13,7 +13,7 @@ function storageKey(user) {
 /** Read stored session on page load — check both keys, prefer based on URL. */
 function loadStoredUser() {
   const path = window.location.pathname
-  const isSAPath = path.startsWith('/superadmin') || path === '/login'
+  const isSAPath = path.startsWith('/superadmin')
   const keys = isSAPath ? [SA_KEY, RS_KEY] : [RS_KEY, SA_KEY]
   for (const key of keys) {
     try {

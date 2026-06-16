@@ -17,7 +17,7 @@ export default function SuperAdminLayout() {
   const { dark, toggleDark } = useSettings()
   const navigate = useNavigate()
 
-  const handleLogout = () => { logout(); navigate('/login') }
+  const handleLogout = () => { logout(); navigate('/superadmin/login') }
 
   return (
     <div className="flex h-screen bg-gray-950 dark:bg-gray-950 text-white overflow-hidden">
