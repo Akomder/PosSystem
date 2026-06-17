@@ -222,25 +222,44 @@ function triggerServedBeep() {
   } catch {}
 }
 
-// ── Menu text auto-translation (Lao → English via Google Translate) ───────────
-const TRANS_CACHE_KEY = 'qr_menu_trans_v1'
+// ── Menu text auto-translation ────────────────────────────────────────────────
+const TRANS_CACHE_KEY = 'qr_menu_trans_v2'
 const readTransCache  = () => { try { return JSON.parse(localStorage.getItem(TRANS_CACHE_KEY) || '{}') } catch { return {} } }
 const writeTransCache = c  => { try { localStorage.setItem(TRANS_CACHE_KEY, JSON.stringify(c))  } catch {} }
 
-async function batchTranslateLao(texts) {
+// Translate an array of texts from any language → target lang in one HTTP request.
+// Uses Google's unofficial translate API — no key required, batches up to 128 strings.
+async function translateBatch(texts, targetLang = 'en') {
   const result = {}
   if (!texts.length) return result
-  await Promise.all(texts.map(async text => {
+
+  // Split into chunks of 50 to stay within URL length limits
+  const CHUNK = 50
+  const chunks = []
+  for (let i = 0; i < texts.length; i += CHUNK) chunks.push(texts.slice(i, i + CHUNK))
+
+  await Promise.all(chunks.map(async chunk => {
+    const params = new URLSearchParams()
+    params.set('client', 'gtx')
+    params.set('sl', 'auto')          // auto-detect source language
+    params.set('tl', targetLang)
+    params.set('dt', 't')
+    chunk.forEach(t => params.append('q', t))
+
     try {
-      const res  = await fetch(
-        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=lo&tl=en&dt=t&q=${encodeURIComponent(text)}`
-      )
+      const res  = await fetch(`https://translate.googleapis.com/translate_a/t?${params}`)
       const data = await res.json()
-      result[text] = data[0]?.map(s => s[0]).join('').trim() || text
+      // Response is an array of arrays when multiple q params sent
+      const rows = Array.isArray(data[0]) ? data : data.map(d => [d])
+      chunk.forEach((original, i) => {
+        const translated = rows[i]?.[0] || original
+        result[original] = typeof translated === 'string' ? translated.trim() : original
+      })
     } catch {
-      result[text] = text
+      chunk.forEach(t => { result[t] = t })
     }
   }))
+
   return result
 }
 
@@ -424,16 +443,22 @@ export default function CustomerOrder() {
     return () => sock.disconnect()
   }, [tableId, stopPoll])
 
-  // ── Auto-translate menu texts when switching to English ───────────────────
+  // ── Auto-translate menu texts on language toggle ──────────────────────────
   useEffect(() => {
     if (lang !== 'en' || !menu.length) return
+
     const cats     = [...new Set(menu.map(m => m.category).filter(Boolean))]
-    const allTexts = [...new Set([...menu.map(i => i.name), ...cats])]
-    const cache    = readTransCache()
-    const missing  = allTexts.filter(tx => !cache[tx])
+    const descs    = menu.map(m => m.description).filter(Boolean)
+    const allTexts = [...new Set([...menu.map(i => i.name), ...cats, ...descs])]
+
+    const cache   = readTransCache()
+    const missing = allTexts.filter(tx => tx && !cache[tx])
+
+    // Everything already cached — apply immediately, no spinner
     if (!missing.length) { setTranslations({ ...cache }); return }
+
     setTranslating(true)
-    batchTranslateLao(missing)
+    translateBatch(missing, 'en')
       .then(result => {
         const merged = { ...cache, ...result }
         writeTransCache(merged)
