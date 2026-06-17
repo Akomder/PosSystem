@@ -223,23 +223,32 @@ function triggerServedBeep() {
 }
 
 // ── Menu text auto-translation ────────────────────────────────────────────────
-const TRANS_CACHE_KEY = 'qr_menu_trans_v2'
-const readTransCache  = () => { try { return JSON.parse(localStorage.getItem(TRANS_CACHE_KEY) || '{}') } catch { return {} } }
-const writeTransCache = c  => { try { localStorage.setItem(TRANS_CACHE_KEY, JSON.stringify(c))  } catch {} }
+// Cache structure: { [targetLang]: { [originalText]: translatedText } }
+// Bumped to v3 — keyed by language so switching EN→LO→ZH all work independently.
+const TRANS_CACHE_KEY = 'qr_menu_trans_v3'
+const MENU_NATIVE_LANG = 'lo'   // language menu items are stored in
 
-// Translate an array of texts to targetLang using Google's unofficial API.
-// Each text is a separate request fired in parallel via Promise.all.
-// Response format for /translate_a/single: [[[translated, original, ...]], ...]
-async function translateBatch(texts, targetLang = 'en') {
+const readAllCache  = () => { try { return JSON.parse(localStorage.getItem(TRANS_CACHE_KEY) || '{}') } catch { return {} } }
+const readTransCache = lang => readAllCache()[lang] || {}
+const writeTransCache = (lang, entries) => {
+  try {
+    const all = readAllCache()
+    localStorage.setItem(TRANS_CACHE_KEY, JSON.stringify({ ...all, [lang]: { ...(all[lang] || {}), ...entries } }))
+  } catch {}
+}
+
+// Translate an array of texts to targetLang via Google Translate (unofficial API).
+// Fires all requests in parallel; auto-detects source language (sl=auto).
+async function translateBatch(texts, targetLang) {
   const result = {}
   if (!texts.length) return result
 
   await Promise.all(texts.map(async text => {
     try {
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`
       const res  = await fetch(url)
       const data = await res.json()
-      // data[0] is an array of sentence fragments: [[translated, original], ...]
+      // data[0] = array of sentence fragments [[translated, original], ...]
       const translated = data[0]?.map(s => s[0]).join('').trim()
       result[text] = translated || text
     } catch {
@@ -322,15 +331,19 @@ export default function CustomerOrder() {
   const [lang,         setLang]         = useState(() => {
     try { return localStorage.getItem('qr_lang') || 'lo' } catch { return 'lo' }
   })
-  const [translations, setTranslations] = useState(readTransCache)
+  // translations holds { originalText: translatedText } for the current lang
+  const [translations, setTranslations] = useState(() => readTransCache(
+    (() => { try { return localStorage.getItem('qr_lang') || 'lo' } catch { return 'lo' } })()
+  ))
   const [translating,  setTranslating]  = useState(false)
 
   const t = (key, ...args) => {
     const v = TR[lang]?.[key] ?? TR.en[key]
     return typeof v === 'function' ? v(...args) : (v ?? key)
   }
-  const tr       = text => lang === 'en' ? (translations[text] || text) : text
-  const catLabel = c    => lang === 'en' ? tr(c) : c
+  // tr: return translated text for current lang, or original if no translation yet
+  const tr       = text => (lang === MENU_NATIVE_LANG || !text) ? text : (translations[text] || text)
+  const catLabel = c    => tr(c)
   const toggleLang = () => {
     const next = lang === 'en' ? 'lo' : 'en'
     setLang(next)
@@ -438,26 +451,31 @@ export default function CustomerOrder() {
     return () => sock.disconnect()
   }, [tableId, stopPoll])
 
-  // ── Auto-translate menu texts on language toggle ──────────────────────────
+  // ── Auto-translate menu texts whenever lang or menu changes ─────────────────
   useEffect(() => {
-    if (lang !== 'en' || !menu.length) return
+    // No translation needed when viewing in the native menu language
+    if (lang === MENU_NATIVE_LANG || !menu.length) {
+      setTranslations({})
+      return
+    }
 
-    const cats     = [...new Set(menu.map(m => m.category).filter(Boolean))]
-    const descs    = menu.map(m => m.description).filter(Boolean)
-    const allTexts = [...new Set([...menu.map(i => i.name), ...cats, ...descs])]
+    const allTexts = [...new Set([
+      ...menu.map(i => i.name),
+      ...menu.map(m => m.category).filter(Boolean),
+      ...menu.map(i => i.description).filter(Boolean),
+    ])]
 
-    const cache   = readTransCache()
-    const missing = allTexts.filter(tx => tx && !cache[tx])
+    const cached  = readTransCache(lang)
+    const missing = allTexts.filter(tx => tx && !cached[tx])
 
-    // Everything already cached — apply immediately, no spinner
-    if (!missing.length) { setTranslations({ ...cache }); return }
+    // All already cached — apply immediately with no spinner
+    if (!missing.length) { setTranslations({ ...cached }); return }
 
     setTranslating(true)
-    translateBatch(missing, 'en')
+    translateBatch(missing, lang)
       .then(result => {
-        const merged = { ...cache, ...result }
-        writeTransCache(merged)
-        setTranslations(merged)
+        writeTransCache(lang, result)
+        setTranslations({ ...cached, ...result })
       })
       .catch(() => {})
       .finally(() => setTranslating(false))
