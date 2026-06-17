@@ -227,36 +227,23 @@ const TRANS_CACHE_KEY = 'qr_menu_trans_v2'
 const readTransCache  = () => { try { return JSON.parse(localStorage.getItem(TRANS_CACHE_KEY) || '{}') } catch { return {} } }
 const writeTransCache = c  => { try { localStorage.setItem(TRANS_CACHE_KEY, JSON.stringify(c))  } catch {} }
 
-// Translate an array of texts from any language → target lang in one HTTP request.
-// Uses Google's unofficial translate API — no key required, batches up to 128 strings.
+// Translate an array of texts to targetLang using Google's unofficial API.
+// Each text is a separate request fired in parallel via Promise.all.
+// Response format for /translate_a/single: [[[translated, original, ...]], ...]
 async function translateBatch(texts, targetLang = 'en') {
   const result = {}
   if (!texts.length) return result
 
-  // Split into chunks of 50 to stay within URL length limits
-  const CHUNK = 50
-  const chunks = []
-  for (let i = 0; i < texts.length; i += CHUNK) chunks.push(texts.slice(i, i + CHUNK))
-
-  await Promise.all(chunks.map(async chunk => {
-    const params = new URLSearchParams()
-    params.set('client', 'gtx')
-    params.set('sl', 'auto')          // auto-detect source language
-    params.set('tl', targetLang)
-    params.set('dt', 't')
-    chunk.forEach(t => params.append('q', t))
-
+  await Promise.all(texts.map(async text => {
     try {
-      const res  = await fetch(`https://translate.googleapis.com/translate_a/t?${params}`)
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`
+      const res  = await fetch(url)
       const data = await res.json()
-      // Response is an array of arrays when multiple q params sent
-      const rows = Array.isArray(data[0]) ? data : data.map(d => [d])
-      chunk.forEach((original, i) => {
-        const translated = rows[i]?.[0] || original
-        result[original] = typeof translated === 'string' ? translated.trim() : original
-      })
+      // data[0] is an array of sentence fragments: [[translated, original], ...]
+      const translated = data[0]?.map(s => s[0]).join('').trim()
+      result[text] = translated || text
     } catch {
-      chunk.forEach(t => { result[t] = t })
+      result[text] = text
     }
   }))
 
