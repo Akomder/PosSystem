@@ -791,3 +791,19 @@ CREATE TABLE IF NOT EXISTS reservations (
 );
 CREATE INDEX IF NOT EXISTS idx_reservations_rid_date
   ON reservations(restaurant_id, reserved_at);
+
+-- ─── QR Customer Experience ────────────────────────────────────────────────────
+ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_available BOOLEAN  NOT NULL DEFAULT TRUE;
+ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS spice_level  SMALLINT NOT NULL DEFAULT 0;
+ALTER TABLE orders     ADD COLUMN IF NOT EXISTS guest_name   VARCHAR(120);
+ALTER TABLE orders     ADD COLUMN IF NOT EXISTS guest_phone  VARCHAR(30);
+
+CREATE TABLE IF NOT EXISTS order_ratings (
+  id            SERIAL PRIMARY KEY,
+  order_id      INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  restaurant_id INTEGER NOT NULL,
+  rating        SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment       TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_order_ratings_order ON order_ratings(order_id);

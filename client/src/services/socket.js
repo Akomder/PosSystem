@@ -69,3 +69,8 @@ export function onOrderReturnRequested(cb) {
   socket?.on('order:return_requested', cb)
   return () => socket?.off('order:return_requested', cb)
 }
+
+export function onCallStaff(cb) {
+  socket?.on('call:staff', cb)
+  return () => socket?.off('call:staff', cb)
+}

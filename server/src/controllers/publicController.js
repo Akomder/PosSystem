@@ -1,6 +1,6 @@
 const { query, pool }      = require('../config/db')
 const { checkValidation }  = require('../middleware/errorHandler')
-const { emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitQrPaymentAlert, emitOrderItemsAdded, emitOrderReturnRequested } = require('../config/socket')
+const { emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitQrPaymentAlert, emitOrderItemsAdded, emitOrderReturnRequested, emitCallStaff } = require('../config/socket')
 const { ORDER_SELECT, fmtOrder } = require('./ordersController')
 
 // ─── Helpers: parse formatted IDs → raw integers ─────────────────────────────
@@ -74,7 +74,8 @@ async function getPublicMenu(req, res, next) {
       if (!rawId) return res.status(400).json({ error: 'Invalid tableId format' })
       // Join through restaurant_tables to scope to the correct restaurant
       sql = `
-        SELECT m.id, m.name, m.category, m.price, m.description, m.prep_time, m.image_url
+        SELECT m.id, m.name, m.category, m.price, m.description, m.prep_time, m.image_url,
+               m.spice_level, m.is_available, m.stock_quantity
         FROM menu_items m
         JOIN restaurant_tables t ON t.restaurant_id = m.restaurant_id
         WHERE t.id = $1 AND m.available = true
@@ -83,20 +84,24 @@ async function getPublicMenu(req, res, next) {
       params = [rawId]
     } else {
       // Fallback (single-restaurant or test environments)
-      sql = `SELECT id, name, category, price, description, prep_time, image_url
+      sql = `SELECT id, name, category, price, description, prep_time, image_url,
+                    spice_level, is_available, stock_quantity
              FROM menu_items WHERE available = true ORDER BY category, name`
       params = []
     }
 
     const { rows } = await query(sql, params)
     res.json(rows.map(r => ({
-      id:          r.id,
-      name:        r.name,
-      category:    r.category,
-      price:       parseFloat(r.price),
-      description: r.description,
-      prepTime:    r.prep_time,
-      imageUrl:    r.image_url || '',
+      id:            r.id,
+      name:          r.name,
+      category:      r.category,
+      price:         parseFloat(r.price),
+      description:   r.description,
+      prepTime:      r.prep_time,
+      imageUrl:      r.image_url || '',
+      spiceLevel:    r.spice_level ?? 0,
+      isAvailable:   r.is_available !== false,
+      stockQuantity: r.stock_quantity !== null ? parseFloat(r.stock_quantity) : null,
     })))
   } catch (err) { next(err) }
 }
@@ -461,4 +466,75 @@ async function createReturnRequest(req, res, next) {
   } catch (err) { next(err) }
 }
 
-module.exports = { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder, addItemsToPublicOrder, requestCheckout, createReturnRequest }
+// ─── POST /api/public/tables/:tableId/call-staff ──────────────────────────────
+async function callStaff(req, res, next) {
+  try {
+    const rawId = parseRawTableId(req.params.tableId)
+    if (!rawId) return res.status(400).json({ error: 'Invalid tableId' })
+
+    const { rows } = await query(
+      `SELECT t.id, t.number, t.restaurant_id FROM restaurant_tables t WHERE t.id = $1`,
+      [rawId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Table not found' })
+    const t = rows[0]
+    emitCallStaff({ tableId: `T-${String(t.id).padStart(2, '0')}`, tableNumber: t.number, restaurantId: t.restaurant_id })
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+}
+
+// ─── GET /api/public/promotions?tableId=T-01 ─────────────────────────────────
+async function getPublicPromotions(req, res, next) {
+  try {
+    const { tableId } = req.query
+    if (!tableId) return res.status(400).json({ error: 'tableId required' })
+    const rawId = parseRawTableId(tableId)
+    if (!rawId) return res.status(400).json({ error: 'Invalid tableId' })
+
+    const tRes = await query(`SELECT restaurant_id FROM restaurant_tables WHERE id = $1`, [rawId])
+    if (!tRes.rows.length) return res.status(404).json({ error: 'Table not found' })
+    const rid = tRes.rows[0].restaurant_id
+
+    const { rows } = await query(
+      `SELECT id, name, description, discount_type, discount_value, code
+       FROM promotions
+       WHERE restaurant_id = $1
+         AND is_active = TRUE
+         AND (valid_until IS NULL OR valid_until >= NOW())
+       ORDER BY created_at DESC`,
+      [rid]
+    )
+    res.json(rows)
+  } catch (err) { next(err) }
+}
+
+// ─── POST /api/public/orders/:id/rating ──────────────────────────────────────
+async function submitRating(req, res, next) {
+  try {
+    const rawOrderId = parseOrderId(req.params.id)
+    if (!rawOrderId) return res.status(400).json({ error: 'Invalid order ID' })
+
+    const { tableId, rating, comment } = req.body
+    if (!tableId || !rating) return res.status(400).json({ error: 'tableId and rating required' })
+
+    const rawTableId = parseRawTableId(tableId)
+    if (!rawTableId) return res.status(400).json({ error: 'Invalid tableId' })
+
+    const rVal = parseInt(rating)
+    if (isNaN(rVal) || rVal < 1 || rVal > 5) return res.status(400).json({ error: 'rating must be 1–5' })
+
+    const { rows } = await query(
+      `SELECT o.id, o.restaurant_id FROM orders o WHERE o.id = $1 AND o.table_id = $2`,
+      [rawOrderId, rawTableId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Order not found' })
+
+    await query(
+      `INSERT INTO order_ratings (order_id, restaurant_id, rating, comment) VALUES ($1, $2, $3, $4)`,
+      [rawOrderId, rows[0].restaurant_id, rVal, comment?.trim() || null]
+    )
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+}
+
+module.exports = { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder, addItemsToPublicOrder, requestCheckout, createReturnRequest, callStaff, getPublicPromotions, submitRating }

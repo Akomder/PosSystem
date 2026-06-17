@@ -382,4 +382,11 @@ export const publicApi = {
   cancelOrder:     (orderId, tableId) => publicRequest('PATCH', `/public/orders/${encodeURIComponent(orderId)}/cancel`, { tableId }),
   // Submit a return request for specific items (e.g. return 2 of 5 beers)
   requestReturn:   (orderId, body)    => publicRequest('POST',  `/public/orders/${encodeURIComponent(orderId)}/return-request`, body),
+  // Customer taps "Call Staff" for general assistance
+  callStaff:       (tableId)          => publicRequest('POST',  `/public/tables/${encodeURIComponent(tableId)}/call-staff`, {}),
+  // Active promotions visible to customers
+  getPromotions:   (tableId)          => publicRequest('GET',   `/public/promotions?tableId=${encodeURIComponent(tableId)}`),
+  // Customer submits a service rating
+  submitRating:    (orderId, tableId, rating, comment) =>
+    publicRequest('POST', `/public/orders/${encodeURIComponent(orderId)}/rating`, { tableId, rating, comment }),
 }

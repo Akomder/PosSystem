@@ -83,4 +83,10 @@ function emitOrderReturnRequested(order, returnRecord) {
   io.to('pos').emit('order:return_requested', { order, returnRecord })
 }
 
-module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow, emitQrPaymentAlert, emitOrderItemsAdded, emitOrderReturnRequested }
+// Fired when a QR-order customer taps "Call Staff" for general assistance
+function emitCallStaff({ tableId, tableNumber, restaurantId }) {
+  if (!io) return
+  io.to('pos').emit('call:staff', { tableId, tableNumber, restaurantId })
+}
+
+module.exports = { initSocket, getIo, emitOrderCreated, emitOrderUpdated, emitTableUpdated, emitStockLow, emitQrPaymentAlert, emitOrderItemsAdded, emitOrderReturnRequested, emitCallStaff }

@@ -1,6 +1,6 @@
 const router  = require('express').Router()
 const { body } = require('express-validator')
-const { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder, addItemsToPublicOrder, requestCheckout, createReturnRequest } = require('../controllers/publicController')
+const { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder, addItemsToPublicOrder, requestCheckout, createReturnRequest, callStaff, getPublicPromotions, submitRating } = require('../controllers/publicController')
 
 // No authentication on any of these routes
 
@@ -54,6 +54,23 @@ router.patch(
   '/orders/:id/cancel',
   [body('tableId').notEmpty().withMessage('tableId is required')],
   cancelPublicOrder
+)
+
+// Customer taps "Call Staff" for general assistance — alerts POS immediately
+router.post('/tables/:tableId/call-staff', callStaff)
+
+// Active promotions/discounts visible to customers
+router.get('/promotions', getPublicPromotions)
+
+// Customer submits a service rating after their meal
+router.post(
+  '/orders/:id/rating',
+  [
+    body('tableId').notEmpty().withMessage('tableId required'),
+    body('rating').isInt({ min: 1, max: 5 }).withMessage('rating must be 1-5'),
+    body('comment').optional(),
+  ],
+  submitRating
 )
 
 module.exports = router

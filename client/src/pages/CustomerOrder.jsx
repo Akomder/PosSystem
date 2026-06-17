@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import {
   ShoppingCart, Plus, Minus, X, UtensilsCrossed,
   XCircle, CheckCircle2, Clock, Bell, ChevronLeft, ImageOff,
+  Search, Star, Tag, PhoneCall, Home,
 } from 'lucide-react'
 import { io } from 'socket.io-client'
 import { publicApi } from '../services/api'
@@ -13,8 +14,6 @@ const TR = {
     loading:              'Loading…',
     err_title:            'Something went wrong',
     table:                n  => `Table ${n}`,
-    cat_all:              'All',
-    cat_map:              { Starters: 'Starters', Mains: 'Mains', Drinks: 'Drinks', Desserts: 'Desserts' },
     view_order:           n  => n ? `View Order (${n})` : 'View Order',
     your_order:           'Your Order',
     special_req:          'Special requests / allergies (optional)',
@@ -27,7 +26,6 @@ const TR = {
     payment_method:       'Payment',
     pay_cash:             'Cash',
     pay_qr:               'QR Pay',
-    // tracking
     my_order:             'My Order',
     order_id:             'Order',
     status_pending:       'Pending',
@@ -61,7 +59,6 @@ const TR = {
     return_submitting:    'Submitting…',
     return_sent:          'Request sent!',
     return_sent_desc:     'Staff will review and adjust your order.',
-    return_qty:           qty => `Return ${qty}`,
     cancelled_title:      'Order Cancelled',
     cancelled_msg:        id => `Order ${id} has been cancelled.`,
     no_charges:           'No charges will be made.',
@@ -72,13 +69,41 @@ const TR = {
     cancelling:           'Cancelling…',
     no_items:             'No items in this category',
     item_note_ph:         'Note (e.g. no onions)',
+    // Home
+    home_order_now:       'Order Now',
+    home_call_staff:      'Call Staff',
+    home_my_order:        'My Order',
+    home_rating:          'Rate',
+    home_promotions:      'Promotions',
+    home_guest_name:      'Your name (optional)',
+    home_guest_phone:     'Phone (optional)',
+    home_guest_hint:      'Help us serve you better',
+    // Call staff
+    call_staff_sent:      'Staff called!',
+    call_staff_cooldown:  'Re-enables in 2 min',
+    calling:              'Calling…',
+    // Menu search
+    search_ph:            'Search menu…',
+    no_search_results:    'No items match your search',
+    // Out of stock
+    out_of_stock:         'Out of stock',
+    // Rating
+    rating_title:         'Rate your experience',
+    rating_submit:        'Submit Rating',
+    rating_thanks:        'Thank you for your feedback!',
+    rating_comment_ph:    'Tell us more (optional)…',
+    rating_select_star:   'Tap a star to rate',
+    submitting_rating:    'Submitting…',
+    // Promotions
+    promo_title:          'Promotions',
+    promo_empty:          'No current promotions',
+    loading_promos:       'Loading…',
+    back:                 '← Back',
   },
   lo: {
     loading:              'ກຳລັງໂຫຼດ…',
     err_title:            'ມີຂໍ້ຜິດພາດ',
     table:                n  => `ໂຕ໊ະ ${n}`,
-    cat_all:              'ທັງໝົດ',
-    cat_map:              { Starters: 'ອາຫານເຂົ້າ', Mains: 'ອາຫານຫຼັກ', Drinks: 'ເຄື່ອງດື່ມ', Desserts: 'ຂອງຫວານ' },
     view_order:           n  => n ? `ເບິ່ງລາຍການ (${n})` : 'ເບິ່ງລາຍການ',
     your_order:           'ລາຍການຂອງທ່ານ',
     special_req:          'ຄຳຮ້ອງພິເສດ (ທາງເລືອກ)',
@@ -124,7 +149,6 @@ const TR = {
     return_submitting:    'ກຳລັງສົ່ງ…',
     return_sent:          'ສົ່ງແລ້ວ!',
     return_sent_desc:     'ພະນັກງານຈະກວດສອບ.',
-    return_qty:           qty => `ສົ່ງຄືນ ${qty}`,
     cancelled_title:      'ຍົກເລີກແລ້ວ',
     cancelled_msg:        id => `ການສັ່ງ ${id} ຖືກຍົກເລີກ.`,
     no_charges:           'ບໍ່ມີຄ່າໃຊ້ຈ່າຍ',
@@ -135,6 +159,36 @@ const TR = {
     cancelling:           'ກຳລັງຍົກເລີກ…',
     no_items:             'ບໍ່ມີລາຍການ',
     item_note_ph:         'ໝາຍເຫດ (ເຊັ່ນ ບໍ່ໃສ່ຜັກບົ່ວ)',
+    // Home
+    home_order_now:       'ສັ່ງດຽວນີ້',
+    home_call_staff:      'ເອີ້ນພະນັກງານ',
+    home_my_order:        'ການສັ່ງຂອງຂ້ອຍ',
+    home_rating:          'ໃຫ້ຄະແນນ',
+    home_promotions:      'ໂປຣໂມຊັ່ນ',
+    home_guest_name:      'ຊື່ຂອງທ່ານ (ທາງເລືອກ)',
+    home_guest_phone:     'ໂທລະສັບ (ທາງເລືອກ)',
+    home_guest_hint:      'ຊ່ວຍໃຫ້ເຮົາໃຫ້ບໍລິການທ່ານດີຂຶ້ນ',
+    // Call staff
+    call_staff_sent:      'ແຈ້ງພະນັກງານແລ້ວ!',
+    call_staff_cooldown:  'ຈະເປີດໃໝ່ໃນ 2 ນາທີ',
+    calling:              'ກຳລັງໂທ…',
+    // Menu search
+    search_ph:            'ຄົ້ນຫາເມນູ…',
+    no_search_results:    'ບໍ່ພົບລາຍການທີ່ກົງ',
+    // Out of stock
+    out_of_stock:         'ໝົດສາງ',
+    // Rating
+    rating_title:         'ໃຫ້ຄະແນນການບໍລິການ',
+    rating_submit:        'ສົ່ງຄະແນນ',
+    rating_thanks:        'ຂອບໃຈສໍາລັບຄໍາຄິດ!',
+    rating_comment_ph:    'ບອກເພີ່ມ (ທາງເລືອກ)…',
+    rating_select_star:   'ແຕະດາວ',
+    submitting_rating:    'ກຳລັງສົ່ງ…',
+    // Promotions
+    promo_title:          'ໂປຣໂມຊັ່ນ',
+    promo_empty:          'ບໍ່ມີໂປຣໂມຊັ່ນໃນຂະນະນີ້',
+    loading_promos:       'ກຳລັງໂຫຼດ…',
+    back:                 '← ກັບ',
   },
 }
 
@@ -145,10 +199,12 @@ const CAT_COLOUR = {
   Desserts: 'bg-pink-100  text-pink-700',
 }
 
-const STATUS_STEPS        = ['Pending', 'In Progress', 'Served']
-const CHECKOUT_COOLDOWN   = 3 * 60 * 1000
-const SERVED_ALERT_TTL    = 6000
-const API_BASE            = import.meta.env.VITE_API_URL || ''
+const STATUS_STEPS       = ['Pending', 'In Progress', 'Served']
+const CHECKOUT_COOLDOWN  = 3 * 60 * 1000
+const CALLSTAFF_COOLDOWN = 2 * 60 * 1000
+const SERVED_ALERT_TTL   = 6000
+const API_BASE           = import.meta.env.VITE_API_URL || ''
+const GUEST_KEY          = 'qr_guest_v1'
 
 function triggerServedBeep() {
   try {
@@ -174,7 +230,6 @@ const writeTransCache = c  => { try { localStorage.setItem(TRANS_CACHE_KEY, JSON
 async function batchTranslateLao(texts) {
   const result = {}
   if (!texts.length) return result
-  // One request per text, all concurrent — more reliable than batching with \n
   await Promise.all(texts.map(async text => {
     try {
       const res  = await fetch(
@@ -198,8 +253,8 @@ export default function CustomerOrder() {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
-  // view: 'menu' | 'tracking' | 'complete' | 'cancelled'
-  const [view,         setView]         = useState('menu')
+  // view: 'home' | 'menu' | 'tracking' | 'complete' | 'cancelled' | 'rating' | 'promotions'
+  const [view,         setView]         = useState('home')
   const [activeOrder,  setActiveOrder]  = useState(null)
   const [orderingMore, setOrderingMore] = useState(false)
 
@@ -210,33 +265,56 @@ export default function CustomerOrder() {
   const [requesting,     setRequesting]     = useState(false)
   const [servedAlerted,  setServedAlerted]  = useState(false)
 
+  // call staff
+  const [callStaffSentAt, setCallStaffSentAt] = useState(null)
+  const [callingStaff,    setCallingStaff]    = useState(false)
+
   // return request
-  const [returnOpen,      setReturnOpen]      = useState(false)
-  const [returnQtys,      setReturnQtys]      = useState({})   // { orderItemId: qty }
-  const [returnReason,    setReturnReason]    = useState('')
-  const [returnState,     setReturnState]     = useState('idle') // 'idle'|'submitting'|'sent'|'error'
-  const [returnError,     setReturnError]     = useState('')
+  const [returnOpen,   setReturnOpen]   = useState(false)
+  const [returnQtys,   setReturnQtys]   = useState({})
+  const [returnReason, setReturnReason] = useState('')
+  const [returnState,  setReturnState]  = useState('idle')
+  const [returnError,  setReturnError]  = useState('')
 
   // cart
-  const [cart,           setCart]           = useState([])
-  const [notes,          setNotes]          = useState('')
-  const [paymentMethod,  setPaymentMethod]  = useState('cash')
-  const [activeCategory, setActiveCategory] = useState('All')
-  const [cartOpen,       setCartOpen]       = useState(false)
-  const [submitting,     setSubmitting]     = useState(false)
+  const [cart,          setCart]          = useState([])
+  const [notes,         setNotes]         = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [activeCategory,setActiveCategory]= useState('All')
+  const [cartOpen,      setCartOpen]      = useState(false)
+  const [submitting,    setSubmitting]    = useState(false)
+
+  // menu search
+  const [menuSearch, setMenuSearch] = useState('')
+
+  // guest info (persisted to localStorage)
+  const [guestName,  setGuestName]  = useState(() => { try { return JSON.parse(localStorage.getItem(GUEST_KEY) || '{}').name  || '' } catch { return '' } })
+  const [guestPhone, setGuestPhone] = useState(() => { try { return JSON.parse(localStorage.getItem(GUEST_KEY) || '{}').phone || '' } catch { return '' } })
+
+  const saveGuest = () => {
+    try { localStorage.setItem(GUEST_KEY, JSON.stringify({ name: guestName.trim(), phone: guestPhone.trim() })) } catch {}
+  }
+
+  // rating
+  const [ratingValue,   setRatingValue]   = useState(0)
+  const [ratingComment, setRatingComment] = useState('')
+  const [ratingState,   setRatingState]   = useState('idle') // 'idle'|'submitting'|'sent'|'error'
+
+  // promotions
+  const [promos,       setPromos]       = useState([])
+  const [promosLoaded, setPromosLoaded] = useState(false)
 
   // lang + auto-translation
   const [lang,         setLang]         = useState(() => {
     try { return localStorage.getItem('qr_lang') || 'lo' } catch { return 'lo' }
   })
-  const [translations, setTranslations] = useState(readTransCache)  // { laoText: enText }
+  const [translations, setTranslations] = useState(readTransCache)
   const [translating,  setTranslating]  = useState(false)
 
   const t = (key, ...args) => {
     const v = TR[lang]?.[key] ?? TR.en[key]
     return typeof v === 'function' ? v(...args) : (v ?? key)
   }
-  // tr() is used for dynamic menu/category text (not static UI strings)
   const tr       = text => lang === 'en' ? (translations[text] || text) : text
   const catLabel = c    => lang === 'en' ? tr(c) : c
   const toggleLang = () => {
@@ -248,7 +326,7 @@ export default function CustomerOrder() {
   const pollRef        = useRef(null)
   const activeOrderRef = useRef(null)
   const prevStatusRef  = useRef(null)
-  const scrollLock     = useRef(false)   // prevents scroll-spy fighting click-to-scroll
+  const scrollLock     = useRef(false)
   const tabBarRef      = useRef(null)
   const tabBtnRefs     = useRef({})
 
@@ -256,10 +334,9 @@ export default function CustomerOrder() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
   }, [])
 
-  // Keep ref in sync so socket handler closure is never stale
   useEffect(() => { activeOrderRef.current = activeOrder }, [activeOrder])
 
-  // ── Detect "Served" status transition → show food-ready alert ─────────────
+  // ── Detect "Served" status transition ─────────────────────────────────────
   useEffect(() => {
     if (!activeOrder?.status) { prevStatusRef.current = null; return }
     if (activeOrder.status === 'Served' && prevStatusRef.current && prevStatusRef.current !== 'Served') {
@@ -269,19 +346,23 @@ export default function CustomerOrder() {
     prevStatusRef.current = activeOrder.status
   }, [activeOrder?.status])
 
-  // Auto-dismiss served alert after 6s
   useEffect(() => {
     if (!servedAlerted) return
     const timer = setTimeout(() => setServedAlerted(false), SERVED_ALERT_TTL)
     return () => clearTimeout(timer)
   }, [servedAlerted])
 
-  // Re-enable checkout button after 3 min
   useEffect(() => {
     if (!checkoutSentAt) return
     const timer = setTimeout(() => setCheckoutSentAt(null), CHECKOUT_COOLDOWN)
     return () => clearTimeout(timer)
   }, [checkoutSentAt])
+
+  useEffect(() => {
+    if (!callStaffSentAt) return
+    const timer = setTimeout(() => setCallStaffSentAt(null), CALLSTAFF_COOLDOWN)
+    return () => clearTimeout(timer)
+  }, [callStaffSentAt])
 
   // ── Load order by rawId ────────────────────────────────────────────────────
   const loadOrder = useCallback(async (rawId) => {
@@ -292,7 +373,7 @@ export default function CustomerOrder() {
       if (order.status === 'Cancelled') { setView('cancelled'); stopPoll(); return }
       setView('tracking')
     } catch {
-      setView('menu'); setActiveOrder(null); stopPoll()
+      setView('home'); setActiveOrder(null); stopPoll()
     }
   }, [tableId, stopPoll])
 
@@ -306,7 +387,11 @@ export default function CustomerOrder() {
         ])
         setTable(tableData)
         setMenu(menuData)
-        if (tableData.currentOrderId) await loadOrder(tableData.currentOrderId)
+        if (tableData.currentOrderId) {
+          await loadOrder(tableData.currentOrderId)
+        } else {
+          setView('home')
+        }
       } catch (err) {
         setError(err.message || 'Failed to load')
       } finally {
@@ -317,7 +402,7 @@ export default function CustomerOrder() {
     return () => stopPoll()
   }, [tableId, loadOrder, stopPoll])
 
-  // ── Poll every 12s as fallback (WebSocket may drop on mobile) ─────────────
+  // ── Poll every 12s as fallback ─────────────────────────────────────────────
   useEffect(() => {
     if (view !== 'tracking' || !activeOrder) return
     stopPoll()
@@ -345,8 +430,7 @@ export default function CustomerOrder() {
     const cats     = [...new Set(menu.map(m => m.category).filter(Boolean))]
     const allTexts = [...new Set([...menu.map(i => i.name), ...cats])]
     const cache    = readTransCache()
-    const missing  = allTexts.filter(t => !cache[t])
-    // Everything already cached — apply immediately
+    const missing  = allTexts.filter(tx => !cache[tx])
     if (!missing.length) { setTranslations({ ...cache }); return }
     setTranslating(true)
     batchTranslateLao(missing)
@@ -355,9 +439,17 @@ export default function CustomerOrder() {
         writeTransCache(merged)
         setTranslations(merged)
       })
-      .catch(() => {})  // silent — items stay in Lao if translation fails
+      .catch(() => {})
       .finally(() => setTranslating(false))
   }, [lang, menu])
+
+  // ── Load promotions when view switches to 'promotions' ────────────────────
+  useEffect(() => {
+    if (view !== 'promotions' || promosLoaded) return
+    publicApi.getPromotions(tableId)
+      .then(data => { setPromos(data); setPromosLoaded(true) })
+      .catch(() => setPromosLoaded(true))
+  }, [view, tableId, promosLoaded])
 
   // ── Cart helpers ───────────────────────────────────────────────────────────
   const addItem     = item => setCart(prev => {
@@ -393,6 +485,8 @@ export default function CustomerOrder() {
           tableId, notes: notes.trim(),
           items: itemsPayload,
           paymentMethod,
+          guestName:  guestName.trim()  || undefined,
+          guestPhone: guestPhone.trim() || undefined,
         })
         setCart([]); setNotes(''); setCartOpen(false); setPaymentMethod('cash')
         await loadOrder(result.rawId)
@@ -404,12 +498,30 @@ export default function CustomerOrder() {
     }
   }
 
-  // ── Derived (must be declared before scroll-spy effect uses catOrder) ────────
+  // ── Derived ────────────────────────────────────────────────────────────────
   const grouped  = useMemo(() =>
     menu.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc }, {}),
     [menu]
   )
   const catOrder = useMemo(() => [...new Set(menu.map(m => m.category).filter(Boolean))], [menu])
+
+  // Filtered by search query
+  const filteredGrouped = useMemo(() => {
+    if (!menuSearch.trim()) return grouped
+    const q = menuSearch.toLowerCase()
+    const result = {}
+    for (const cat of Object.keys(grouped)) {
+      const items = grouped[cat].filter(i => i.name.toLowerCase().includes(q) || tr(i.name).toLowerCase().includes(q))
+      if (items.length) result[cat] = items
+    }
+    return result
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grouped, menuSearch, translations, lang])
+
+  const filteredCatOrder = useMemo(() =>
+    catOrder.filter(c => filteredGrouped[c]),
+    [catOrder, filteredGrouped]
+  )
 
   // ── Cancel order ───────────────────────────────────────────────────────────
   const handleCancelOrder = async () => {
@@ -424,7 +536,7 @@ export default function CustomerOrder() {
     } finally { setCancelling(false) }
   }
 
-  // ── Submit return request ─────────────────────────────────────────────────────
+  // ── Submit return request ──────────────────────────────────────────────────
   const handleReturnSubmit = async () => {
     if (!activeOrder) return
     const items = Object.entries(returnQtys)
@@ -459,34 +571,6 @@ export default function CustomerOrder() {
     setReturnOpen(true)
   }
 
-  // ── Scroll spy: highlight the category tab whose section is at the top ──────
-  useEffect(() => {
-    if (view !== 'menu' || !catOrder.length) return
-    const HEADER_H = 115  // sticky header height (px)
-
-    const onScroll = () => {
-      if (scrollLock.current) return
-      let current = catOrder[0]
-      for (const cat of catOrder) {
-        const el = document.getElementById(`cat-sec-${cat}`)
-        if (!el) continue
-        if (el.getBoundingClientRect().top <= HEADER_H + 24) current = cat
-      }
-      setActiveCategory(current)
-    }
-
-    window.addEventListener('scroll', onScroll, { passive: true })
-    // Fire once on mount so the first tab is highlighted without any scrolling
-    onScroll()
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [view, catOrder])
-
-  // ── Keep the active tab pill scrolled into view in the horizontal bar ────
-  useEffect(() => {
-    const btn = tabBtnRefs.current[activeCategory]
-    if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
-  }, [activeCategory])
-
   // ── Request checkout ───────────────────────────────────────────────────────
   const handleRequestCheckout = async () => {
     if (!activeOrder) return
@@ -499,28 +583,95 @@ export default function CustomerOrder() {
     } finally { setRequesting(false) }
   }
 
-  // ── Scroll to a category section (used by tab clicks) ───────────────────
+  // ── Call Staff ─────────────────────────────────────────────────────────────
+  const handleCallStaff = async () => {
+    setCallingStaff(true)
+    try {
+      await publicApi.callStaff(tableId)
+      setCallStaffSentAt(Date.now())
+    } catch {
+      alert('Could not call staff. Please ask for assistance directly.')
+    } finally { setCallingStaff(false) }
+  }
+
+  // ── Submit rating ──────────────────────────────────────────────────────────
+  const handleRatingSubmit = async () => {
+    if (!activeOrder || !ratingValue) return
+    setRatingState('submitting')
+    try {
+      await publicApi.submitRating(activeOrder.rawId, tableId, ratingValue, ratingComment)
+      setRatingState('sent')
+    } catch {
+      setRatingState('error')
+    }
+  }
+
+  // ── Scroll spy ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (view !== 'menu' || !filteredCatOrder.length) return
+    const HEADER_H = 155
+
+    const onScroll = () => {
+      if (scrollLock.current) return
+      let current = filteredCatOrder[0]
+      for (const cat of filteredCatOrder) {
+        const el = document.getElementById(`cat-sec-${cat}`)
+        if (!el) continue
+        if (el.getBoundingClientRect().top <= HEADER_H + 24) current = cat
+      }
+      setActiveCategory(current)
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [view, filteredCatOrder])
+
+  useEffect(() => {
+    const btn = tabBtnRefs.current[activeCategory]
+    if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }, [activeCategory])
+
   const scrollToCategory = (cat) => {
     scrollLock.current = true
     setActiveCategory(cat)
     const el = document.getElementById(`cat-sec-${cat}`)
     if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - 118
+      const top = el.getBoundingClientRect().top + window.scrollY - 158
       window.scrollTo({ top, behavior: 'smooth' })
     }
     setTimeout(() => { scrollLock.current = false }, 900)
   }
 
-  // ── Remaining derived values ───────────────────────────────────────────────
+  // ── Derived values ─────────────────────────────────────────────────────────
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0)
-  const cartCount    = cart.reduce((s, i) => s + i.quantity, 0)
-  const currency     = table?.currency || 'LAK'
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
+  const currency  = table?.currency || 'LAK'
 
   const LangBtn = () => (
     <button onClick={toggleLang} className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 shadow-sm">
       {lang === 'en' ? 'ລາວ' : 'EN'}
     </button>
   )
+
+  const CallStaffBtn = ({ variant = 'outline' }) => {
+    if (callStaffSentAt) return (
+      <div className="flex flex-col items-center justify-center gap-0.5 py-3 px-4 rounded-2xl text-center bg-blue-50 border border-blue-200 w-full">
+        <div className="flex items-center gap-1 text-xs font-semibold text-blue-700"><PhoneCall size={13} />{t('call_staff_sent')}</div>
+        <span className="text-[10px] text-blue-500">{t('call_staff_cooldown')}</span>
+      </div>
+    )
+    return (
+      <button
+        onClick={handleCallStaff}
+        disabled={callingStaff}
+        className={`w-full flex items-center justify-center gap-2 py-3.5 font-semibold text-sm rounded-2xl disabled:opacity-60 transition-colors ${variant === 'solid' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border-2 border-blue-400 text-blue-600 hover:bg-blue-50'}`}
+      >
+        <PhoneCall size={15} />
+        {callingStaff ? t('calling') : t('home_call_staff')}
+      </button>
+    )
+  }
 
   // ── Loading / Error ────────────────────────────────────────────────────────
   if (loading) return (
@@ -554,7 +705,7 @@ export default function CustomerOrder() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('cancelled_title')}</h1>
         <p className="text-sm text-gray-500 mb-1">{t('cancelled_msg', <span className="font-semibold">{activeOrder?.id}</span>)}</p>
         <p className="text-xs text-gray-400 mb-6">{t('no_charges')}</p>
-        <button onClick={() => { setActiveOrder(null); setView('menu') }}
+        <button onClick={() => { setActiveOrder(null); setView('home') }}
           className="px-6 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 shadow-sm">
           {t('order_again')}
         </button>
@@ -602,11 +753,210 @@ export default function CustomerOrder() {
             </div>
           )}
 
-          <button onClick={() => { setActiveOrder(null); setView('menu') }}
+          <button onClick={() => { setActiveOrder(null); setView('home') }}
             className="w-full px-6 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 shadow-sm">
             {t('order_again')}
           </button>
         </div>
+      </div>
+    )
+  }
+
+  // ── Rating view ────────────────────────────────────────────────────────────
+  if (view === 'rating') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
+          <div className="px-4 py-3 flex items-center justify-between max-w-xl mx-auto">
+            <button onClick={() => setView('home')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600">
+              <ChevronLeft size={18} />{t('back')}
+            </button>
+            <LangBtn />
+          </div>
+        </header>
+        <main className="px-4 py-8 max-w-sm mx-auto">
+          {ratingState === 'sent' ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 size={30} className="text-teal-500" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">{t('rating_thanks')}</h2>
+              <button onClick={() => setView('home')} className="mt-4 px-6 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700">OK</button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-lg font-bold text-gray-900 text-center mb-6">{t('rating_title')}</h2>
+              <div className="flex justify-center gap-3 mb-6">
+                {[1,2,3,4,5].map(s => (
+                  <button key={s} onClick={() => setRatingValue(s)}>
+                    <Star size={36} className={s <= ratingValue ? 'text-amber-400 fill-amber-400' : 'text-gray-200'} />
+                  </button>
+                ))}
+              </div>
+              {ratingValue === 0 && (
+                <p className="text-center text-xs text-gray-400 mb-4">{t('rating_select_star')}</p>
+              )}
+              <textarea
+                value={ratingComment}
+                onChange={e => setRatingComment(e.target.value)}
+                placeholder={t('rating_comment_ph')}
+                rows={3}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-gray-300 mb-4"
+              />
+              {ratingState === 'error' && (
+                <p className="text-xs text-red-500 mb-3 text-center">Could not submit. Please try again.</p>
+              )}
+              <button
+                onClick={handleRatingSubmit}
+                disabled={!ratingValue || ratingState === 'submitting'}
+                className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors"
+              >
+                {ratingState === 'submitting' ? t('submitting_rating') : t('rating_submit')}
+              </button>
+            </div>
+          )}
+        </main>
+      </div>
+    )
+  }
+
+  // ── Promotions view ────────────────────────────────────────────────────────
+  if (view === 'promotions') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
+          <div className="px-4 py-3 flex items-center justify-between max-w-xl mx-auto">
+            <button onClick={() => setView('home')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600">
+              <ChevronLeft size={18} />{t('back')}
+            </button>
+            <span className="text-sm font-bold text-gray-900">{t('promo_title')}</span>
+            <LangBtn />
+          </div>
+        </header>
+        <main className="px-4 py-5 max-w-xl mx-auto space-y-3">
+          {!promosLoaded ? (
+            <div className="text-center py-12 text-gray-400 text-sm">{t('loading_promos')}</div>
+          ) : promos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <Tag size={32} className="mb-3 opacity-30" />
+              <p className="text-sm">{t('promo_empty')}</p>
+            </div>
+          ) : promos.map(p => (
+            <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm">{p.name}</p>
+                  {p.description && <p className="text-xs text-gray-500 mt-0.5">{p.description}</p>}
+                </div>
+                <div className="flex-shrink-0">
+                  <span className="inline-block px-2.5 py-1 bg-teal-50 text-teal-700 text-xs font-bold rounded-full">
+                    {p.discount_type === 'percent' ? `${p.discount_value}% OFF` : `${parseFloat(p.discount_value).toLocaleString()} OFF`}
+                  </span>
+                </div>
+              </div>
+              {p.code && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Code:</span>
+                  <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-mono font-bold rounded-lg tracking-wider">{p.code}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </main>
+      </div>
+    )
+  }
+
+  // ── Home view ──────────────────────────────────────────────────────────────
+  if (view === 'home') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Teal header */}
+        <header className="bg-teal-600 text-white px-4 pt-8 pb-6">
+          <div className="max-w-xl mx-auto">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <UtensilsCrossed size={20} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-teal-100 truncate max-w-[180px]">{table?.restaurantName}</p>
+                  <h1 className="text-lg font-bold">{t('table', table?.number)}</h1>
+                </div>
+              </div>
+              <LangBtn />
+            </div>
+          </div>
+        </header>
+
+        <main className="px-4 py-5 pb-12 max-w-xl mx-auto space-y-4">
+          {/* Guest info card */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <p className="text-xs text-gray-400 mb-3">{t('home_guest_hint')}</p>
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={guestName}
+                onChange={e => setGuestName(e.target.value)}
+                onBlur={saveGuest}
+                placeholder={t('home_guest_name')}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-gray-300"
+              />
+              <input
+                type="tel"
+                value={guestPhone}
+                onChange={e => setGuestPhone(e.target.value)}
+                onBlur={saveGuest}
+                placeholder={t('home_guest_phone')}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-gray-300"
+              />
+            </div>
+          </div>
+
+          {/* Action grid */}
+          {/* ORDER NOW — full width */}
+          <button
+            onClick={() => { setOrderingMore(false); setView('menu') }}
+            className="w-full flex items-center justify-center gap-2.5 py-4 bg-teal-600 text-white font-bold text-base rounded-2xl hover:bg-teal-700 shadow-md shadow-teal-200 transition-colors"
+          >
+            <ShoppingCart size={20} />
+            {t('home_order_now')}
+          </button>
+
+          {/* CALL STAFF */}
+          <CallStaffBtn variant="outline" />
+
+          {/* My Order + Rating side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => activeOrder ? setView('tracking') : null}
+              disabled={!activeOrder}
+              className={`flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl border-2 font-semibold text-sm transition-colors ${activeOrder ? 'border-teal-500 bg-teal-50 text-teal-700 hover:bg-teal-100' : 'border-gray-100 bg-gray-50 text-gray-300'}`}
+            >
+              <Clock size={20} />
+              {t('home_my_order')}
+              {activeOrder && <span className="text-[10px] font-bold bg-teal-600 text-white px-2 py-0.5 rounded-full">{activeOrder.id}</span>}
+            </button>
+
+            <button
+              onClick={() => activeOrder ? (setRatingValue(0), setRatingComment(''), setRatingState('idle'), setView('rating')) : null}
+              disabled={!activeOrder}
+              className={`flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl border-2 font-semibold text-sm transition-colors ${activeOrder ? 'border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100' : 'border-gray-100 bg-gray-50 text-gray-300'}`}
+            >
+              <Star size={20} />
+              {t('home_rating')}
+            </button>
+          </div>
+
+          {/* PROMOTIONS */}
+          <button
+            onClick={() => setView('promotions')}
+            className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border-2 border-gray-200 text-gray-600 font-semibold text-sm rounded-2xl hover:border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            <Tag size={16} />
+            {t('home_promotions')}
+          </button>
+        </main>
       </div>
     )
   }
@@ -617,11 +967,11 @@ export default function CustomerOrder() {
     const orderItems  = activeOrder.items || []
     const orderTotal  = parseFloat(activeOrder.total || 0)
     const statusLabel = {
-      Pending:      t('status_pending'),
-      'In Progress':t('status_progress'),
-      Served:       t('status_served'),
-      Closed:       t('status_closed'),
-      Cancelled:    t('status_cancelled'),
+      Pending:       t('status_pending'),
+      'In Progress': t('status_progress'),
+      Served:        t('status_served'),
+      Closed:        t('status_closed'),
+      Cancelled:     t('status_cancelled'),
     }[activeOrder.status] || activeOrder.status
     const statusMsg = {
       Pending:       t('status_msg_pending'),
@@ -632,27 +982,16 @@ export default function CustomerOrder() {
     return (
       <div className="min-h-screen bg-gray-50">
 
-        {/* "Food ready" alert overlay — auto-dismisses in 6s */}
+        {/* "Food ready" alert overlay */}
         {servedAlerted && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6"
-            onClick={() => setServedAlerted(false)}
-          >
-            <div
-              className="bg-white rounded-2xl shadow-2xl p-6 max-w-xs w-full text-center"
-              onClick={e => e.stopPropagation()}
-            >
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6" onClick={() => setServedAlerted(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-xs w-full text-center" onClick={e => e.stopPropagation()}>
               <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 size={32} className="text-green-500" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">{t('served_alert')}</h2>
               <p className="text-sm text-gray-500 mb-4">{t('served_alert_sub')}</p>
-              <button
-                onClick={() => setServedAlerted(false)}
-                className="px-8 py-2.5 bg-green-500 text-white text-sm font-semibold rounded-xl hover:bg-green-600"
-              >
-                OK
-              </button>
+              <button onClick={() => setServedAlerted(false)} className="px-8 py-2.5 bg-green-500 text-white text-sm font-semibold rounded-xl hover:bg-green-600">OK</button>
             </div>
           </div>
         )}
@@ -661,6 +1000,9 @@ export default function CustomerOrder() {
         <header className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
           <div className="px-4 py-3 flex items-center justify-between max-w-xl mx-auto">
             <div className="flex items-center gap-2.5">
+              <button onClick={() => setView('home')} className="p-1.5 text-gray-400 hover:text-teal-600">
+                <Home size={18} />
+              </button>
               <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
                 <UtensilsCrossed size={14} className="text-white" />
               </div>
@@ -671,7 +1013,6 @@ export default function CustomerOrder() {
             </div>
             <div className="flex items-center gap-2">
               <LangBtn />
-              {/* Live indicator dot — shows socket is connected */}
               <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" title="Live" />
             </div>
           </div>
@@ -687,9 +1028,7 @@ export default function CustomerOrder() {
                 activeOrder.status === 'Served'      ? 'bg-green-100 text-green-700' :
                 activeOrder.status === 'In Progress' ? 'bg-amber-100 text-amber-700' :
                 'bg-gray-100 text-gray-600'
-              }`}>
-                {statusLabel}
-              </span>
+              }`}>{statusLabel}</span>
             </div>
             <p className="text-xl font-bold text-gray-900">{activeOrder.id}</p>
             {statusMsg && <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">{statusMsg}</p>}
@@ -734,19 +1073,13 @@ export default function CustomerOrder() {
               {orderItems.map((item, i) => (
                 <div key={item.orderItemId ?? i} className="flex items-center justify-between px-5 py-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-6 h-6 bg-teal-50 text-teal-600 text-xs font-bold rounded-full flex items-center justify-center flex-shrink-0">
-                      {item.quantity}
-                    </span>
+                    <span className="w-6 h-6 bg-teal-50 text-teal-600 text-xs font-bold rounded-full flex items-center justify-center flex-shrink-0">{item.quantity}</span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
-                      {item.notes && (
-                        <p className="text-xs text-gray-400 truncate">{item.notes}</p>
-                      )}
+                      {item.notes && <p className="text-xs text-gray-400 truncate">{item.notes}</p>}
                     </div>
                   </div>
-                  <p className="text-sm font-semibold text-gray-900 flex-shrink-0 ml-3">
-                    {(item.unitPrice * item.quantity).toLocaleString()}
-                  </p>
+                  <p className="text-sm font-semibold text-gray-900 flex-shrink-0 ml-3">{(item.unitPrice * item.quantity).toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -756,15 +1089,11 @@ export default function CustomerOrder() {
             </div>
           </div>
 
-          {/* QR payment image — shown when customer chose QR payment */}
+          {/* QR payment image */}
           {activeOrder.paymentMethod === 'qr' && table?.qrImageBase64 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col items-center gap-3">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('scan_to_pay')}</p>
-              <img
-                src={table.qrImageBase64}
-                alt="Payment QR"
-                className="w-44 h-44 object-contain rounded-xl border border-gray-100"
-              />
+              <img src={table.qrImageBase64} alt="Payment QR" className="w-44 h-44 object-contain rounded-xl border border-gray-100" />
               <p className="text-xs text-gray-400 text-center">{t('scan_qr_desc')}</p>
             </div>
           )}
@@ -779,12 +1108,9 @@ export default function CustomerOrder() {
               {t('order_more')}
             </button>
 
-            {/* Request Checkout — cooldown 3 min after first tap */}
             {checkoutSentAt ? (
               <div className="flex flex-col items-center justify-center gap-0.5 py-3 bg-green-50 border border-green-200 text-green-700 rounded-2xl text-center px-3">
-                <div className="flex items-center gap-1 text-xs font-semibold">
-                  <CheckCircle2 size={13} />{t('checkout_sent')}
-                </div>
+                <div className="flex items-center gap-1 text-xs font-semibold"><CheckCircle2 size={13} />{t('checkout_sent')}</div>
                 <span className="text-[10px] text-green-500">{t('notify_again_hint')}</span>
               </div>
             ) : (
@@ -799,12 +1125,12 @@ export default function CustomerOrder() {
             )}
           </div>
 
-          {/* Return Items — shown when order is In Progress or Served */}
+          {/* Call Staff */}
+          <CallStaffBtn variant="outline" />
+
+          {/* Return Items */}
           {['In Progress', 'Served'].includes(activeOrder.status) && !returnOpen && (
-            <button
-              onClick={openReturnPanel}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 text-gray-600 font-medium text-sm rounded-2xl hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={openReturnPanel} className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 text-gray-600 font-medium text-sm rounded-2xl hover:bg-gray-50 transition-colors">
               <Minus size={14} />
               {t('return_items')}
             </button>
@@ -815,9 +1141,7 @@ export default function CustomerOrder() {
             <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
               <div className="px-5 py-3 border-b border-amber-100 flex items-center justify-between bg-amber-50">
                 <p className="text-sm font-semibold text-amber-800">{t('return_title')}</p>
-                <button onClick={() => setReturnOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={15} />
-                </button>
+                <button onClick={() => setReturnOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
               </div>
 
               {returnState === 'sent' ? (
@@ -827,18 +1151,11 @@ export default function CustomerOrder() {
                   </div>
                   <p className="text-sm font-semibold text-gray-800">{t('return_sent')}</p>
                   <p className="text-xs text-gray-400 mt-1">{t('return_sent_desc')}</p>
-                  <button
-                    onClick={() => setReturnOpen(false)}
-                    className="mt-4 px-5 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200"
-                  >
-                    OK
-                  </button>
+                  <button onClick={() => setReturnOpen(false)} className="mt-4 px-5 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200">OK</button>
                 </div>
               ) : (
                 <div className="px-5 py-4 space-y-3">
                   <p className="text-xs text-gray-500">{t('return_desc')}</p>
-
-                  {/* Per-item quantity steppers */}
                   {(activeOrder.items || []).map(item => {
                     const cur = returnQtys[item.orderItemId] || 0
                     return (
@@ -848,44 +1165,16 @@ export default function CustomerOrder() {
                           <p className="text-xs text-gray-400">×{item.quantity} ordered</p>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => setReturnQtys(p => ({ ...p, [item.orderItemId]: Math.max(0, (p[item.orderItemId] || 0) - 1) }))}
-                            disabled={cur === 0}
-                            className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30"
-                          >
-                            <Minus size={12} />
-                          </button>
+                          <button onClick={() => setReturnQtys(p => ({ ...p, [item.orderItemId]: Math.max(0, (p[item.orderItemId] || 0) - 1) }))} disabled={cur === 0} className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30"><Minus size={12} /></button>
                           <span className={`w-6 text-center text-sm font-bold ${cur > 0 ? 'text-amber-600' : 'text-gray-300'}`}>{cur}</span>
-                          <button
-                            onClick={() => setReturnQtys(p => ({ ...p, [item.orderItemId]: Math.min(item.quantity, (p[item.orderItemId] || 0) + 1) }))}
-                            disabled={cur >= item.quantity}
-                            className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30"
-                          >
-                            <Plus size={12} />
-                          </button>
+                          <button onClick={() => setReturnQtys(p => ({ ...p, [item.orderItemId]: Math.min(item.quantity, (p[item.orderItemId] || 0) + 1) }))} disabled={cur >= item.quantity} className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30"><Plus size={12} /></button>
                         </div>
                       </div>
                     )
                   })}
-
-                  {/* Reason */}
-                  <textarea
-                    value={returnReason}
-                    onChange={e => setReturnReason(e.target.value)}
-                    placeholder={t('return_reason_ph')}
-                    rows={2}
-                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 text-gray-700 placeholder:text-gray-300"
-                  />
-
-                  {returnError && (
-                    <p className="text-xs text-red-500">{returnError}</p>
-                  )}
-
-                  <button
-                    onClick={handleReturnSubmit}
-                    disabled={returnState === 'submitting' || Object.values(returnQtys).every(q => q === 0)}
-                    className="w-full py-3 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-600 disabled:opacity-50 transition-colors"
-                  >
+                  <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)} placeholder={t('return_reason_ph')} rows={2} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 text-gray-700 placeholder:text-gray-300" />
+                  {returnError && <p className="text-xs text-red-500">{returnError}</p>}
+                  <button onClick={handleReturnSubmit} disabled={returnState === 'submitting' || Object.values(returnQtys).every(q => q === 0)} className="w-full py-3 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-600 disabled:opacity-50 transition-colors">
                     {returnState === 'submitting' ? t('return_submitting') : t('return_submit')}
                   </button>
                 </div>
@@ -897,31 +1186,14 @@ export default function CustomerOrder() {
           {activeOrder.status === 'Pending' && (
             <div className="text-center">
               {!cancelConfirm ? (
-                <button
-                  onClick={() => setCancelConfirm(true)}
-                  className="text-xs text-gray-400 hover:text-red-500 underline underline-offset-2"
-                >
-                  {t('cancel_link')}
-                </button>
+                <button onClick={() => setCancelConfirm(true)} className="text-xs text-gray-400 hover:text-red-500 underline underline-offset-2">{t('cancel_link')}</button>
               ) : (
                 <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-left">
                   <p className="text-sm font-semibold text-red-700 mb-1">{t('cancel_q')}</p>
                   <p className="text-xs text-red-400 mb-4">{t('cancel_desc')}</p>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => setCancelConfirm(false)}
-                      disabled={cancelling}
-                      className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl disabled:opacity-50"
-                    >
-                      {t('keep_it')}
-                    </button>
-                    <button
-                      onClick={handleCancelOrder}
-                      disabled={cancelling}
-                      className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50"
-                    >
-                      {cancelling ? t('cancelling') : t('yes_cancel')}
-                    </button>
+                    <button onClick={() => setCancelConfirm(false)} disabled={cancelling} className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl disabled:opacity-50">{t('keep_it')}</button>
+                    <button onClick={handleCancelOrder} disabled={cancelling} className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50">{cancelling ? t('cancelling') : t('yes_cancel')}</button>
                   </div>
                 </div>
               )}
@@ -938,12 +1210,13 @@ export default function CustomerOrder() {
       <header className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
         <div className="px-4 py-3 flex items-center justify-between max-w-xl mx-auto">
           <div className="flex items-center gap-2.5">
-            {orderingMore && (
-              <button
-                onClick={() => { setOrderingMore(false); setView('tracking'); setCart([]) }}
-                className="p-1.5 text-gray-500 hover:text-teal-600"
-              >
+            {orderingMore ? (
+              <button onClick={() => { setOrderingMore(false); setView('tracking'); setCart([]) }} className="p-1.5 text-gray-500 hover:text-teal-600">
                 <ChevronLeft size={20} />
+              </button>
+            ) : (
+              <button onClick={() => setView('home')} className="p-1.5 text-gray-400 hover:text-teal-600">
+                <Home size={18} />
               </button>
             )}
             <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -959,34 +1232,51 @@ export default function CustomerOrder() {
             <button onClick={() => setCartOpen(true)} className="relative p-2 text-teal-600 hover:bg-teal-50 rounded-xl">
               <ShoppingCart size={22} />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-teal-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  {cartCount}
-                </span>
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-teal-600 text-white text-xs font-bold rounded-full flex items-center justify-center">{cartCount}</span>
               )}
             </button>
           </div>
         </div>
 
-        {/* Category tabs — scroll spy keeps active pill highlighted */}
-        <div ref={tabBarRef} className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide max-w-xl mx-auto items-center">
-          {catOrder.map(cat => (
-            <button
-              key={cat}
-              ref={el => { tabBtnRefs.current[cat] = el }}
-              onClick={() => scrollToCategory(cat)}
-              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                activeCategory === cat
-                  ? 'bg-teal-600 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              {catLabel(cat)}
-            </button>
-          ))}
-          {translating && (
-            <div className="flex-shrink-0 w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin ml-1" title="Translating…" />
-          )}
+        {/* Search input */}
+        <div className="px-4 pb-2 max-w-xl mx-auto">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={menuSearch}
+              onChange={e => setMenuSearch(e.target.value)}
+              placeholder={t('search_ph')}
+              className="w-full text-sm pl-8 pr-8 py-2 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-gray-400"
+            />
+            {menuSearch && (
+              <button onClick={() => setMenuSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X size={13} />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Category tabs — hidden while searching */}
+        {!menuSearch && (
+          <div ref={tabBarRef} className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide max-w-xl mx-auto items-center">
+            {catOrder.map(cat => (
+              <button
+                key={cat}
+                ref={el => { tabBtnRefs.current[cat] = el }}
+                onClick={() => scrollToCategory(cat)}
+                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  activeCategory === cat ? 'bg-teal-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                {catLabel(cat)}
+              </button>
+            ))}
+            {translating && (
+              <div className="flex-shrink-0 w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin ml-1" title="Translating…" />
+            )}
+          </div>
+        )}
       </header>
 
       <main className="px-4 py-4 pb-32 max-w-xl mx-auto">
@@ -997,18 +1287,32 @@ export default function CustomerOrder() {
           </div>
         )}
 
-        {catOrder.filter(c => grouped[c]).map(cat => (
+        {menuSearch && filteredCatOrder.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <Search size={28} className="mb-2 opacity-30" />
+            <p className="text-sm">{t('no_search_results')}</p>
+          </div>
+        )}
+
+        {filteredCatOrder.filter(c => filteredGrouped[c]).map(cat => (
           <section key={cat} id={`cat-sec-${cat}`} className="mb-8">
             <div className="flex items-center gap-2 mb-3">
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${CAT_COLOUR[cat] || 'bg-gray-100 text-gray-600'}`}>
                 {tr(cat)}
               </span>
             </div>
-            <MenuItemList items={grouped[cat]} getQty={getQty} addItem={addItem} removeItem={removeItem} trFn={tr} />
+            <MenuItemList
+              items={filteredGrouped[cat]}
+              getQty={getQty}
+              addItem={addItem}
+              removeItem={removeItem}
+              trFn={tr}
+              outOfStockLabel={t('out_of_stock')}
+            />
           </section>
         ))}
 
-        {catOrder.length === 0 && (
+        {!menuSearch && catOrder.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
             <UtensilsCrossed size={32} className="mb-2 opacity-30" />
             <p className="text-sm">{t('no_items')}</p>
@@ -1019,10 +1323,7 @@ export default function CustomerOrder() {
       {/* Sticky cart bar */}
       {cartCount > 0 && !cartOpen && (
         <div className="fixed bottom-0 left-0 right-0 z-10 p-4 max-w-xl mx-auto">
-          <button
-            onClick={() => setCartOpen(true)}
-            className="w-full bg-teal-600 text-white font-semibold py-3.5 rounded-xl flex items-center justify-between px-5 shadow-lg"
-          >
+          <button onClick={() => setCartOpen(true)} className="w-full bg-teal-600 text-white font-semibold py-3.5 rounded-xl flex items-center justify-between px-5 shadow-lg">
             <span className="bg-teal-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{cartCount}</span>
             <span>{t('view_order', cartCount)}</span>
             <span>{cartTotal.toLocaleString()} {currency}</span>
@@ -1037,9 +1338,7 @@ export default function CustomerOrder() {
           <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-xl max-w-xl mx-auto max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
               <h2 className="font-bold text-gray-900">{t('your_order')}</h2>
-              <button onClick={() => setCartOpen(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                <X size={18} />
-              </button>
+              <button onClick={() => setCartOpen(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={18} /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 min-h-0">
@@ -1047,37 +1346,21 @@ export default function CustomerOrder() {
                 <div key={item.id}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <button onClick={() => clearItem(item.id)} className="text-gray-300 hover:text-red-400 flex-shrink-0">
-                        <X size={14} />
-                      </button>
+                      <button onClick={() => clearItem(item.id)} className="text-gray-300 hover:text-red-400 flex-shrink-0"><X size={14} /></button>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{tr(item.name)}</p>
                         <p className="text-xs text-gray-400">{item.price.toLocaleString()} each</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <button onClick={() => removeItem(item.id)} className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
-                        <Minus size={10} />
-                      </button>
+                      <button onClick={() => removeItem(item.id)} className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"><Minus size={10} /></button>
                       <span className="w-5 text-center text-sm font-semibold">{item.quantity}</span>
-                      <button onClick={() => addItem(item)} className="w-6 h-6 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center hover:bg-teal-200">
-                        <Plus size={10} />
-                      </button>
+                      <button onClick={() => addItem(item)} className="w-6 h-6 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center hover:bg-teal-200"><Plus size={10} /></button>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900 w-20 text-right flex-shrink-0">
-                      {(item.price * item.quantity).toLocaleString()}
-                    </span>
+                    <span className="text-sm font-semibold text-gray-900 w-20 text-right flex-shrink-0">{(item.price * item.quantity).toLocaleString()}</span>
                   </div>
-                  {/* Per-item special note */}
                   <div className="ml-6 mt-1.5">
-                    <input
-                      type="text"
-                      maxLength={80}
-                      value={item.note || ''}
-                      onChange={e => setItemNote(item.id, e.target.value)}
-                      placeholder={t('item_note_ph')}
-                      className="w-full text-xs text-gray-600 placeholder:text-gray-300 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                    />
+                    <input type="text" maxLength={80} value={item.note || ''} onChange={e => setItemNote(item.id, e.target.value)} placeholder={t('item_note_ph')} className="w-full text-xs text-gray-600 placeholder:text-gray-300 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400" />
                   </div>
                 </div>
               ))}
@@ -1085,18 +1368,11 @@ export default function CustomerOrder() {
               {!orderingMore && (
                 <div className="pt-1">
                   <label className="text-xs font-medium text-gray-500 mb-1 block">{t('special_req')}</label>
-                  <textarea
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    placeholder={t('special_req_ph')}
-                    rows={2}
-                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-gray-300"
-                  />
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('special_req_ph')} rows={2} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-gray-300" />
                 </div>
               )}
             </div>
 
-            {/* Total row */}
             <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0">
               <div className="flex justify-between text-base font-bold text-gray-900">
                 <span>{t('total')}</span>
@@ -1104,49 +1380,23 @@ export default function CustomerOrder() {
               </div>
             </div>
 
-            {/* Payment method toggle (new orders only) */}
             {!orderingMore && (
               <div className="px-5 pb-2 flex-shrink-0">
                 <p className="text-xs font-medium text-gray-500 mb-2">{t('payment_method')}</p>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setPaymentMethod('cash')}
-                    className={`flex-1 py-2 text-xs font-semibold rounded-xl border-2 transition-colors ${
-                      paymentMethod === 'cash'
-                        ? 'border-teal-500 bg-teal-50 text-teal-700'
-                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                    }`}
-                  >
-                    {t('pay_cash')}
-                  </button>
+                  <button onClick={() => setPaymentMethod('cash')} className={`flex-1 py-2 text-xs font-semibold rounded-xl border-2 transition-colors ${paymentMethod === 'cash' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>{t('pay_cash')}</button>
                   {table?.qrImageBase64 && (
-                    <button
-                      onClick={() => setPaymentMethod('qr')}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-xl border-2 transition-colors ${
-                        paymentMethod === 'qr'
-                          ? 'border-teal-500 bg-teal-50 text-teal-700'
-                          : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                      }`}
-                    >
-                      {t('pay_qr')}
-                    </button>
+                    <button onClick={() => setPaymentMethod('qr')} className={`flex-1 py-2 text-xs font-semibold rounded-xl border-2 transition-colors ${paymentMethod === 'qr' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>{t('pay_qr')}</button>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Place order button */}
             <div className="px-5 pb-8 pt-2 flex-shrink-0 border-t border-gray-100">
-              <button
-                onClick={handleSubmit}
-                disabled={submitting || !cart.length}
-                className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3.5 rounded-xl disabled:opacity-50"
-              >
+              <button onClick={handleSubmit} disabled={submitting || !cart.length} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3.5 rounded-xl disabled:opacity-50">
                 {submitting
                   ? (orderingMore ? t('adding') : t('placing'))
-                  : (orderingMore
-                      ? t('add_to_order', cartTotal, currency)
-                      : t('place_order', cartTotal, currency))}
+                  : (orderingMore ? t('add_to_order', cartTotal, currency) : t('place_order', cartTotal, currency))}
               </button>
             </div>
           </div>
@@ -1157,53 +1407,62 @@ export default function CustomerOrder() {
 }
 
 // ── Menu item list ─────────────────────────────────────────────────────────────
-function MenuItemList({ items, getQty, addItem, removeItem, trFn }) {
+function MenuItemList({ items, getQty, addItem, removeItem, trFn, outOfStockLabel = 'Out of stock' }) {
   const tr = trFn || (x => x)
   return (
     <div className="space-y-3">
       {items.map(item => {
-        const qty = getQty(item.id)
+        const qty        = getQty(item.id)
+        const outOfStock = item.isAvailable === false || (item.stockQuantity !== null && item.stockQuantity !== undefined && item.stockQuantity <= 0)
+        const spice      = item.spiceLevel || 0
+
         return (
-          <div key={item.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex">
-            {/* Image column — always present */}
-            <div className="w-24 flex-shrink-0 self-stretch bg-gray-100 overflow-hidden" style={{ minHeight: '88px' }}>
+          <div key={item.id} className={`bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex ${outOfStock ? 'opacity-60' : ''}`}>
+            {/* Image column */}
+            <div className="w-24 flex-shrink-0 self-stretch bg-gray-100 overflow-hidden relative" style={{ minHeight: '88px' }}>
               {item.imageUrl ? (
-                <img
-                  src={item.imageUrl}
-                  alt={item.name}
-                  className="w-full h-full object-cover"
-                  onError={e => {
-                    e.currentTarget.style.display = 'none'
-                    e.currentTarget.nextSibling.style.display = 'flex'
-                  }}
+                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover"
+                  onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex' }}
                 />
               ) : null}
-              {/* Shown when no image OR image fails to load */}
-              <div
-                className="w-full h-full flex-col items-center justify-center gap-1 text-center px-2"
-                style={{ display: item.imageUrl ? 'none' : 'flex' }}
-              >
+              <div className="w-full h-full flex-col items-center justify-center gap-1 text-center px-2" style={{ display: item.imageUrl ? 'none' : 'flex' }}>
                 <ImageOff size={18} className="text-gray-300" />
                 <p className="text-[9px] text-gray-300 leading-tight">No image</p>
               </div>
+              {/* Out of stock overlay */}
+              {outOfStock && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded text-center leading-tight">{outOfStockLabel}</span>
+                </div>
+              )}
             </div>
+
             <div className="flex flex-1 items-start justify-between gap-3 p-3 min-w-0">
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 text-sm">{tr(item.name)}</p>
+                <div className="flex items-center gap-1 flex-wrap">
+                  <p className="font-semibold text-gray-900 text-sm">{tr(item.name)}</p>
+                  {spice > 0 && (
+                    <span className="text-xs" title={['', 'Mild', 'Medium', 'Hot'][Math.min(spice, 3)]}>
+                      {'🌶️'.repeat(Math.min(spice, 3))}
+                    </span>
+                  )}
+                </div>
                 {item.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{tr(item.description)}</p>}
                 {item.prepTime > 0 && <p className="text-[11px] text-gray-300 mt-0.5">~{item.prepTime} min</p>}
                 <p className="text-sm font-bold text-teal-600 mt-1.5">{item.price.toLocaleString()}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
-                {qty > 0 && (
+                {qty > 0 && !outOfStock && (
                   <>
-                    <button onClick={() => removeItem(item.id)} className="w-7 h-7 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-100">
-                      <Minus size={12} />
-                    </button>
+                    <button onClick={() => removeItem(item.id)} className="w-7 h-7 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-100"><Minus size={12} /></button>
                     <span className="w-4 text-center text-sm font-bold text-gray-900">{qty}</span>
                   </>
                 )}
-                <button onClick={() => addItem(item)} className="w-7 h-7 rounded-full bg-teal-600 text-white flex items-center justify-center hover:bg-teal-700 shadow-sm">
+                <button
+                  onClick={() => !outOfStock && addItem(item)}
+                  disabled={outOfStock}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center shadow-sm ${outOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
+                >
                   <Plus size={12} />
                 </button>
               </div>

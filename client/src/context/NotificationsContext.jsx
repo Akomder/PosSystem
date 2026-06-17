@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
-import { onOrderCreated, onOrderUpdated, onStockLow, onQrPaymentAlert, onOrderItemsAdded, onOrderReturnRequested } from '../services/socket'
+import { onOrderCreated, onOrderUpdated, onStockLow, onQrPaymentAlert, onOrderItemsAdded, onOrderReturnRequested, onCallStaff } from '../services/socket'
 import { notificationsApi } from '../services/api'
 import { playUrgentAlert } from '../lib/soundAlert'
 
@@ -153,7 +153,18 @@ export function NotificationsProvider({ children }) {
       playUrgentAlert()
     })
 
-    return () => { offCreated?.(); offUpdated?.(); offStock?.(); offQrPay?.(); offItemsAdded?.(); offReturn?.() }
+    const offCallStaff = onCallStaff(({ tableNumber }) => {
+      add({
+        type:   'call_staff',
+        title:  '🔔 Call Staff — Table ' + (tableNumber ?? ''),
+        body:   'A customer is requesting assistance',
+        link:   '/orders',
+        urgent: true,
+      })
+      playUrgentAlert()
+    })
+
+    return () => { offCreated?.(); offUpdated?.(); offStock?.(); offQrPay?.(); offItemsAdded?.(); offReturn?.(); offCallStaff?.() }
   }, [add])
 
   const unreadCount = notifications.filter(n => !n.read).length
