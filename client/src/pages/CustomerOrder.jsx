@@ -254,6 +254,14 @@ async function translateBatch(texts, targetLang = 'en') {
 export default function CustomerOrder() {
   const { tableId } = useParams()
 
+  // Swap favicon to restaurant icon for QR page, restore on unmount
+  useEffect(() => {
+    const link = document.querySelector("link[rel~='icon']")
+    const prev = link?.href || ''
+    if (link) link.href = '/qr-favicon.svg'
+    return () => { if (link) link.href = prev }
+  }, [])
+
   const [table,   setTable]   = useState(null)
   const [menu,    setMenu]    = useState([])
   const [loading, setLoading] = useState(true)
