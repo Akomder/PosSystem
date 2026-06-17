@@ -128,21 +128,15 @@ export default function Menu() {
       price:     parseFloat(form.price),
       available:   form.available,
       isAvailable: form.isAvailable !== false,
-      // Preserve existing values on edit; sensible defaults for new items
-      description:       editItem?.description       || '',
-      stock:             editItem?.stock             ?? 9999,
-      prepTime:          editItem?.prepTime           ?? 0,
-      station:           editItem?.station            || 'Kitchen',
-      tags:              editItem?.tags               || [],
-      imageUrl:          form.imageUrl                 || '',
-      productCode:       editItem?.productCode        || '',
-      costPrice:         editItem?.costPrice          ?? 0,
-      productGroup:      editItem?.productGroup       || '',
-      department:        editItem?.department         || '',
-      minStock:          editItem?.minStock           ?? 0,
-      maxStock:          editItem?.maxStock           ?? 9999,
-      stockQuantity:     editItem?.stockQuantity      ?? null,
-      lowStockThreshold: editItem?.lowStockThreshold  ?? 10,
+      description:       editItem?.description  || '',
+      prepTime:          editItem?.prepTime     ?? 0,
+      station:           editItem?.station      || 'Kitchen',
+      tags:              editItem?.tags         || [],
+      imageUrl:          form.imageUrl          || '',
+      productCode:       editItem?.productCode  || '',
+      costPrice:         editItem?.costPrice    ?? 0,
+      productGroup:      editItem?.productGroup || '',
+      department:        editItem?.department   || '',
     }
 
     try {
@@ -280,12 +274,6 @@ export default function Menu() {
                     </span>
                   </div>
 
-                  {/* Out-of-stock badge (only when stock hits 0) */}
-                  {item.stock === 0 && (
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
-                      {t('menu.outOfStock')}
-                    </span>
-                  )}
 
                   {/* Unavailable overlay */}
                   {!item.available && (
