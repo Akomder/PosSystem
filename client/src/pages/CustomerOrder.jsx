@@ -258,7 +258,7 @@ export default function CustomerOrder() {
   useEffect(() => {
     const link = document.querySelector("link[rel~='icon']")
     const prev = link?.href || ''
-    if (link) link.href = '/qr-favicon.svg'
+    if (link) link.href = '/pos-logo.png'
     return () => { if (link) link.href = prev }
   }, [])
 
