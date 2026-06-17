@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import {
   PlusCircle, Search, Printer, X,
   Clock, ChevronRight, Minus, Plus, RotateCcw, CheckCircle, XCircle,
-  Pencil, Save, Trash2,
+  Pencil, Save, Trash2, Layers,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
@@ -12,6 +12,7 @@ import { useSettings } from '../context/SettingsContext'
 import { ordersApi, salesChannelsApi, settingsApi, returnsApi } from '../services/api'
 import { onOrderReturnRequested } from '../services/socket'
 import ReceiptModal from '../components/ReceiptModal'
+import CategoryManager from '../components/CategoryManager'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
@@ -55,7 +56,8 @@ export default function Orders() {
   const [selectedId,   setSelectedId]   = useState(null)
   const [receiptId,    setReceiptId]    = useState(null)   // numeric order id for receipt modal
   const [receiptType,  setReceiptType]  = useState('receipt')
-  const [newOrderOpen, setNewOrderOpen] = useState(false)
+  const [newOrderOpen,  setNewOrderOpen]  = useState(false)
+  const [catMgrOpen,    setCatMgrOpen]    = useState(false)
   const [creating,     setCreating]     = useState(false)
   const [createError,  setCreateError]  = useState(null)
 
@@ -298,9 +300,16 @@ export default function Orders() {
         <div className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('orders.title')}</h2>
-            <Button size="sm" icon={PlusCircle} onClick={() => setNewOrderOpen(true)}>
-              {t('orders.newOrder')}
-            </Button>
+            <div className="flex items-center gap-2">
+              {user?.role === 'Admin' && (
+                <Button size="sm" variant="secondary" icon={Layers} onClick={() => setCatMgrOpen(true)}>
+                  Categories
+                </Button>
+              )}
+              <Button size="sm" icon={PlusCircle} onClick={() => setNewOrderOpen(true)}>
+                {t('orders.newOrder')}
+              </Button>
+            </div>
           </div>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
@@ -973,6 +982,11 @@ export default function Orders() {
           </div>
         </div>
       )}
+
+      <CategoryManager
+        open={catMgrOpen}
+        onClose={() => setCatMgrOpen(false)}
+      />
     </div>
   )
 }
