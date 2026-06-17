@@ -1414,7 +1414,6 @@ function MenuItemList({ items, getQty, addItem, removeItem, trFn, outOfStockLabe
       {items.map(item => {
         const qty        = getQty(item.id)
         const outOfStock = item.isAvailable === false || (item.stockQuantity !== null && item.stockQuantity !== undefined && item.stockQuantity <= 0)
-        const spice      = item.spiceLevel || 0
 
         return (
           <div key={item.id} className={`bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex ${outOfStock ? 'opacity-60' : ''}`}>
@@ -1441,11 +1440,6 @@ function MenuItemList({ items, getQty, addItem, removeItem, trFn, outOfStockLabe
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1 flex-wrap">
                   <p className="font-semibold text-gray-900 text-sm">{tr(item.name)}</p>
-                  {spice > 0 && (
-                    <span className="text-xs" title={['', 'Mild', 'Medium', 'Hot'][Math.min(spice, 3)]}>
-                      {'🌶️'.repeat(Math.min(spice, 3))}
-                    </span>
-                  )}
                 </div>
                 {item.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{tr(item.description)}</p>}
                 {item.prepTime > 0 && <p className="text-[11px] text-gray-300 mt-0.5">~{item.prepTime} min</p>}

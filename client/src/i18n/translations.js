@@ -849,10 +849,6 @@ const translations = {
     "qr.promoEmpty": "No current promotions",
     "qr.searchPh": "Search menu…",
     "qr.noSearchResults": "No items match your search",
-    "qr.spice1": "Mild",
-    "qr.spice2": "Medium",
-    "qr.spice3": "Hot",
-    "menu.spiceLevel": "Spice Level",
     "menu.isAvailable": "Available for QR ordering",
   },
 
@@ -1704,10 +1700,6 @@ const translations = {
     "qr.promoEmpty": "ບໍ່ມີໂປຣໂມຊັ່ນໃນຂະນະນີ້",
     "qr.searchPh": "ຄົ້ນຫາເມນູ…",
     "qr.noSearchResults": "ບໍ່ພົບລາຍການທີ່ກົງ",
-    "qr.spice1": "ໜ້ອຍ",
-    "qr.spice2": "ກາງ",
-    "qr.spice3": "ເຜັດ",
-    "menu.spiceLevel": "ລະດັບຄວາມເຜັດ",
     "menu.isAvailable": "ສາມາດສັ່ງຜ່ານ QR ໄດ້",
   },
 };

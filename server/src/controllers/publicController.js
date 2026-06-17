@@ -75,7 +75,7 @@ async function getPublicMenu(req, res, next) {
       // Join through restaurant_tables to scope to the correct restaurant
       sql = `
         SELECT m.id, m.name, m.category, m.price, m.description, m.prep_time, m.image_url,
-               m.spice_level, m.is_available, m.stock_quantity
+               m.is_available, m.stock_quantity
         FROM menu_items m
         JOIN restaurant_tables t ON t.restaurant_id = m.restaurant_id
         WHERE t.id = $1 AND m.available = true
@@ -85,7 +85,7 @@ async function getPublicMenu(req, res, next) {
     } else {
       // Fallback (single-restaurant or test environments)
       sql = `SELECT id, name, category, price, description, prep_time, image_url,
-                    spice_level, is_available, stock_quantity
+                    is_available, stock_quantity
              FROM menu_items WHERE available = true ORDER BY category, name`
       params = []
     }
@@ -99,7 +99,6 @@ async function getPublicMenu(req, res, next) {
       description:   r.description,
       prepTime:      r.prep_time,
       imageUrl:      r.image_url || '',
-      spiceLevel:    r.spice_level ?? 0,
       isAvailable:   r.is_available !== false,
       stockQuantity: r.stock_quantity !== null ? parseFloat(r.stock_quantity) : null,
     })))

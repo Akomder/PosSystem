@@ -794,7 +794,6 @@ CREATE INDEX IF NOT EXISTS idx_reservations_rid_date
 
 -- ─── QR Customer Experience ────────────────────────────────────────────────────
 ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_available BOOLEAN  NOT NULL DEFAULT TRUE;
-ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS spice_level  SMALLINT NOT NULL DEFAULT 0;
 ALTER TABLE orders     ADD COLUMN IF NOT EXISTS guest_name   VARCHAR(120);
 ALTER TABLE orders     ADD COLUMN IF NOT EXISTS guest_phone  VARCHAR(30);
 

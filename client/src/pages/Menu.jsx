@@ -18,7 +18,7 @@ import { getPlaceholderColor, getPlaceholderTextColor } from '../utils/tableHelp
 
 const PLAN_MENU_LIMITS = { basic: 50, pro: 200, enterprise: Infinity }
 
-const EMPTY_FORM = { name: '', category: '', price: '', available: true, imageUrl: '', spiceLevel: 0, isAvailable: true }
+const EMPTY_FORM = { name: '', category: '', price: '', available: true, imageUrl: '', isAvailable: true }
 
 export default function Menu() {
   const { menuItems, addMenuItem, updateMenuItem, toggleMenuItemAvailability } = useApp()
@@ -64,7 +64,7 @@ export default function Menu() {
   // ── Open modals ────────────────────────────────────────────
   const openAdd = () => {
     setEditItem(null)
-    setForm({ name: '', category: categories[0]?.name || '', price: '', available: true, imageUrl: '', spiceLevel: 0, isAvailable: true })
+    setForm({ name: '', category: categories[0]?.name || '', price: '', available: true, imageUrl: '', isAvailable: true })
     setErrors({})
     setSaveError(null)
     setModalOpen(true)
@@ -78,7 +78,6 @@ export default function Menu() {
       price:       String(item.price ?? ''),
       available:   item.available,
       imageUrl:    item.imageUrl  || '',
-      spiceLevel:  item.spiceLevel  ?? 0,
       isAvailable: item.isAvailable !== false,
     })
     setErrors({})
@@ -128,7 +127,6 @@ export default function Menu() {
       category:  form.category,
       price:     parseFloat(form.price),
       available:   form.available,
-      spiceLevel:  form.spiceLevel  ?? 0,
       isAvailable: form.isAvailable !== false,
       // Preserve existing values on edit; sensible defaults for new items
       description:       editItem?.description       || '',
@@ -496,32 +494,6 @@ export default function Menu() {
             </button>
           </div>
 
-          {/* Spice level */}
-          <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">Spice Level</span>
-            <div className="flex gap-2">
-              {[
-                { value: 0, label: 'None' },
-                { value: 1, label: '🌶️ Mild' },
-                { value: 2, label: '🌶️🌶️ Medium' },
-                { value: 3, label: '🌶️🌶️🌶️ Hot' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setForm(f => ({ ...f, spiceLevel: opt.value }))}
-                  className={clsx(
-                    'flex-1 py-1.5 text-xs font-medium rounded-lg border-2 transition-colors',
-                    form.spiceLevel === opt.value
-                      ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-                      : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300',
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </Modal>
     </div>
