@@ -91,17 +91,19 @@ async function getDashboard(req, res, next) {
          GROUP BY d ORDER BY d`,
         rp
       ),
-      // Top 5 dishes by qty sold (last 30 days)
+      // Top 10 dishes by qty sold (last 30 days), include category
       query(
         `SELECT
            oi.name,
+           COALESCE(mi.category, '') AS category,
            SUM(oi.quantity)                   AS qty,
            SUM(oi.quantity * oi.unit_price)   AS revenue
          FROM order_items oi
          JOIN orders o ON o.id = oi.order_id
+         LEFT JOIN menu_items mi ON mi.name = oi.name AND mi.restaurant_id = o.restaurant_id
          WHERE o.status = 'Closed'
            AND o.created_at >= CURRENT_DATE - INTERVAL '30 days' ${rfO}
-         GROUP BY oi.name ORDER BY qty DESC LIMIT 5`,
+         GROUP BY oi.name, mi.category ORDER BY qty DESC LIMIT 10`,
         rp
       ),
       // Recent 10 orders
@@ -156,9 +158,10 @@ async function getDashboard(req, res, next) {
         orders:  parseInt(r.orders),
       })),
       topDishes: topDishesRes.rows.map(r => ({
-        name:    r.name,
-        qty:     parseInt(r.qty),
-        revenue: parseFloat(r.revenue),
+        name:     r.name,
+        category: r.category || '',
+        qty:      parseInt(r.qty),
+        revenue:  parseFloat(r.revenue),
       })),
       recentOrders: recentOrdersRes.rows.map(r => ({
         id:          `ORD-${String(r.id).padStart(3, '0')}`,

@@ -97,11 +97,12 @@ export default function Dashboard() {
   const { t }              = useSettings()
   const navigate           = useNavigate()
 
-  const [chartPeriod, setChartPeriod] = useState('week')
-  const [chartMetric, setChartMetric] = useState('revenue')
-  const [chartType,   setChartType]   = useState('bar')
-  const [dashData,    setDashData]    = useState(null)
-  const [periodData,  setPeriodData]  = useState([])
+  const [chartPeriod,   setChartPeriod]   = useState('week')
+  const [chartMetric,   setChartMetric]   = useState('revenue')
+  const [chartType,     setChartType]     = useState('bar')
+  const [dashData,      setDashData]      = useState(null)
+  const [periodData,    setPeriodData]    = useState([])
+  const [topDishCat,    setTopDishCat]    = useState('All')
   const [activityLog, setActivityLog] = useState([])
 
   useEffect(() => {
@@ -130,6 +131,9 @@ export default function Dashboard() {
   const topDishes     = dashData?.topDishes     || []
   const hourlyOrders  = dashData?.hourlyOrders  || []
   const lowStockItems = dashData?.lowStockItems || []
+
+  const topDishCategories = ['All', ...Array.from(new Set(topDishes.map(d => d.category).filter(Boolean)))]
+  const filteredTopDishes = topDishCat === 'All' ? topDishes : topDishes.filter(d => d.category === topDishCat)
 
   const hourlyData = Array.from({ length: 24 }, (_, h) => {
     const found = hourlyOrders.find(r => Number(r.hour) === h)
@@ -346,12 +350,35 @@ export default function Dashboard() {
 
         {/* Top Dishes */}
         <GlassCard padding={false}>
-          <div className="px-5 pt-5 pb-4 border-b border-gray-100 dark:border-gray-700/60">
-            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t('dash.topSelling')}</h3>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t('dash.last30days')}</p>
+          <div className="px-5 pt-5 pb-3 border-b border-gray-100 dark:border-gray-700/60">
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t('dash.topSelling')}</h3>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t('dash.last30days')}</p>
+              </div>
+            </div>
+            {/* Category filter pills */}
+            {topDishCategories.length > 1 && (
+              <div className="flex gap-1.5 flex-wrap">
+                {topDishCategories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setTopDishCat(cat)}
+                    className={clsx(
+                      'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                      topDishCat === cat
+                        ? 'bg-teal-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    )}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="px-5 py-5">
-            <TopDishesChart data={topDishes.map(d => ({ name: d.name, count: d.qty, revenue: d.revenue }))} />
+            <TopDishesChart data={filteredTopDishes.map(d => ({ name: d.name, count: d.qty, revenue: d.revenue }))} />
           </div>
         </GlassCard>
       </div>
