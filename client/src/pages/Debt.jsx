@@ -194,6 +194,10 @@ export default function Debt() {
   const [payAmount, setPayAmount] = useState('')
   const [payNote,   setPayNote]   = useState('')
 
+  // Error messages
+  const [createError, setCreateError] = useState('')
+  const [payError,    setPayError]    = useState('')
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -250,6 +254,7 @@ export default function Debt() {
     if (form.type === 'customer' && !form.customerId) return
     if (form.type === 'manual'   && !form.debtorName.trim()) return
 
+    setCreateError('')
     setSaving(true)
     try {
       const body = {
@@ -267,12 +272,15 @@ export default function Debt() {
       await debtsApi.create(body)
       setAddOpen(false)
       load()
-    } catch {}
+    } catch (err) {
+      setCreateError(err?.data?.error || err?.message || 'Failed to create debt')
+    }
     setSaving(false)
   }
 
   const handlePayment = async () => {
     if (!payAmount || parseFloat(payAmount) <= 0) return
+    setPayError('')
     setSaving(true)
     try {
       await debtsApi.recordPayment(payDebt.id, {
@@ -283,7 +291,9 @@ export default function Debt() {
       setPayAmount('')
       setPayNote('')
       load()
-    } catch {}
+    } catch (err) {
+      setPayError(err?.data?.error || err?.message || 'Failed to record payment')
+    }
     setSaving(false)
   }
 
@@ -294,7 +304,10 @@ export default function Debt() {
       await debtsApi.delete(delDebt.id)
       setDelDebt(null)
       load()
-    } catch {}
+    } catch (err) {
+      setDelDebt(null)
+      alert(err?.data?.error || err?.message || 'Failed to delete debt')
+    }
     setSaving(false)
   }
 
@@ -519,8 +532,11 @@ export default function Debt() {
             />
           </div>
 
+          {createError && (
+            <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg px-3 py-2">{createError}</p>
+          )}
           <div className="flex gap-3 pt-1">
-            <Button variant="ghost" className="flex-1" onClick={() => setAddOpen(false)}>{t('common.cancel')}</Button>
+            <Button variant="ghost" className="flex-1" onClick={() => { setAddOpen(false); setCreateError('') }}>{t('common.cancel')}</Button>
             <Button className="flex-1" onClick={handleCreate} disabled={saving}>{t('debt.create')}</Button>
           </div>
         </div>
@@ -567,8 +583,11 @@ export default function Debt() {
                 onChange={e => setPayNote(e.target.value)}
               />
             </div>
+            {payError && (
+              <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg px-3 py-2">{payError}</p>
+            )}
             <div className="flex gap-3 pt-1">
-              <Button variant="ghost" className="flex-1" onClick={() => setPayDebt(null)}>{t('common.cancel')}</Button>
+              <Button variant="ghost" className="flex-1" onClick={() => { setPayDebt(null); setPayError('') }}>{t('common.cancel')}</Button>
               <Button className="flex-1" onClick={handlePayment} disabled={saving}>{t('debt.confirmPayment')}</Button>
             </div>
           </div>
