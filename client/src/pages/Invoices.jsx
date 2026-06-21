@@ -8,12 +8,12 @@ import Select from '../components/ui/Select'
 import EmptyState from '../components/ui/EmptyState'
 import Badge from '../components/ui/Badge'
 import DateRangeFilter from '../components/ui/DateRangeFilter'
-import { formatCurrency } from '../utils/formatters'
+import { APP_TIME_ZONE, formatCurrency } from '../utils/formatters'
 
 function formatDateTime(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE })
 }
 
 const PAYMENT_VARIANT = { cash: 'success', transfer: 'blue', card: 'teal', default: 'default' }

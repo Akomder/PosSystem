@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
 import { reportsApi } from '../services/api'
 import DateRangeFilter from '../components/ui/DateRangeFilter'
-import { formatCurrency, formatDate } from '../utils/formatters'
+import { APP_TIME_ZONE, formatCurrency, formatDate } from '../utils/formatters'
 
 // ─── CSV export helper ────────────────────────────────────────────────────────
 function exportCsv(filename, headers, rows) {
@@ -233,12 +233,13 @@ export default function Reports() {
             </div>
           )}
         </div>
+        <p className="text-sm text-gray-500">{new Date().toLocaleDateString('en-US', { timeZone: APP_TIME_ZONE })}</p>
       </div>
 
       {/* Print header (only shows when printing) */}
       <div className="hidden print:block mb-4">
         <h2 className="text-xl font-bold">{t('reports.title')} — {TABS.find(tb => tb.key === tab)?.labelKey && t(TABS.find(tb => tb.key === tab).labelKey)}</h2>
-        <p className="text-sm text-gray-500">{new Date().toLocaleDateString()}</p>
+        <p className="text-sm text-gray-500">{new Date().toLocaleDateString('en-US', { timeZone: APP_TIME_ZONE })}</p>
       </div>
 
       {/* Tab bar */}

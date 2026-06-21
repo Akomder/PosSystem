@@ -3,20 +3,23 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Minus, X, ShoppingCart, Grid3X3, UtensilsCrossed,
   Printer, CreditCard, Pause, ArrowLeft, User, ChevronRight,
-  Tag, Clock, Wifi, ChefHat, LogOut,
+  Tag, Clock, Wifi, ChefHat, LogOut, QrCode, ChevronDown, ChevronUp,
+  Merge, CheckSquare, Square,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { isPosLocked } from '../utils/roleAccess'
 import { useSettings } from '../context/SettingsContext'
-import { ordersApi, customersApi, shiftsApi, salesChannelsApi, promotionsApi, menuApi } from '../services/api'
+import { ordersApi, customersApi, shiftsApi, salesChannelsApi, promotionsApi, menuApi, tablesApi } from '../services/api'
 import { formatCurrency } from '../utils/formatters'
 import Badge from '../components/ui/Badge'
 import StoreToggle from '../components/layout/StoreToggle'
 import ModifierModal from '../components/ModifierModal'
 import ReceiptModal  from '../components/ReceiptModal'
 import { queueOrder } from '../lib/offlineDb'
+import { onOrderCreated, onOrderUpdated } from '../services/socket'
+import { APP_TIME_ZONE } from '../utils/formatters'
 
 
 // ─── Pay Modal ────────────────────────────────────────────────────────────────
@@ -416,6 +419,17 @@ export default function Sell() {
   const [sentToast,    setSentToast]    = useState(false)
   const [sending,      setSending]      = useState(false)
 
+  // QR incoming orders panel — fetched independently, not from AppContext
+  const [qrPanelOpen,  setQrPanelOpen]  = useState(true)
+  const [qrNewToast,   setQrNewToast]   = useState(null) // { tableNumber, id }
+  const [qrOrders,     setQrOrders]     = useState([])
+
+  // Merge table modal
+  const [mergeOpen,       setMergeOpen]       = useState(false)
+  const [mergeSources,    setMergeSources]    = useState([]) // raw table ids to merge IN
+  const [merging,         setMerging]         = useState(false)
+  const [mergeError,      setMergeError]      = useState('')
+
   // Shift + channels + promotions
   const [currentShift,    setCurrentShift]    = useState(null)
   const [channels,        setChannels]        = useState([])
@@ -467,6 +481,56 @@ export default function Sell() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [activeOrder])
+
+  // ── QR orders: initial fetch + live socket sync ────────────────────────────
+  useEffect(() => {
+    // Fetch all currently active QR orders (Pending + In Progress, waiter=Guest)
+    async function loadQrOrders() {
+      try {
+        const [pending, inProgress] = await Promise.all([
+          ordersApi.getAll({ status: 'Pending',     limit: 100 }),
+          ordersApi.getAll({ status: 'In Progress', limit: 100 }),
+        ])
+        const all = [...pending, ...inProgress]
+          .filter(o => o.waiter === 'Guest')
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        setQrOrders(all)
+      } catch (_) {}
+    }
+    loadQrOrders()
+
+    // New QR order → prepend and show toast
+    const offCreated = onOrderCreated(({ order }) => {
+      if (order?.waiter === 'Guest') {
+        setQrOrders(prev => {
+          if (prev.some(o => o.id === order.id)) return prev
+          return [order, ...prev]
+        })
+        setQrNewToast({ tableNumber: order.tableNumber, id: order.id })
+        setQrPanelOpen(true)
+        setTimeout(() => setQrNewToast(null), 4000)
+      }
+    })
+
+    // Updated QR order → replace or remove when no longer active
+    const offUpdated = onOrderUpdated(({ order }) => {
+      if (!order) return
+      setQrOrders(prev => {
+        const isActive = order.waiter === 'Guest' &&
+          (order.status === 'Pending' || order.status === 'In Progress')
+        if (isActive) {
+          const exists = prev.some(o => o.id === order.id)
+          return exists
+            ? prev.map(o => o.id === order.id ? order : o)
+            : [order, ...prev]
+        }
+        // Status moved to Closed/Cancelled — drop it
+        return prev.filter(o => o.id !== order.id)
+      })
+    })
+
+    return () => { offCreated?.(); offUpdated?.() }
+  }, [])
 
   // ── Customer search ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -698,6 +762,25 @@ export default function Sell() {
     return true
   })
 
+  // ── Merge tables ─────────────────────────────────────────────────────────
+  // activeOrder.tableId is the TARGET; mergeSources are the tables to fold in
+  async function handleMerge() {
+    if (!mergeSources.length) return
+    const targetRawId = activeOrder?.tableId
+    if (!targetRawId) return
+    setMerging(true)
+    setMergeError('')
+    try {
+      await tablesApi.merge(targetRawId, mergeSources)
+      setMergeOpen(false)
+      setMergeSources([])
+    } catch (err) {
+      setMergeError(err?.response?.data?.error || err.message || 'Merge failed')
+    } finally {
+      setMerging(false)
+    }
+  }
+
   const categories = [
     { id: 'all', name: 'All', color: null },
     ...menuCategories,
@@ -775,7 +858,7 @@ export default function Sell() {
           <span>·</span>
           <span className="font-medium text-gray-600 dark:text-gray-300">{user?.name}</span>
           <span>·</span>
-          <span>{new Date().toLocaleDateString()}</span>
+          <span>{new Date().toLocaleDateString('en-US', { timeZone: APP_TIME_ZONE })}</span>
         </div>
       </div>
 
@@ -814,7 +897,7 @@ export default function Sell() {
           {leftTab === 'tables' && (
             <>
               {/* Table filters */}
-              <div className="flex gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+              <div className="flex gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex-shrink-0 items-center">
                 {[
                   { value: 'all',      label: t('sell.allTables') },
                   { value: 'free',     label: t('sell.free')      },
@@ -833,6 +916,21 @@ export default function Sell() {
                     {f.label}
                   </button>
                 ))}
+                {/* Merge Table button — only enabled when an occupied table is active */}
+                <button
+                  onClick={() => { setMergeError(''); setMergeSources([]); setMergeOpen(true) }}
+                  disabled={!activeOrder?.tableId}
+                  title="Merge tables into the selected table"
+                  className={clsx(
+                    'ml-auto flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                    activeOrder?.tableId
+                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/40'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                  )}
+                >
+                  <Merge size={12} />
+                  Merge Table
+                </button>
               </div>
 
               {/* Table grid */}
@@ -865,6 +963,60 @@ export default function Sell() {
                     )
                   })}
                 </div>
+              </div>
+
+              {/* QR Incoming Orders Panel */}
+              <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                <button
+                  onClick={() => setQrPanelOpen(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <QrCode size={13} className="text-teal-500" />
+                    QR Customer Orders
+                    {qrOrders.length > 0 && (
+                      <span className="flex items-center justify-center w-4 h-4 rounded-full bg-teal-500 text-white text-[10px] font-bold">
+                        {qrOrders.length}
+                      </span>
+                    )}
+                  </span>
+                  {qrPanelOpen ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+                </button>
+                {qrPanelOpen && (
+                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                    {qrOrders.length === 0 ? (
+                      <p className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500">No incoming QR orders</p>
+                    ) : qrOrders.map(order => (
+                      <div key={order.id} className={clsx(
+                        'flex items-start gap-3 px-4 py-2.5 text-xs',
+                        order.status === 'Pending' ? 'bg-amber-50 dark:bg-amber-900/10' : 'bg-white dark:bg-gray-800'
+                      )}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-200">
+                            <span>Table {order.tableNumber}</span>
+                            <span className={clsx(
+                              'px-1.5 py-0.5 rounded text-[10px] font-semibold',
+                              order.status === 'Pending'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                                : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                            )}>
+                              {order.status}
+                            </span>
+                            {order.guestName && (
+                              <span className="text-gray-400 font-normal truncate">{order.guestName}</span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 text-gray-500 dark:text-gray-400 truncate">
+                            {(order.items || []).map(i => `${i.qty || i.quantity}× ${i.name}`).join(', ')}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 font-semibold text-teal-600 dark:text-teal-400">
+                          {formatCurrency(order.total)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -908,13 +1060,18 @@ export default function Sell() {
                         key={item.id}
                         onClick={() => addItem(item)}
                         className={clsx(
-                          'flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all hover:shadow-md',
+                          'relative flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all hover:shadow-md',
                           cartItem
                             ? 'border-teal-400 bg-teal-50 dark:bg-teal-900/20'
                             : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-teal-300'
                         )}
                       >
-                        <div className="w-full aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg mb-2 flex items-center justify-center">
+                        {item.isPromotion && (
+                          <span className="absolute top-1.5 left-1.5 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none z-10 shadow-sm">
+                            {item.promotionLabel || 'PROMO'}
+                          </span>
+                        )}
+                        <div className="w-full aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
                           {item.imageUrl
                             ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover rounded-lg" />
                             : <UtensilsCrossed size={20} className="text-gray-400" />
@@ -1253,6 +1410,14 @@ export default function Sell() {
         </div>
       )}
 
+      {/* QR new order toast */}
+      {qrNewToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 bg-teal-600 text-white text-sm font-semibold rounded-2xl shadow-xl">
+          <QrCode size={15} className="opacity-90" />
+          New QR order — Table {qrNewToast.tableNumber}
+        </div>
+      )}
+
       {/* Sent to kitchen toast */}
       {sentToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 bg-orange-500 text-white text-sm font-semibold rounded-2xl shadow-xl">
@@ -1278,6 +1443,82 @@ export default function Sell() {
           type="receipt"
           onClose={() => setReceiptOrderId(null)}
         />
+      )}
+
+      {/* Merge Table Modal */}
+      {mergeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => e.target === e.currentTarget && setMergeOpen(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="bg-purple-600 px-5 py-4 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold">
+                <Merge size={16} />
+                Merge Tables into Table {activeOrder?.tableNumber ?? '—'}
+              </div>
+              <button onClick={() => setMergeOpen(false)} className="p-1 hover:bg-purple-500 rounded-lg transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            {/* Body */}
+            <div className="p-5">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Select the tables whose orders will be merged <strong>into Table {activeOrder?.tableNumber}</strong>. Their items, totals, and guests move over — those tables become Available.
+              </p>
+              <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                {tables
+                  .filter(tbl => {
+                    const rawId = parseInt(String(tbl.id).replace('T-', ''), 10)
+                    return rawId !== activeOrder?.tableId && tbl.status === 'Occupied'
+                  })
+                  .map(tbl => {
+                    const rawId = parseInt(String(tbl.id).replace('T-', ''), 10)
+                    const selected = mergeSources.includes(rawId)
+                    return (
+                      <button
+                        key={tbl.id}
+                        onClick={() => setMergeSources(prev =>
+                          selected ? prev.filter(id => id !== rawId) : [...prev, rawId]
+                        )}
+                        className={clsx(
+                          'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors text-left',
+                          selected
+                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                            : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:border-purple-300'
+                        )}
+                      >
+                        {selected ? <CheckSquare size={15} className="text-purple-500 flex-shrink-0" /> : <Square size={15} className="text-gray-400 flex-shrink-0" />}
+                        <span>Table {tbl.tableNumber}</span>
+                        <span className="ml-auto text-xs text-gray-400">{tbl.capacity}p · Occupied</span>
+                      </button>
+                    )
+                  })}
+                {tables.filter(tbl => parseInt(String(tbl.id).replace('T-', ''), 10) !== activeOrder?.tableId && tbl.status === 'Occupied').length === 0 && (
+                  <p className="text-center py-6 text-xs text-gray-400">No other occupied tables to merge</p>
+                )}
+              </div>
+              {mergeError && (
+                <p className="mt-3 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{mergeError}</p>
+              )}
+            </div>
+            {/* Footer */}
+            <div className="flex gap-2 px-5 pb-5">
+              <button
+                onClick={() => setMergeOpen(false)}
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMerge}
+                disabled={!mergeSources.length || merging}
+                className="flex-[2] flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold disabled:opacity-40 transition-colors"
+              >
+                <Merge size={14} />
+                {merging ? 'Merging…' : `Merge ${mergeSources.length > 0 ? `(${mergeSources.length})` : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modifier Modal */}

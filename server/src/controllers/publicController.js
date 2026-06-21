@@ -75,7 +75,7 @@ async function getPublicMenu(req, res, next) {
       // Join through restaurant_tables to scope to the correct restaurant
       sql = `
         SELECT m.id, m.name, m.category, m.price, m.description, m.prep_time, m.image_url,
-               m.is_available, m.stock_quantity,
+               m.is_available, m.stock_quantity, m.is_promotion, m.promotion_label,
                COALESCE(mc.sort_order, 9999) AS cat_sort
         FROM menu_items m
         JOIN restaurant_tables t ON t.restaurant_id = m.restaurant_id
@@ -87,7 +87,7 @@ async function getPublicMenu(req, res, next) {
     } else {
       // Fallback (single-restaurant or test environments)
       sql = `SELECT m.id, m.name, m.category, m.price, m.description, m.prep_time, m.image_url,
-                    m.is_available, m.stock_quantity,
+                    m.is_available, m.stock_quantity, m.is_promotion, m.promotion_label,
                     COALESCE(mc.sort_order, 9999) AS cat_sort
              FROM menu_items m
              LEFT JOIN menu_categories mc ON mc.restaurant_id = m.restaurant_id AND mc.name = m.category
@@ -105,8 +105,10 @@ async function getPublicMenu(req, res, next) {
       description:   r.description,
       prepTime:      r.prep_time,
       imageUrl:      r.image_url || '',
-      isAvailable:   r.is_available !== false,
-      stockQuantity: r.stock_quantity !== null ? parseFloat(r.stock_quantity) : null,
+      isAvailable:    r.is_available !== false,
+      stockQuantity:  r.stock_quantity !== null ? parseFloat(r.stock_quantity) : null,
+      isPromotion:    r.is_promotion || false,
+      promotionLabel: r.promotion_label || null,
     })))
   } catch (err) { next(err) }
 }

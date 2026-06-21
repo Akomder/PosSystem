@@ -6,6 +6,7 @@ import { onOrderCreated, onOrderUpdated } from '../services/socket'
 import { useSettings } from '../context/SettingsContext'
 import { playKitchenAlert, unlock } from '../lib/soundAlert'
 import { printKitchenTicket } from '../utils/printKitchenTicket'
+import { APP_TIME_ZONE } from '../utils/formatters'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function normalize(data) {
@@ -478,7 +479,7 @@ function LiveClock() {
   }, [])
   return (
     <span className="text-sm font-mono text-gray-400 tabular-nums">
-      {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: APP_TIME_ZONE })}
     </span>
   )
 }

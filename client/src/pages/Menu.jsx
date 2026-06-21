@@ -18,7 +18,7 @@ import { getPlaceholderColor, getPlaceholderTextColor } from '../utils/tableHelp
 
 const PLAN_MENU_LIMITS = { basic: 50, pro: 200, enterprise: Infinity }
 
-const EMPTY_FORM = { name: '', category: '', price: '', available: true, imageUrl: '', isAvailable: true }
+const EMPTY_FORM = { name: '', category: '', price: '', available: true, imageUrl: '', isAvailable: true, isPromotion: false, promotionLabel: '' }
 
 export default function Menu() {
   const { menuItems, addMenuItem, updateMenuItem, toggleMenuItemAvailability } = useApp()
@@ -76,9 +76,11 @@ export default function Menu() {
       name:        item.name      || '',
       category:    item.category  || categories[0]?.name || '',
       price:       String(item.price ?? ''),
-      available:   item.available,
-      imageUrl:    item.imageUrl  || '',
-      isAvailable: item.isAvailable !== false,
+      available:      item.available,
+      imageUrl:       item.imageUrl  || '',
+      isAvailable:    item.isAvailable !== false,
+      isPromotion:    item.isPromotion    || false,
+      promotionLabel: item.promotionLabel || '',
     })
     setErrors({})
     setSaveError(null)
@@ -137,6 +139,8 @@ export default function Menu() {
       costPrice:         editItem?.costPrice    ?? 0,
       productGroup:      editItem?.productGroup || '',
       department:        editItem?.department   || '',
+      isPromotion:       form.isPromotion,
+      promotionLabel:    form.promotionLabel.trim() || null,
     }
 
     try {
@@ -274,6 +278,13 @@ export default function Menu() {
                     </span>
                   </div>
 
+
+                  {/* Promotion badge */}
+                  {item.isPromotion && (
+                    <span className="absolute top-2 left-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full leading-none shadow-sm z-10">
+                      {item.promotionLabel || 'PROMO'}
+                    </span>
+                  )}
 
                   {/* Unavailable overlay */}
                   {!item.available && (
@@ -480,6 +491,37 @@ export default function Menu() {
                 form.isAvailable ? 'translate-x-6' : 'translate-x-1',
               )} />
             </button>
+          </div>
+
+          {/* Promotion */}
+          <div className="rounded-xl border border-rose-100 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-900/10 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Mark as Promotion</span>
+                <p className="text-xs text-gray-400 mt-0.5">Shows a badge on this item in POS &amp; QR menu</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, isPromotion: !f.isPromotion }))}
+                className={clsx(
+                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0',
+                  form.isPromotion ? 'bg-rose-500' : 'bg-gray-300 dark:bg-gray-600',
+                )}
+              >
+                <span className={clsx(
+                  'inline-block h-4 w-4 rounded-full bg-white shadow transition-transform',
+                  form.isPromotion ? 'translate-x-6' : 'translate-x-1',
+                )} />
+              </button>
+            </div>
+            {form.isPromotion && (
+              <Input
+                label="Promotion label"
+                value={form.promotionLabel}
+                onChange={e => setForm(f => ({ ...f, promotionLabel: e.target.value }))}
+                placeholder="e.g. Today's Special, 20% OFF"
+              />
+            )}
           </div>
 
         </div>

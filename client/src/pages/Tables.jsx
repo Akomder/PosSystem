@@ -17,6 +17,7 @@ import Input from '../components/ui/Input'
 import { getOccupancyStats, getTableStatusVariant } from '../utils/tableHelpers'
 import { zonesApi, tablesApi, settingsApi, ordersApi, reservationsApi } from '../services/api'
 import PlanLimitBanner from '../components/ui/PlanLimitBanner'
+import { APP_TIME_ZONE } from '../utils/formatters'
 
 const PLAN_TABLE_LIMITS = { basic: Infinity, pro: Infinity, enterprise: Infinity }
 
@@ -412,7 +413,7 @@ export default function Tables() {
           ) : (
             <div className="space-y-3">
               {reservations.map(r => {
-                const time = new Date(r.reservedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                const time = new Date(r.reservedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE })
                 const statusColors = {
                   upcoming: 'bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-700',
                   seated:   'bg-green-50 dark:bg-green-900/30 border-green-100 dark:border-green-700',

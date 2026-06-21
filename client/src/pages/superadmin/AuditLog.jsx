@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ScrollText, ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react'
 import clsx from 'clsx'
 import { superadminApi } from '../../services/api'
+import { APP_TIME_ZONE } from '../../utils/formatters'
 
 // ─── Action badge colour map ──────────────────────────────────────────────────
 const ACTION_COLORS = {
@@ -85,7 +86,7 @@ export default function AuditLog() {
   const fmtDate = (iso) => {
     if (!iso) return '—'
     const d = new Date(iso)
-    return d.toLocaleString('en', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
+    return d.toLocaleString('en', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', timeZone: APP_TIME_ZONE })
   }
 
   const setF = (k, v) => setFilters(f => ({ ...f, [k]: v }))

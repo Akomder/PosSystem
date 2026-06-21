@@ -1466,6 +1466,12 @@ function MenuItemList({ items, getQty, addItem, removeItem, trFn, outOfStockLabe
                 <ImageOff size={18} className="text-gray-300" />
                 <p className="text-[9px] text-gray-300 leading-tight">No image</p>
               </div>
+              {/* Promotion badge */}
+              {item.isPromotion && !outOfStock && (
+                <span className="absolute top-1.5 left-1.5 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none shadow-sm z-10">
+                  {item.promotionLabel || 'PROMO'}
+                </span>
+              )}
               {/* Out of stock overlay */}
               {outOfStock && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">

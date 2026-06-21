@@ -17,14 +17,22 @@ import { statsApi, auditLogsApi } from '../services/api'
 import RevenueChart   from '../components/charts/RevenueChart'
 import TopDishesChart from '../components/charts/TopDishesChart'
 import Badge          from '../components/ui/Badge'
-import { formatCurrency, formatTime, getTodayLabel, formatRelativeTime } from '../utils/formatters'
+import { formatCurrency, formatTime, getTodayLabel, formatRelativeTime, getCurrentHourInTimeZone } from '../utils/formatters'
 import { getStatusVariant, STATUS_LABELS } from '../utils/orderHelpers'
 import { getOccupancyStats } from '../utils/tableHelpers'
 
 const CHART_PERIODS = [
-  { value: 'week',  label: '7D'  },
-  { value: 'month', label: '30D' },
-  { value: 'year',  label: '1Y'  },
+  { value: 'today', label: 'Today' },
+  { value: 'week',  label: '7D'    },
+  { value: 'month', label: '30D'   },
+  { value: 'year',  label: '1Y'    },
+]
+
+const DISH_PERIODS = [
+  { value: 'today', label: 'Today' },
+  { value: 'week',  label: 'Week'  },
+  { value: 'month', label: 'Month' },
+  { value: 'year',  label: 'Year'  },
 ]
 
 // ─── Liquid Stat Card ─────────────────────────────────────────────────────────
@@ -97,13 +105,16 @@ export default function Dashboard() {
   const { t }              = useSettings()
   const navigate           = useNavigate()
 
-  const [chartPeriod,   setChartPeriod]   = useState('week')
-  const [chartMetric,   setChartMetric]   = useState('revenue')
-  const [chartType,     setChartType]     = useState('bar')
-  const [dashData,      setDashData]      = useState(null)
-  const [periodData,    setPeriodData]    = useState([])
-  const [topDishCat,    setTopDishCat]    = useState('All')
-  const [activityLog, setActivityLog] = useState([])
+  const [chartPeriod,    setChartPeriod]    = useState('week')
+  const [chartMetric,    setChartMetric]    = useState('revenue')
+  const [chartType,      setChartType]      = useState('bar')
+  const [dashData,       setDashData]       = useState(null)
+  const [periodData,     setPeriodData]     = useState([])
+  const [topDishCat,     setTopDishCat]     = useState('All')
+  const [topDishesPeriod, setTopDishesPeriod] = useState('month')
+  const [topDishesData,  setTopDishesData]  = useState(null) // null = use dashData, array = overridden
+  const [topDishLoading, setTopDishLoading] = useState(false)
+  const [activityLog,    setActivityLog]    = useState([])
 
   useEffect(() => {
     statsApi.dashboard().then(setDashData).catch(console.error)
@@ -114,8 +125,16 @@ export default function Dashboard() {
     statsApi.revenue(chartPeriod).then(setPeriodData).catch(console.error)
   }, [chartPeriod])
 
+  useEffect(() => {
+    setTopDishLoading(true)
+    setTopDishCat('All')
+    statsApi.topDishes(topDishesPeriod)
+      .then(data => { setTopDishesData(data); setTopDishLoading(false) })
+      .catch(() => setTopDishLoading(false))
+  }, [topDishesPeriod])
+
   const greeting = () => {
-    const h = new Date().getHours()
+    const h = getCurrentHourInTimeZone()
     if (h < 12) return t('dash.greeting.morning')
     if (h < 17) return t('dash.greeting.afternoon')
     return t('dash.greeting.evening')
@@ -128,7 +147,7 @@ export default function Dashboard() {
     .slice(0, 7)
 
   const stats         = dashData?.stats
-  const topDishes     = dashData?.topDishes     || []
+  const topDishes     = topDishesData ?? (dashData?.topDishes || [])
   const hourlyOrders  = dashData?.hourlyOrders  || []
   const lowStockItems = dashData?.lowStockItems || []
 
@@ -280,7 +299,7 @@ export default function Dashboard() {
             <div>
               <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t('dash.revenueOverview')}</h3>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                {CHART_PERIODS.find(p => p.value === chartPeriod)?.label} trend
+                {chartPeriod === 'today' ? 'Hourly today' : `${CHART_PERIODS.find(p => p.value === chartPeriod)?.label} trend`}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -354,7 +373,26 @@ export default function Dashboard() {
             <div className="flex items-start justify-between gap-2 mb-3">
               <div>
                 <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t('dash.topSelling')}</h3>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t('dash.last30days')}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  {topDishLoading ? 'Loading…' : DISH_PERIODS.find(p => p.value === topDishesPeriod)?.label}
+                </p>
+              </div>
+              {/* Period filter */}
+              <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1 flex-shrink-0">
+                {DISH_PERIODS.map(p => (
+                  <button
+                    key={p.value}
+                    onClick={() => setTopDishesPeriod(p.value)}
+                    className={clsx(
+                      'px-2.5 py-1 text-xs font-semibold rounded-lg transition-all',
+                      topDishesPeriod === p.value
+                        ? 'bg-teal-600 text-white shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
               </div>
             </div>
             {/* Category filter pills */}

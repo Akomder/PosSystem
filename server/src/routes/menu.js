@@ -4,6 +4,7 @@ const {
   getAllItems, getCategories, getItem,
   createItem, updateItem, toggleAvailability, deleteItem,
   createCategory, updateCategory, deleteCategory, reorderCategories,
+  adjustStock, getStockHistory,
 } = require('../controllers/menuController')
 const authenticate = require('../middleware/auth')
 const requireRole  = require('../middleware/authorize')
@@ -19,7 +20,8 @@ router.put('/categories/:id',       requireRole('Admin'), updateCategory)
 router.delete('/categories/:id',    requireRole('Admin'), deleteCategory)
 router.patch('/categories/reorder', requireRole('Admin'), reorderCategories)
 
-router.get('/:id',         getItem)
+router.get('/stock/history', requireRole('Admin'), getStockHistory)
+router.get('/:id',           getItem)
 
 router.post(
   '/',
@@ -43,6 +45,7 @@ router.put(
 )
 
 router.patch('/:id/availability', requireRole('Admin','Cashier'), toggleAvailability)
+router.patch('/:id/stock',        requireRole('Admin'), adjustStock)
 
 router.delete('/:id', requireRole('Admin'), deleteItem)
 

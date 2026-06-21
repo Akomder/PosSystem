@@ -93,6 +93,10 @@ export const menuApi = {
   updateCategory:   (id, body)    => put(`/menu/categories/${id}`, body),
   deleteCategory:   (id)          => del(`/menu/categories/${id}`),
   reorderCategories:(order)       => patch('/menu/categories/reorder', { order }),
+
+  // Stock management
+  adjustStock:    (id, adjustment, reason) => patch(`/menu/${id}/stock`, { adjustment, reason }),
+  getStockHistory:(params = {})            => get('/menu/stock/history?' + new URLSearchParams(params)),
 }
 
 // ─── Staff ────────────────────────────────────────────────────────────────────
@@ -106,8 +110,9 @@ export const staffApi = {
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 export const statsApi = {
-  dashboard: ()              => get('/stats/dashboard'),
-  revenue:   (period='week') => get(`/stats/revenue?period=${period}`),
+  dashboard:  ()               => get('/stats/dashboard'),
+  revenue:    (period='week')  => get(`/stats/revenue?period=${period}`),
+  topDishes:  (period='month') => get(`/stats/top-dishes?period=${period}`),
 }
 
 // ─── Customers ───────────────────────────────────────────────────────────────

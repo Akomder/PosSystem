@@ -1,6 +1,6 @@
 const router = require('express').Router()
 const {
-  getDashboard, getRevenue,
+  getDashboard, getRevenue, getTopDishes,
   getReportSales, getReportProducts, getReportCustomers, getReportStaff, getReportFinance,
   getReportEOD, getReportChannel,
   getReportStockDaily, getReportSalesDetail,
@@ -9,8 +9,9 @@ const authenticate = require('../middleware/auth')
 
 router.use(authenticate)
 
-router.get('/dashboard', getDashboard)
-router.get('/revenue',   getRevenue)
+router.get('/dashboard',   getDashboard)
+router.get('/revenue',    getRevenue)
+router.get('/top-dishes', getTopDishes)
 
 router.get('/reports/sales',     getReportSales)
 router.get('/reports/products',  getReportProducts)

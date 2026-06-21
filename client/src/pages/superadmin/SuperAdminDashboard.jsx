@@ -9,6 +9,7 @@ import {
 } from 'recharts'
 import clsx from 'clsx'
 import { superadminApi } from '../../services/api'
+import { APP_TIME_ZONE } from '../../utils/formatters'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function fmt(n) {
@@ -20,8 +21,8 @@ function fmt(n) {
 function fmtCurrency(n) { return '₭ ' + fmt(n) }
 function fmtDate(d) {
   if (!d) return '—'
-  return new Date(d).toLocaleTimeString('en', { hour:'2-digit', minute:'2-digit' }) + ' · ' +
-         new Date(d).toLocaleDateString('en', { month:'short', day:'numeric' })
+    return new Date(d).toLocaleTimeString('en', { hour:'2-digit', minute:'2-digit', timeZone: APP_TIME_ZONE }) + ' · ' +
+      new Date(d).toLocaleDateString('en', { month:'short', day:'numeric', timeZone: APP_TIME_ZONE })
 }
 
 const STATUS_COLORS = {
@@ -52,6 +53,7 @@ function StatCard({ label, value, sub, icon: Icon, gradient, trend }) {
             trend >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400',
           )}>
             {trend >= 0 ? '+' : ''}{trend}%
+            {new Date().toLocaleDateString('en', { weekday:'long', month:'long', day:'numeric', year:'numeric', timeZone: APP_TIME_ZONE })}
           </span>
         )}
       </div>
@@ -107,7 +109,7 @@ export default function SuperAdminDashboard() {
         <div>
           <h1 className="text-xl font-bold text-white">Super Admin Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {new Date().toLocaleDateString('en', { weekday:'long', month:'long', day:'numeric', year:'numeric' })}
+            {new Date().toLocaleDateString('en', { weekday:'long', month:'long', day:'numeric', year:'numeric', timeZone: APP_TIME_ZONE })}
           </p>
         </div>
         <button

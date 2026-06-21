@@ -5,6 +5,7 @@ const { query } = require('../config/db')
 function periodInterval(period) {
   if (period === 'year')  return "date_trunc('year', CURRENT_DATE)"
   if (period === 'month') return "CURRENT_DATE - INTERVAL '29 days'"
+  if (period === 'today') return 'CURRENT_DATE'
   return "CURRENT_DATE - INTERVAL '6 days'"
 }
 
@@ -192,7 +193,8 @@ async function getRevenue(req, res, next) {
     const { period = 'week' } = req.query
     const rid = req.restaurantId
     let interval, format, trunc
-    if (period === 'month')      { interval = '29 days';   format = 'DD Mon';   trunc = 'day'   }
+    if (period === 'today')      { interval = null;         format = 'HH24';     trunc = 'hour'  }
+    else if (period === 'month') { interval = '29 days';   format = 'DD Mon';   trunc = 'day'   }
     else if (period === 'year')  { interval = '11 months'; format = 'Mon YYYY'; trunc = 'month' }
     else                         { interval = '6 days';    format = 'Dy';       trunc = 'day'   }
 
@@ -200,22 +202,44 @@ async function getRevenue(req, res, next) {
     const params = [format, trunc]
     const rFilter = rid ? (params.push(rid), `AND o.restaurant_id = $${params.length}`) : ''
 
-    const { rows } = await query(`
-      SELECT
-        to_char(d, $1) AS label,
-        d              AS period_start,
-        COALESCE(SUM(o.total), 0) AS revenue,
-        COUNT(o.id)    AS orders
-      FROM generate_series(
-        date_trunc($2, CURRENT_DATE - INTERVAL '${interval}'),
-        date_trunc($2, CURRENT_DATE),
-        INTERVAL '1 ${trunc}'
-      ) AS d
-      LEFT JOIN orders o
-        ON date_trunc($2, o.created_at) = d AND o.status = 'Closed' ${rFilter}
-      GROUP BY d
-      ORDER BY d
-    `, params)
+    let rows
+    if (period === 'today') {
+      // Hourly series for today (0–23)
+      const { rows: r } = await query(`
+        SELECT
+          to_char(d, $1)            AS label,
+          d                         AS period_start,
+          COALESCE(SUM(o.total), 0) AS revenue,
+          COUNT(o.id)               AS orders
+        FROM generate_series(
+          date_trunc('hour', CURRENT_DATE::timestamptz),
+          date_trunc('hour', CURRENT_DATE::timestamptz) + INTERVAL '23 hours',
+          INTERVAL '1 hour'
+        ) AS d
+        LEFT JOIN orders o
+          ON date_trunc('hour', o.created_at) = d AND o.status = 'Closed' ${rFilter}
+        GROUP BY d ORDER BY d
+      `, params)
+      rows = r
+    } else {
+      const { rows: r } = await query(`
+        SELECT
+          to_char(d, $1) AS label,
+          d              AS period_start,
+          COALESCE(SUM(o.total), 0) AS revenue,
+          COUNT(o.id)    AS orders
+        FROM generate_series(
+          date_trunc($2, CURRENT_DATE - INTERVAL '${interval}'),
+          date_trunc($2, CURRENT_DATE),
+          INTERVAL '1 ${trunc}'
+        ) AS d
+        LEFT JOIN orders o
+          ON date_trunc($2, o.created_at) = d AND o.status = 'Closed' ${rFilter}
+        GROUP BY d
+        ORDER BY d
+      `, params)
+      rows = r
+    }
 
     res.json(rows.map(r => ({
       label:   r.label,
@@ -621,8 +645,41 @@ async function getReportSalesDetail(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// ─── GET /api/stats/top-dishes?period=today|week|month|year ──────────────────
+async function getTopDishes(req, res, next) {
+  try {
+    const { period = 'month' } = req.query
+    const rid = req.restaurantId
+    const since = periodInterval(period)
+    const params = rid ? [rid] : []
+    const rFilter = rid ? 'AND o.restaurant_id = $1' : ''
+
+    const { rows } = await query(
+      `SELECT
+         oi.name,
+         COALESCE(mi.category, '') AS category,
+         SUM(oi.quantity)                   AS qty,
+         SUM(oi.quantity * oi.unit_price)   AS revenue
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id
+       LEFT JOIN menu_items mi ON mi.name = oi.name AND mi.restaurant_id = o.restaurant_id
+       WHERE o.status = 'Closed'
+         AND o.created_at >= ${since} ${rFilter}
+       GROUP BY oi.name, mi.category ORDER BY qty DESC LIMIT 10`,
+      params
+    )
+
+    res.json(rows.map(r => ({
+      name:     r.name,
+      category: r.category || '',
+      qty:      parseInt(r.qty),
+      revenue:  parseFloat(r.revenue),
+    })))
+  } catch (err) { next(err) }
+}
+
 module.exports = {
-  getDashboard, getRevenue,
+  getDashboard, getRevenue, getTopDishes,
   getReportSales, getReportProducts, getReportCustomers,
   getReportStaff, getReportFinance, getReportEOD, getReportChannel,
   getReportStockDaily, getReportSalesDetail,

@@ -24,6 +24,8 @@ function fmt(r) {
     station:           r.station || 'Kitchen',
     stockQuantity:     r.stock_quantity != null ? parseFloat(r.stock_quantity) : null,
     lowStockThreshold: parseFloat(r.low_stock_threshold ?? 10),
+    isPromotion:       r.is_promotion || false,
+    promotionLabel:    r.promotion_label || null,
     createdAt:         r.created_at,
     updatedAt:      r.updated_at,
     modifierGroups: (r.modifier_groups || []).map(g => ({
@@ -245,7 +247,7 @@ async function createItem(req, res, next) {
   if (!checkValidation(req, res)) return
   const { name, category, price, description, tags, stock,
           productCode, costPrice, productGroup, department, minStock, maxStock, station,
-          stockQuantity, lowStockThreshold, imageUrl } = req.body
+          stockQuantity, lowStockThreshold, imageUrl, isPromotion, promotionLabel } = req.body
   try {
     // ── Plan limit check ────────────────────────────────────────────────────
     const rid = req.restaurantId
@@ -271,13 +273,13 @@ async function createItem(req, res, next) {
       `INSERT INTO menu_items
          (restaurant_id, name, category, price, description, tags, stock,
           product_code, cost_price, product_group, department, min_stock, max_stock, station,
-          stock_quantity, low_stock_threshold, image_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
+          stock_quantity, low_stock_threshold, image_url, is_promotion, promotion_label)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id`,
       [req.restaurantId, name, category, price, description || '', tags || [], stockVal,
        productCode || null, costPrice ?? 0, productGroup || '', department || '',
        minStock ?? 0, maxStock ?? 9999, station || 'Kitchen',
        stockQtyVal, lowStockThreshold ?? 10,
-       imageUrl || '']
+       imageUrl || '', isPromotion || false, promotionLabel || null]
     )
     const { rows } = await query(`${MENU_SELECT} WHERE mi.id = $1`, [ins.rows[0].id])
     res.status(201).json(fmt(rows[0]))
@@ -296,6 +298,7 @@ async function updateItem(req, res, next) {
     minStock: 'min_stock', maxStock: 'max_stock',
     station: 'station',
     stockQuantity: 'stock_quantity', lowStockThreshold: 'low_stock_threshold',
+    isPromotion: 'is_promotion', promotionLabel: 'promotion_label',
   }
   // Mirror stock fields: editing one keeps the other in sync.
   const body = { ...req.body }
@@ -354,7 +357,77 @@ async function deleteItem(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// ─── PATCH /api/menu/:id/stock ───────────────────────────────────────────────
+// Adjust stock quantity for a menu item (restock or shrinkage).
+// Body: { adjustment: number, reason: string }
+async function adjustStock(req, res, next) {
+  try {
+    const { adjustment, reason = '' } = req.body
+    const adj = parseFloat(adjustment)
+    if (isNaN(adj) || adj === 0) return res.status(400).json({ error: 'adjustment must be a non-zero number' })
+
+    const rid = req.restaurantId
+
+    // Fetch the item to know its current stock
+    const existing = await query(
+      'SELECT id, name, stock_quantity FROM menu_items WHERE id = $1 AND restaurant_id = $2',
+      [req.params.id, rid]
+    )
+    if (!existing.rows.length) return res.status(404).json({ error: 'Menu item not found' })
+    const item = existing.rows[0]
+
+    // If stock_quantity was NULL, treat it as 0 before adjustment
+    const currentQty = item.stock_quantity != null ? parseFloat(item.stock_quantity) : 0
+    const newQty = Math.max(0, currentQty + adj)
+
+    // Update both stock columns in sync
+    await query(
+      `UPDATE menu_items
+         SET stock_quantity = $1,
+             stock          = $2,
+             available      = CASE WHEN $1 > 0 THEN TRUE ELSE available END
+       WHERE id = $3 AND restaurant_id = $4`,
+      [newQty, Math.round(newQty), req.params.id, rid]
+    )
+
+    // Log the adjustment
+    await query(
+      `INSERT INTO stock_adjustments (restaurant_id, menu_item_id, item_name, adjustment, reason, staff_name)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [rid, item.id, item.name, adj, reason, req.user?.name || '']
+    )
+
+    res.json({ id: item.id, name: item.name, stockQuantity: newQty, adjustment: adj })
+  } catch (err) { next(err) }
+}
+
+// ─── GET /api/menu/stock/history?itemId=&limit= ───────────────────────────────
+// Recent stock adjustment log for admin overview.
+async function getStockHistory(req, res, next) {
+  try {
+    const { itemId, limit = 50 } = req.query
+    let sql = `SELECT sa.id, sa.menu_item_id, sa.item_name, sa.adjustment, sa.reason, sa.staff_name, sa.created_at
+               FROM stock_adjustments sa
+               WHERE sa.restaurant_id = $1`
+    const params = [req.restaurantId]
+    if (itemId) { params.push(itemId); sql += ` AND sa.menu_item_id = $${params.length}` }
+    sql += ` ORDER BY sa.created_at DESC LIMIT $${params.length + 1}`
+    params.push(Math.min(parseInt(limit) || 50, 200))
+    const { rows } = await query(sql, params)
+    res.json(rows.map(r => ({
+      id:         r.id,
+      itemId:     r.menu_item_id,
+      itemName:   r.item_name,
+      adjustment: parseFloat(r.adjustment),
+      reason:     r.reason,
+      staffName:  r.staff_name,
+      createdAt:  r.created_at,
+    })))
+  } catch (err) { next(err) }
+}
+
 module.exports = {
   getAllItems, getCategories, getItem, createItem, updateItem, toggleAvailability, deleteItem,
   createCategory, updateCategory, deleteCategory, reorderCategories,
+  adjustStock, getStockHistory,
 }

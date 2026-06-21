@@ -8,7 +8,7 @@ import Input from '../components/ui/Input'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
 import Badge from '../components/ui/Badge'
-import { formatCurrency } from '../utils/formatters'
+import { APP_TIME_ZONE, formatCurrency } from '../utils/formatters'
 
 const STATUS_VARIANTS = {
   unpaid:  'danger',
@@ -142,7 +142,7 @@ function DebtRow({ debt, onPay, onDelete }) {
         <div className="border-t border-gray-100 dark:border-gray-700 px-5 py-3 bg-gray-50 dark:bg-gray-700/30">
           {debt.dueDate && (
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-              Due: <span className="font-medium">{new Date(debt.dueDate).toLocaleDateString()}</span>
+              Due: <span className="font-medium">{new Date(debt.dueDate).toLocaleDateString('en-US', { timeZone: APP_TIME_ZONE })}</span>
             </p>
           )}
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">{t('debt.payments')}</p>
@@ -155,7 +155,7 @@ function DebtRow({ debt, onPay, onDelete }) {
               {payments.map(p => (
                 <div key={p.id} className="flex items-center justify-between text-xs">
                   <span className="text-gray-500 dark:text-gray-400">
-                    {new Date(p.createdAt).toLocaleString()}
+                    {new Date(p.createdAt).toLocaleString('en-US', { timeZone: APP_TIME_ZONE })}
                     {p.note && ` — ${p.note}`}
                   </span>
                   <span className="font-semibold text-teal-600 dark:text-teal-400">+{formatCurrency(p.amount)}</span>

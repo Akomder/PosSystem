@@ -3,6 +3,8 @@ import { Users, Plus, Trash2, Shield, X, AlertCircle, CheckCircle } from 'lucide
 import clsx from 'clsx'
 import { superadminApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
+import { APP_TIME_ZONE } from '../../utils/formatters'
+  const fmt = (iso) => iso ? new Date(iso).toLocaleDateString('en', { year:'numeric', month:'short', day:'numeric', timeZone: APP_TIME_ZONE }) : '—'
 
 const inputCls = 'w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500 placeholder-gray-600 transition-colors'
 
@@ -72,7 +74,7 @@ export default function Admins() {
     }
   }
 
-  const fmt = (iso) => iso ? new Date(iso).toLocaleDateString('en', { year:'numeric', month:'short', day:'numeric' }) : '—'
+  const fmt = (iso) => iso ? new Date(iso).toLocaleDateString('en', { year:'numeric', month:'short', day:'numeric', timeZone: APP_TIME_ZONE }) : '—'
 
   return (
     <div className="space-y-6 max-w-3xl">

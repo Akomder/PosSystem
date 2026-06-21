@@ -663,6 +663,10 @@ ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS low_stock_threshold NUMERIC(10,2
 -- menu_items — image support
 ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
 
+-- menu_items — item-level promotion flag
+ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_promotion    BOOLEAN      NOT NULL DEFAULT FALSE;
+ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS promotion_label VARCHAR(100) DEFAULT NULL;
+
 -- shifts — cash reconciliation columns (Phase 3 Step 6)
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS expected_cash NUMERIC(10,2) NOT NULL DEFAULT 0;
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS cash_variance NUMERIC(10,2) NOT NULL DEFAULT 0;
@@ -806,3 +810,17 @@ CREATE TABLE IF NOT EXISTS order_ratings (
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_order_ratings_order ON order_ratings(order_id);
+
+-- Stock adjustment log — records every manual restock / shrinkage entry
+CREATE TABLE IF NOT EXISTS stock_adjustments (
+  id            SERIAL PRIMARY KEY,
+  restaurant_id INTEGER      NOT NULL,
+  menu_item_id  INTEGER      NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+  item_name     VARCHAR(120) NOT NULL,
+  adjustment    NUMERIC(10,2) NOT NULL,  -- positive = restock, negative = shrinkage/loss
+  reason        VARCHAR(200) NOT NULL DEFAULT '',
+  staff_name    VARCHAR(80)  NOT NULL DEFAULT '',
+  created_at    TIMESTAMPTZ  DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_stock_adj_restaurant ON stock_adjustments(restaurant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_stock_adj_item       ON stock_adjustments(menu_item_id);

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Settings2, PlusCircle, Pencil, Trash2, Check, X,
   Store, Phone, Mail, MapPin, DollarSign,
-  Save, RefreshCw,
+  Save, RefreshCw, Globe,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { settingsApi, salesChannelsApi } from '../services/api'
@@ -86,7 +86,7 @@ function StoreTab({ isAdmin }) {
   const [toast,    setToast]    = useState(null)   // { type, msg }
   const [info,     setInfo]     = useState({
     name: '', phone: '', email: '', address: '',
-    currency: 'LAK', logoUrl: '',
+    currency: 'LAK', logoUrl: '', timezone: 'Asia/Bangkok',
   })
   const [posParams,      setPosParams]      = useState(
     Object.fromEntries(POS_TOGGLES.map(t => [t.key, false]))
@@ -104,6 +104,8 @@ function StoreTab({ isAdmin }) {
     settingsApi.store.get()
       .then(data => {
         if (!mounted) return
+        const saved = data.settings || {}
+        const tz = saved.timezone || 'Asia/Bangkok'
         setInfo({
           name:     data.name      || '',
           phone:    data.phone     || '',
@@ -111,8 +113,10 @@ function StoreTab({ isAdmin }) {
           address:  data.address   || '',
           currency: data.currency  || 'USD',
           logoUrl:  data.logoUrl   || '',
+          timezone: tz,
         })
-        const saved = data.settings || {}
+        // Sync timezone to localStorage so formatters can read it immediately
+        localStorage.setItem('pos_timezone', tz)
         const params = Object.fromEntries(POS_TOGGLES.map(t => [t.key, saved[t.key] ?? (t.default ?? false)]))
         setPosParams(params)
         // Sync sound preference to localStorage so OrderSoundAlert can read it without an API call

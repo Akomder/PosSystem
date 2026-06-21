@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Calendar, ChevronDown, X } from 'lucide-react'
 import clsx from 'clsx'
+import { APP_TIME_ZONE, formatDateKey } from '../../utils/formatters'
 
 const PRESETS = [
   { label: 'Today',       getValue: () => { const d = today(); return { from: d, to: d } } },
@@ -14,30 +15,30 @@ const PRESETS = [
 ]
 
 function today() {
-  return new Date().toISOString().slice(0, 10)
+  return formatDateKey(new Date(), APP_TIME_ZONE)
 }
 function addDays(dateStr, n) {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() + n)
+  const d = new Date(`${dateStr}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
   return d.toISOString().slice(0, 10)
 }
 function startOfWeek() {
-  const d = new Date()
-  const day = d.getDay()
-  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+  const d = new Date(`${today()}T00:00:00Z`)
+  const day = d.getUTCDay()
+  d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1))
   return d.toISOString().slice(0, 10)
 }
 function startOfMonth(date) {
-  const d = date ? new Date(date) : new Date()
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+  const d = new Date(`${(date || today())}T00:00:00Z`)
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0, 10)
 }
 function startOfQuarter() {
-  const d = new Date()
-  const q = Math.floor(d.getMonth() / 3) * 3
-  return new Date(d.getFullYear(), q, 1).toISOString().slice(0, 10)
+  const d = new Date(`${today()}T00:00:00Z`)
+  const q = Math.floor(d.getUTCMonth() / 3) * 3
+  return new Date(Date.UTC(d.getUTCFullYear(), q, 1)).toISOString().slice(0, 10)
 }
 function startOfYear() {
-  return `${new Date().getFullYear()}-01-01`
+  return `${new Date(`${today()}T00:00:00Z`).getUTCFullYear()}-01-01`
 }
 
 export default function DateRangeFilter({ value, onChange, className }) {
