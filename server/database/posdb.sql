@@ -26,7 +26,9 @@ BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+   SECURITY INVOKER
+   SET search_path = '';
 
 
 -- ─── 2. Core tables ──────────────────────────────────────────────────────────
