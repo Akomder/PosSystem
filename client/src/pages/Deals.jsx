@@ -112,12 +112,12 @@ export default function Deals() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <Tag size={20} className="text-rose-500" /> Deals & Promotions
+            <Tag size={20} className="text-rose-500" /> {t('deals.title')}
           </h1>
-          <p className="text-sm text-gray-400 mt-0.5">Promotional banners shown at the top of the POS and customer order screens</p>
+          <p className="text-sm text-gray-400 mt-0.5">{t('deals.subtitle')}</p>
         </div>
         <Button onClick={openNew} className="flex items-center gap-2">
-          <Plus size={16} /> Add Deal
+          <Plus size={16} /> {t('deals.add')}
         </Button>
       </div>
 
@@ -127,8 +127,8 @@ export default function Deals() {
       ) : deals.length === 0 ? (
         <div className="text-center py-20 text-gray-400">
           <Tag size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="font-medium">No deals yet</p>
-          <p className="text-sm mt-1">Add a promotional deal to display it on POS and customer screens.</p>
+          <p className="font-medium">{t('deals.empty.title')}</p>
+          <p className="text-sm mt-1">{t('deals.empty.desc')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -141,7 +141,7 @@ export default function Deals() {
                   : <Tag size={36} className="text-rose-200 dark:text-rose-800" />
                 }
                 {!deal.active && (
-                  <span className="absolute top-2 right-2 bg-gray-800/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">INACTIVE</span>
+                  <span className="absolute top-2 right-2 bg-gray-800/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{t('deals.inactive')}</span>
                 )}
               </div>
 
@@ -161,7 +161,7 @@ export default function Deals() {
                   className={clsx('flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-semibold transition-colors', deal.active ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 hover:bg-teal-100' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-gray-200')}
                 >
                   {deal.active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
-                  {deal.active ? 'Active' : 'Inactive'}
+                  {deal.active ? t('deals.active') : t('deals.inactive_label')}
                 </button>
                 <button onClick={() => openEdit(deal)} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors">
                   <Pencil size={14} />
@@ -176,11 +176,11 @@ export default function Deals() {
       )}
 
       {/* ── Add / Edit Modal ── */}
-      <Modal isOpen={editDeal !== null} onClose={() => setEditDeal(null)} title={editDeal?.id ? 'Edit Deal' : 'New Deal'}>
+      <Modal isOpen={editDeal !== null} onClose={() => setEditDeal(null)} title={editDeal?.id ? t('deals.edit') : t('deals.new')}>
         <div className="space-y-4">
           {/* Image upload */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Deal Image</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">{t('deals.image')}</label>
             <div className="relative w-full aspect-[16/9] bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
               {form.imageUrl
                 ? <>
@@ -194,14 +194,14 @@ export default function Deals() {
                   </>
                 : <label className="cursor-pointer flex flex-col items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
                     <ImagePlus size={28} />
-                    <span className="text-xs">Upload image</span>
+                    <span className="text-xs">{t('deals.image.upload')}</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                   </label>
               }
             </div>
             {form.imageUrl && (
               <label className="mt-2 inline-flex items-center gap-1.5 text-xs text-teal-600 dark:text-teal-400 cursor-pointer hover:underline">
-                <ImagePlus size={12} /> Change image
+                <ImagePlus size={12} /> {t('deals.image.change')}
                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
               </label>
             )}
@@ -209,7 +209,7 @@ export default function Deals() {
 
           {/* Title */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Title <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('deals.field.title')} <span className="text-red-500">*</span></label>
             <Input
               placeholder="e.g. Buy 1 Beer Get 1 Free"
               value={form.title}
@@ -219,10 +219,10 @@ export default function Deals() {
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Description</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('deals.field.description')}</label>
             <textarea
               rows={2}
-              placeholder="Optional details about the deal…"
+              placeholder={t('deals.field.description.ph')}
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               className="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-100 resize-none"
@@ -231,7 +231,9 @@ export default function Deals() {
 
           {/* Price */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Price <span className="text-gray-400 font-normal">(optional — displayed on banner)</span></label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              {t('deals.field.price')} <span className="text-gray-400 font-normal">{t('deals.field.price.hint')}</span>
+            </label>
             <Input
               type="number"
               min="0"
@@ -245,8 +247,8 @@ export default function Deals() {
           {/* Active toggle */}
           <div className="flex items-center justify-between py-2 border-t border-gray-100 dark:border-gray-700">
             <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Active</p>
-              <p className="text-xs text-gray-400">Show this deal on POS and customer screens</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('deals.field.active')}</p>
+              <p className="text-xs text-gray-400">{t('deals.field.active.hint')}</p>
             </div>
             <button
               onClick={() => setForm(f => ({ ...f, active: !f.active }))}
@@ -261,24 +263,24 @@ export default function Deals() {
           )}
 
           <div className="flex gap-3 pt-1">
-            <Button variant="ghost" className="flex-1" onClick={() => setEditDeal(null)}>Cancel</Button>
+            <Button variant="ghost" className="flex-1" onClick={() => setEditDeal(null)}>{t('common.cancel')}</Button>
             <Button className="flex-1" onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving…' : 'Save Deal'}
+              {saving ? t('deals.saving') : t('deals.save')}
             </Button>
           </div>
         </div>
       </Modal>
 
       {/* ── Delete confirm ── */}
-      <Modal isOpen={!!delDeal} onClose={() => setDelDeal(null)} title="Delete Deal">
+      <Modal isOpen={!!delDeal} onClose={() => setDelDeal(null)} title={t('deals.delete.title')}>
         {delDeal && (
           <div className="space-y-4">
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              Delete <strong>{delDeal.title}</strong>? This cannot be undone.
+              {t('deals.delete.confirm')} <strong>{delDeal.title}</strong>{t('deals.delete.body')}
             </p>
             <div className="flex gap-3">
-              <Button variant="ghost" className="flex-1" onClick={() => setDelDeal(null)}>Cancel</Button>
-              <Button variant="danger" className="flex-1" onClick={handleDelete} disabled={saving}>Delete</Button>
+              <Button variant="ghost" className="flex-1" onClick={() => setDelDeal(null)}>{t('common.cancel')}</Button>
+              <Button variant="danger" className="flex-1" onClick={handleDelete} disabled={saving}>{t('deals.delete.confirm')}</Button>
             </div>
           </div>
         )}
