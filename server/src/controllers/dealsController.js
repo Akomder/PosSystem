@@ -75,14 +75,22 @@ async function remove(req, res, next) {
 }
 
 // Public endpoint — no auth, used by QR customer page
+// tableId may arrive as "T-01" or "1" — parse to raw integer
+function parseRawTableId(v) {
+  const m = String(v).trim().match(/^(?:T-)?0*(\d+)$/i)
+  return m ? parseInt(m[1], 10) : null
+}
+
 async function getPublicDeals(req, res, next) {
   try {
+    const rawTableId = parseRawTableId(req.params.tableId)
+    if (!rawTableId) return res.json([])
     const { rows } = await query(
       `SELECT d.* FROM deals d
        JOIN restaurant_tables t ON t.restaurant_id = d.restaurant_id
        WHERE t.id = $1 AND d.active = true
        ORDER BY d.sort_order ASC, d.created_at DESC`,
-      [req.params.tableId]
+      [rawTableId]
     )
     res.json(rows.map(fmt))
   } catch (err) { next(err) }
