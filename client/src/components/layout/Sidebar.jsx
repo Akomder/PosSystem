@@ -78,7 +78,6 @@ export default function Sidebar() {
     {
       label: t('nav.section.settings'),
       items: [
-        { to: '/promotions', icon: Tag,     label: t('nav.promotions'), roles: ['Admin'] },
         { to: '/settings',   icon: Settings2, label: t('nav.settings'), roles: ['Admin'] },
         { to: '/audit-log',  icon: Shield,  label: t('nav.auditLog'),   roles: ['Admin'] },
       ],
