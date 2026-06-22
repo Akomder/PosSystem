@@ -493,6 +493,20 @@ CREATE TABLE IF NOT EXISTS promotions (
   updated_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
 
+-- DEALS (promotional banners shown on POS Sell and QR customer order pages)
+CREATE TABLE IF NOT EXISTS deals (
+  id            SERIAL PRIMARY KEY,
+  restaurant_id INTEGER      REFERENCES restaurants(id) ON DELETE CASCADE,
+  title         VARCHAR(200) NOT NULL,
+  description   TEXT,
+  image_url     TEXT,
+  price         NUMERIC(10,2),
+  active        BOOLEAN      NOT NULL DEFAULT TRUE,
+  sort_order    INTEGER      NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
 -- AUDIT LOG
 CREATE TABLE IF NOT EXISTS audit_logs (
   id            SERIAL PRIMARY KEY,
@@ -567,6 +581,7 @@ DO $$ BEGIN CREATE TRIGGER trg_notetpl_updated      BEFORE UPDATE ON note_templa
 DO $$ BEGIN CREATE TRIGGER trg_sectors_updated      BEFORE UPDATE ON processing_sectors FOR EACH ROW EXECUTE FUNCTION set_updated_at(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TRIGGER trg_printtpl_updated     BEFORE UPDATE ON print_templates   FOR EACH ROW EXECUTE FUNCTION set_updated_at(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TRIGGER trg_promotions_updated   BEFORE UPDATE ON promotions        FOR EACH ROW EXECUTE FUNCTION set_updated_at(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TRIGGER trg_deals_updated        BEFORE UPDATE ON deals             FOR EACH ROW EXECUTE FUNCTION set_updated_at(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 
 -- ─── 6. Safe schema additions (idempotent) ───────────────────────────────────

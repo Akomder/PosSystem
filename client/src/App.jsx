@@ -30,6 +30,7 @@ import PurchaseReturns from './pages/PurchaseReturns'
 import DamageRecords from './pages/DamageRecords'
 import Shifts from './pages/Shifts'
 import Promotions from './pages/Promotions'
+import Deals from './pages/Deals'
 import Settings from './pages/Settings'
 import AuditLog from './pages/AuditLog'
 import Kitchen from './pages/Kitchen'
@@ -186,6 +187,9 @@ function AppRoutes() {
       </Route>
       <Route path="/promotions"       element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Promotions />} />
+      </Route>
+      <Route path="/deals"            element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<Deals />} />
       </Route>
       <Route path="/settings"         element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Settings />} />

@@ -1,6 +1,7 @@
 const router  = require('express').Router()
 const { body } = require('express-validator')
 const { getPublicRestaurant, getPublicTable, getPublicMenu, createPublicOrder, cancelPublicOrder, getPublicOrder, addItemsToPublicOrder, requestCheckout, createReturnRequest, callStaff, getPublicPromotions, submitRating } = require('../controllers/publicController')
+const { getPublicDeals } = require('../controllers/dealsController')
 
 // No authentication on any of these routes
 
@@ -61,6 +62,9 @@ router.post('/tables/:tableId/call-staff', callStaff)
 
 // Active promotions/discounts visible to customers
 router.get('/promotions', getPublicPromotions)
+
+// Active deals/banners visible to customers (by table)
+router.get('/tables/:tableId/deals', getPublicDeals)
 
 // Customer submits a service rating after their meal
 router.post(

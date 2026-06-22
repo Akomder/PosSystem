@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Users, UserCheck, Truck,
   BookOpen, BarChart2, ShoppingCart, FileText, RotateCcw,
   PackageSearch, BookMarked, AlertTriangle, ShoppingBag, Package,
-  PackageX, Clock, Tag, Settings2, Shield, ChevronUp, ChefHat, Landmark, Coffee,
+  PackageX, Clock, Tag, Settings2, Shield, ChevronUp, ChefHat, Landmark, Coffee, Megaphone,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '../../context/AuthContext'
@@ -78,6 +78,7 @@ export default function Sidebar() {
       label: t('nav.section.settings'),
       items: [
         { to: '/promotions', icon: Tag,     label: t('nav.promotions'), roles: ['Admin'] },
+        { to: '/deals',      icon: Megaphone, label: 'Deals',             roles: ['Admin'] },
         { to: '/settings',   icon: Settings2, label: t('nav.settings'), roles: ['Admin'] },
         { to: '/audit-log',  icon: Shield,  label: t('nav.auditLog'),   roles: ['Admin'] },
       ],

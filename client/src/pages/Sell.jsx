@@ -11,7 +11,7 @@ import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { isPosLocked } from '../utils/roleAccess'
 import { useSettings } from '../context/SettingsContext'
-import { ordersApi, customersApi, shiftsApi, salesChannelsApi, promotionsApi, menuApi, tablesApi } from '../services/api'
+import { ordersApi, customersApi, shiftsApi, salesChannelsApi, promotionsApi, menuApi, tablesApi, dealsApi } from '../services/api'
 import { formatCurrency } from '../utils/formatters'
 import Badge from '../components/ui/Badge'
 import StoreToggle from '../components/layout/StoreToggle'
@@ -393,6 +393,7 @@ export default function Sell() {
 
   useEffect(() => {
     menuApi.getCategories().then(data => setMenuCategories(data)).catch(() => {})
+    dealsApi.getActive().then(data => setDeals(Array.isArray(data) ? data : [])).catch(() => {})
   }, [])
 
   // Right panel — orders (tabs support multiple open orders)
@@ -429,6 +430,9 @@ export default function Sell() {
   const [mergeSources,    setMergeSources]    = useState([]) // raw table ids to merge IN
   const [merging,         setMerging]         = useState(false)
   const [mergeError,      setMergeError]      = useState('')
+
+  // Deals banner
+  const [deals, setDeals] = useState([])
 
   // Shift + channels + promotions
   const [currentShift,    setCurrentShift]    = useState(null)
@@ -1024,6 +1028,24 @@ export default function Sell() {
           {/* Menu Tab */}
           {leftTab === 'menu' && (
             <>
+              {/* Deals banner */}
+              {deals.length > 0 && (
+                <div className="flex gap-3 px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 overflow-x-auto flex-shrink-0 scrollbar-none">
+                  {deals.map(deal => (
+                    <div key={deal.id} className="flex-shrink-0 w-48 rounded-xl overflow-hidden border border-rose-100 dark:border-rose-900/40 bg-gradient-to-br from-rose-50 to-orange-50 dark:from-rose-950/30 dark:to-orange-950/30 flex flex-col shadow-sm">
+                      {deal.imageUrl && (
+                        <img src={deal.imageUrl} alt={deal.title} className="w-full h-20 object-cover" />
+                      )}
+                      <div className="p-2">
+                        <p className="text-xs font-bold text-rose-700 dark:text-rose-300 line-clamp-1">{deal.title}</p>
+                        {deal.description && <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{deal.description}</p>}
+                        {deal.price != null && <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-1">{formatCurrency(deal.price)}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Category pills */}
               <div className="flex gap-1.5 px-4 py-2.5 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 overflow-x-auto flex-shrink-0 scrollbar-none">
                 {categories.map(cat => {

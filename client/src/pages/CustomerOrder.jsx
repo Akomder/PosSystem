@@ -327,6 +327,9 @@ export default function CustomerOrder() {
   const [promos,       setPromos]       = useState([])
   const [promosLoaded, setPromosLoaded] = useState(false)
 
+  // deals banner
+  const [deals, setDeals] = useState([])
+
   // lang + auto-translation
   const [lang,         setLang]         = useState(() => {
     try { return localStorage.getItem('qr_lang') || 'lo' } catch { return 'lo' }
@@ -408,12 +411,14 @@ export default function CustomerOrder() {
   useEffect(() => {
     async function load() {
       try {
-        const [tableData, menuData] = await Promise.all([
+        const [tableData, menuData, dealsData] = await Promise.all([
           publicApi.getTable(tableId),
           publicApi.getMenu(tableId),
+          publicApi.getDeals(tableId).catch(() => []),
         ])
         setTable(tableData)
         setMenu(menuData)
+        setDeals(Array.isArray(dealsData) ? dealsData : [])
         if (tableData.currentOrderId) {
           await loadOrder(tableData.currentOrderId)
         } else {
@@ -1318,6 +1323,26 @@ export default function CustomerOrder() {
       </header>
 
       <main className="px-4 py-4 pb-32 max-w-xl mx-auto">
+        {/* Deals banner */}
+        {deals.length > 0 && (
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide mb-4 -mx-1 px-1 pb-1">
+            {deals.map(deal => (
+              <div key={deal.id} className="flex-shrink-0 w-52 rounded-2xl overflow-hidden border border-rose-100 bg-gradient-to-br from-rose-50 to-orange-50 shadow-sm flex flex-col">
+                {deal.imageUrl && (
+                  <img src={deal.imageUrl} alt={deal.title} className="w-full h-28 object-cover" />
+                )}
+                <div className="p-3">
+                  <p className="text-sm font-bold text-rose-700 line-clamp-1">{deal.title}</p>
+                  {deal.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{deal.description}</p>}
+                  {deal.price != null && (
+                    <p className="text-sm font-bold text-rose-600 mt-1.5">{deal.price.toLocaleString()}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {orderingMore && activeOrder && (
           <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-teal-50 border border-teal-200 rounded-xl text-sm text-teal-700">
             <Plus size={14} className="flex-shrink-0" />

@@ -280,6 +280,15 @@ export const promotionsApi = {
   delete:  (id)        => del(`/promotions/${id}`),
 }
 
+// ─── Deals ────────────────────────────────────────────────────────────────────
+export const dealsApi = {
+  getAll:    (params={}) => get('/deals?' + new URLSearchParams(params)),
+  getActive: ()          => get('/deals/active'),
+  create:    (body)      => post('/deals', body),
+  update:    (id, body)  => put(`/deals/${id}`, body),
+  delete:    (id)        => del(`/deals/${id}`),
+}
+
 // ─── Print / Receipts ─────────────────────────────────────────────────────────
 export const printApi = {
   getReceiptUrl:            (orderId)   => `${BASE}/print/${orderId}/receipt`,
@@ -394,4 +403,6 @@ export const publicApi = {
   // Customer submits a service rating
   submitRating:    (orderId, tableId, rating, comment) =>
     publicRequest('POST', `/public/orders/${encodeURIComponent(orderId)}/rating`, { tableId, rating, comment }),
+  // Active deals/banners visible to customers
+  getDeals:        (tableId)          => publicRequest('GET',   `/public/tables/${encodeURIComponent(tableId)}/deals`),
 }
