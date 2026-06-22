@@ -46,6 +46,7 @@ export default function Sidebar() {
         { to: '/kitchen',   icon: ChefHat,         label: t('nav.kitchen'),   roles: ['Admin','Waiter','Chef'] },
         { to: '/tables',    icon: Grid3X3,         label: t('nav.tables'),    roles: ['Admin','Waiter'] },
         { to: '/menu',      icon: UtensilsCrossed, label: t('nav.menu'),      roles: ['Admin','Waiter','Chef'] },
+        { to: '/deals',      icon: Megaphone, label: t('nav.deals'),       roles: ['Admin'] },
         { to: '/customers', icon: Users,           label: t('nav.customers'), roles: ['Admin','Waiter','Cashier'] },
         { to: '/staff',     icon: UserCheck,       label: t('nav.staff'),     roles: ['Admin'] },
         { to: '/suppliers', icon: Truck,           label: t('nav.suppliers'), roles: ['Admin'] },
@@ -78,7 +79,6 @@ export default function Sidebar() {
       label: t('nav.section.settings'),
       items: [
         { to: '/promotions', icon: Tag,     label: t('nav.promotions'), roles: ['Admin'] },
-        { to: '/deals',      icon: Megaphone, label: t('nav.deals'),       roles: ['Admin'] },
         { to: '/settings',   icon: Settings2, label: t('nav.settings'), roles: ['Admin'] },
         { to: '/audit-log',  icon: Shield,  label: t('nav.auditLog'),   roles: ['Admin'] },
       ],
