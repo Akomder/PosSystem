@@ -64,7 +64,7 @@ export default function Menu() {
   // ── Open modals ────────────────────────────────────────────
   const openAdd = () => {
     setEditItem(null)
-    setForm({ name: '', category: categories[0]?.name || '', price: '', available: true, imageUrl: '', isAvailable: true })
+    setForm({ ...EMPTY_FORM, category: categories[0]?.name || '' })
     setErrors({})
     setSaveError(null)
     setModalOpen(true)
