@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ClipboardList, Grid3X3, UtensilsCrossed,
   ChevronLeft, ChevronRight, Users, UserCheck, Truck,
   BookOpen, BarChart2, ShoppingCart, FileText, RotateCcw,
-  PackageSearch, BookMarked, AlertTriangle, ShoppingBag, Package,
+  BookMarked, AlertTriangle, ShoppingBag, Package,
   PackageX, Clock, Tag, Settings2, Shield, ChevronUp, ChefHat, Landmark, Coffee, Megaphone,
 } from 'lucide-react'
 import clsx from 'clsx'
