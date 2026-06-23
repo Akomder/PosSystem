@@ -62,7 +62,6 @@ export default function Sidebar() {
       label: t('nav.section.inventory'),
       items: [
         { to: '/stock',          icon: Package,       label: 'Stock',                roles: ['Admin'] },
-        { to: '/stock-takes',    icon: PackageSearch, label: t('nav.stockTakes'),    roles: ['Admin'] },
         { to: '/staff-consumption', icon: Coffee,     label: t('nav.staffConsumption'), roles: ['Admin','Cashier'] },
         { to: '/price-books',    icon: BookMarked,    label: t('nav.priceBooks'),    roles: ['Admin'] },
         { to: '/damage-records', icon: AlertTriangle, label: t('nav.damageRecords'), roles: ['Admin'] },

@@ -22,7 +22,6 @@ import Invoices from './pages/Invoices'
 import Returns from './pages/Returns'
 import CustomerOrder from './pages/CustomerOrder'
 import Staff from './pages/Staff'
-import StockTakes from './pages/StockTakes'
 import Stock from './pages/Stock'
 import PriceBooks from './pages/PriceBooks'
 import PurchaseOrders from './pages/PurchaseOrders'
@@ -163,9 +162,6 @@ function AppRoutes() {
       </Route>
       <Route path="/staff"     element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Staff />} />
-      </Route>
-      <Route path="/stock-takes"      element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route index element={<StockTakes />} />
       </Route>
       <Route path="/stock"            element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Stock />} />
