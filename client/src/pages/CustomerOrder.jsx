@@ -1538,7 +1538,6 @@ function MenuItemList({ items, getQty, addItem, removeItem, trFn, outOfStockLabe
                   <p className="font-semibold text-gray-900 text-sm">{tr(item.name)}</p>
                 </div>
                 {item.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{tr(item.description)}</p>}
-                {item.prepTime > 0 && <p className="text-[11px] text-gray-300 mt-0.5">~{item.prepTime} min</p>}
                 <p className="text-sm font-bold text-teal-600 mt-1.5">{item.price.toLocaleString()}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
