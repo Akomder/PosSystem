@@ -49,8 +49,8 @@ const emailLimiter = rateLimit({
 })
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────
-app.use(express.json())
-app.use(express.urlencoded({ extended: false }))
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: false, limit: '10mb' }))
 
 // ─── Cache-Control: prevent browsers/proxies from caching API responses ───────
 // All /api/* responses contain sensitive POS data (orders, auth tokens, staff).
