@@ -82,8 +82,9 @@ export default function Deals() {
       load()
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || 'Failed to save')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const handleToggle = async (deal) => {
@@ -102,8 +103,9 @@ export default function Deals() {
       load()
     } catch (err) {
       alert(err?.response?.data?.error || err?.message || 'Failed to delete')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   return (
