@@ -9,6 +9,7 @@ function fmt(r) {
     price:        r.price !== null ? parseFloat(r.price) : null,
     active:       r.active,
     sortOrder:    r.sort_order,
+    menuItemId:   r.menu_item_id || null,
     restaurantId: r.restaurant_id,
     createdAt:    r.created_at,
     updatedAt:    r.updated_at,
@@ -28,14 +29,14 @@ async function getAll(req, res, next) {
 }
 
 async function create(req, res, next) {
-  const { title, description, imageUrl, price, active, sortOrder } = req.body
+  const { title, description, imageUrl, price, active, sortOrder, menuItemId } = req.body
   if (!title?.trim()) return res.status(400).json({ error: 'title is required' })
   try {
     const { rows } = await query(
-      `INSERT INTO deals (restaurant_id, title, description, image_url, price, active, sort_order)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      `INSERT INTO deals (restaurant_id, title, description, image_url, price, active, sort_order, menu_item_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [req.restaurantId, title.trim(), description || null, imageUrl || null,
-       price != null ? price : null, active !== false, sortOrder || 0]
+       price != null ? price : null, active !== false, sortOrder || 0, menuItemId || null]
     )
     res.status(201).json(fmt(rows[0]))
   } catch (err) { next(err) }
@@ -44,7 +45,7 @@ async function create(req, res, next) {
 async function update(req, res, next) {
   const bodyMap = {
     title: 'title', description: 'description', imageUrl: 'image_url',
-    price: 'price', active: 'active', sortOrder: 'sort_order',
+    price: 'price', active: 'active', sortOrder: 'sort_order', menuItemId: 'menu_item_id',
   }
   const sets = [], params = []
   for (const [k, col] of Object.entries(bodyMap)) {

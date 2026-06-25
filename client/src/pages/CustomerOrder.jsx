@@ -329,7 +329,6 @@ export default function CustomerOrder() {
 
   // deals banner
   const [deals, setDeals] = useState([])
-  const [selectedDeal, setSelectedDeal] = useState(null)
 
   // lang + auto-translation
   const [lang,         setLang]         = useState(() => {
@@ -1327,79 +1326,49 @@ export default function CustomerOrder() {
         {/* Deals banner */}
         {deals.length > 0 && (
           <div className="flex gap-3 overflow-x-auto scrollbar-hide mb-4 -mx-1 px-1 pb-1">
-            {deals.map(deal => (
-              <button
-                key={deal.id}
-                onClick={() => setSelectedDeal(deal)}
-                className="flex-shrink-0 w-52 rounded-2xl overflow-hidden border border-rose-100 bg-gradient-to-br from-rose-50 to-orange-50 shadow-sm flex flex-col text-left active:scale-95 transition-transform"
-              >
-                {deal.imageUrl && (
-                  <img src={deal.imageUrl} alt={deal.title} className="w-full h-28 object-cover" />
-                )}
-                <div className="p-3">
-                  <p className="text-sm font-bold text-rose-700 line-clamp-1">{deal.title}</p>
-                  {deal.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{deal.description}</p>}
-                  <div className="flex items-center justify-between mt-1.5">
-                    {deal.price != null && (
-                      <p className="text-sm font-bold text-rose-600">{deal.price.toLocaleString()}</p>
-                    )}
-                    <span className="ml-auto bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Order</span>
+            {deals.map(deal => {
+              const linkedItem = deal.menuItemId ? menu.find(m => m.id === deal.menuItemId) : null
+              const qty        = linkedItem ? getQty(linkedItem.id) : 0
+              const outOfStock = linkedItem ? (linkedItem.isAvailable === false || (linkedItem.stockQuantity !== null && linkedItem.stockQuantity <= 0)) : false
+              return (
+                <div key={deal.id} className="flex-shrink-0 w-52 rounded-2xl overflow-hidden border border-rose-100 bg-gradient-to-br from-rose-50 to-orange-50 shadow-sm flex flex-col">
+                  {deal.imageUrl && (
+                    <img src={deal.imageUrl} alt={deal.title} className="w-full h-28 object-cover" />
+                  )}
+                  <div className="p-3 flex flex-col flex-1">
+                    <p className="text-sm font-bold text-rose-700 line-clamp-1">{deal.title}</p>
+                    {deal.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{deal.description}</p>}
+                    <div className="flex items-center justify-between mt-auto pt-2">
+                      {linkedItem
+                        ? <p className="text-sm font-bold text-rose-600">{linkedItem.price.toLocaleString()} {currency}</p>
+                        : deal.price != null
+                          ? <p className="text-sm font-bold text-rose-600">{deal.price.toLocaleString()} {currency}</p>
+                          : <span />
+                      }
+                      {linkedItem && !outOfStock ? (
+                        <div className="flex items-center gap-1.5">
+                          {qty > 0 && (
+                            <>
+                              <button onClick={() => removeItem(linkedItem.id)} className="w-7 h-7 rounded-full bg-white border border-rose-200 text-rose-600 flex items-center justify-center hover:bg-rose-50">
+                                <Minus size={12} />
+                              </button>
+                              <span className="w-4 text-center text-sm font-bold text-gray-900">{qty}</span>
+                            </>
+                          )}
+                          <button onClick={() => addItem(linkedItem)} className="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 shadow-sm">
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                      ) : linkedItem && outOfStock ? (
+                        <span className="text-[10px] text-gray-400 font-medium">Out of stock</span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </button>
-            ))}
+              )
+            })}
           </div>
         )}
-
-        {/* Deal detail bottom sheet */}
-        {selectedDeal && (() => {
-          const keywords = selectedDeal.title.toLowerCase().split(/\s+/).filter(w => w.length > 2)
-          const matched  = menu.filter(item =>
-            !item.isAvailable === false &&
-            (item.isPromotion ||
-              keywords.some(kw => item.name.toLowerCase().includes(kw)) ||
-              (item.promotionLabel && keywords.some(kw => item.promotionLabel.toLowerCase().includes(kw)))
-            )
-          )
-          return (
-            <>
-              <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setSelectedDeal(null)} />
-              <div className="fixed bottom-0 left-0 right-0 z-50 max-w-xl mx-auto bg-white rounded-t-2xl overflow-hidden shadow-2xl" style={{ maxHeight: '85vh', overflowY: 'auto' }}>
-                {selectedDeal.imageUrl && (
-                  <img src={selectedDeal.imageUrl} alt={selectedDeal.title} className="w-full h-48 object-cover" />
-                )}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="text-lg font-bold text-gray-900">{selectedDeal.title}</p>
-                    <button onClick={() => setSelectedDeal(null)} className="flex-shrink-0 p-1 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200">
-                      <X size={16} />
-                    </button>
-                  </div>
-                  {selectedDeal.description && <p className="text-sm text-gray-500 mb-2">{selectedDeal.description}</p>}
-                  {selectedDeal.price != null && (
-                    <p className="text-base font-bold text-rose-600 mb-4">{selectedDeal.price.toLocaleString()} {currency}</p>
-                  )}
-
-                  {matched.length > 0 ? (
-                    <>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Related Items</p>
-                      <MenuItemList
-                        items={matched}
-                        getQty={getQty}
-                        addItem={item => { addItem(item); setSelectedDeal(null) }}
-                        removeItem={removeItem}
-                        trFn={tr}
-                        outOfStockLabel={t('out_of_stock')}
-                      />
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-400 text-center py-4">Please ask a staff member for this promotion.</p>
-                  )}
-                </div>
-              </div>
-            </>
-          )
-        })()}
 
         {orderingMore && activeOrder && (
           <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-teal-50 border border-teal-200 rounded-xl text-sm text-teal-700">

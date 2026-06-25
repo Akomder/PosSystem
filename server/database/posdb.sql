@@ -503,6 +503,7 @@ CREATE TABLE IF NOT EXISTS deals (
   price         NUMERIC(10,2),
   active        BOOLEAN      NOT NULL DEFAULT TRUE,
   sort_order    INTEGER      NOT NULL DEFAULT 0,
+  menu_item_id  INTEGER      REFERENCES menu_items(id) ON DELETE SET NULL,
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
