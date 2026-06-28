@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Pencil, Trash2, ImagePlus, X, ToggleLeft, ToggleRight, Tag } from 'lucide-react'
 import clsx from 'clsx'
-import { dealsApi, menuApi } from '../services/api'
+import { dealsApi } from '../services/api'
 import { useSettings } from '../context/SettingsContext'
 import { formatCurrency } from '../utils/formatters'
 import Button from '../components/ui/Button'
 import Input  from '../components/ui/Input'
 import Modal  from '../components/ui/Modal'
 
-const EMPTY = { title: '', description: '', imageUrl: '', price: '', active: true, sortOrder: 0, menuItemId: '' }
+const EMPTY = { title: '', description: '', imageUrl: '', price: '', active: true, sortOrder: 0 }
 
 function compressImage(file, cb) {
   if (!file) return
@@ -32,9 +32,8 @@ function compressImage(file, cb) {
 
 export default function Deals() {
   const { t } = useSettings()
-  const [deals,     setDeals]     = useState([])
-  const [menuItems, setMenuItems] = useState([])
-  const [loading,   setLoading]   = useState(true)
+  const [deals,   setDeals]   = useState([])
+  const [loading, setLoading] = useState(true)
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState('')
 
@@ -45,9 +44,8 @@ export default function Deals() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [data, items] = await Promise.all([dealsApi.getAll(), menuApi.getAll()])
+      const data = await dealsApi.getAll()
       setDeals(data)
-      setMenuItems(Array.isArray(items) ? items : [])
     } catch {}
     setLoading(false)
   }, [])
@@ -55,7 +53,7 @@ export default function Deals() {
   useEffect(() => { load() }, [load])
 
   const openNew  = () => { setForm(EMPTY); setError(''); setEditDeal({}) }
-  const openEdit = d => { setForm({ title: d.title, description: d.description || '', imageUrl: d.imageUrl || '', price: d.price != null ? String(d.price) : '', active: d.active, sortOrder: d.sortOrder, menuItemId: d.menuItemId ? String(d.menuItemId) : '' }); setError(''); setEditDeal(d) }
+  const openEdit = d => { setForm({ title: d.title, description: d.description || '', imageUrl: d.imageUrl || '', price: d.price != null ? String(d.price) : '', active: d.active, sortOrder: d.sortOrder }); setError(''); setEditDeal(d) }
 
   const handleImageUpload = e => {
     compressImage(e.target.files?.[0], url => setForm(f => ({ ...f, imageUrl: url })))
@@ -74,7 +72,6 @@ export default function Deals() {
         price:       form.price !== '' ? parseFloat(form.price) : null,
         active:      form.active,
         sortOrder:   parseInt(form.sortOrder) || 0,
-        menuItemId:  form.menuItemId !== '' ? parseInt(form.menuItemId) : null,
       }
       if (editDeal?.id) {
         await dealsApi.update(editDeal.id, body)
@@ -158,7 +155,7 @@ export default function Deals() {
                   {deal.price != null && (
                     <p className="text-sm font-bold text-rose-600 dark:text-rose-400">{formatCurrency(deal.price)}</p>
                   )}
-                  {deal.menuItemId
+                  {deal.price != null
                     ? <span className="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-1.5 py-0.5 rounded-full font-semibold">Orderable</span>
                     : <span className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded-full">Display only</span>
                   }
@@ -253,23 +250,6 @@ export default function Deals() {
               value={form.price}
               onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
             />
-          </div>
-
-          {/* Link to menu item */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-              Link to Menu Item <span className="text-gray-400 font-normal">(so customers can order it)</span>
-            </label>
-            <select
-              value={form.menuItemId}
-              onChange={e => setForm(f => ({ ...f, menuItemId: e.target.value }))}
-              className="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-gray-100"
-            >
-              <option value="">— None (display only) —</option>
-              {menuItems.map(item => (
-                <option key={item.id} value={item.id}>{item.name} — {item.category}</option>
-              ))}
-            </select>
           </div>
 
           {/* Active toggle */}

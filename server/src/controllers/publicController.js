@@ -134,26 +134,51 @@ async function createPublicOrder(req, res, next) {
     const table = tRes.rows[0]
     const restaurantId = table.restaurant_id
 
+    // Separate menu items vs deal items
+    const menuItems = items.filter(i => i.menuItemId)
+    const dealItems = items.filter(i => i.dealId)
+
     // Fetch menu prices — scope to the same restaurant to prevent cross-tenant injection
-    const menuIds = items.map(i => i.menuItemId)
-    const mRes = await client.query(
-      `SELECT id, name, price FROM menu_items
-       WHERE id = ANY($1) AND available = true AND restaurant_id = $2`,
-      [menuIds, restaurantId]
-    )
+    const menuIds = menuItems.map(i => i.menuItemId)
     const menuMap = {}
-    mRes.rows.forEach(m => { menuMap[m.id] = m })
+    if (menuIds.length) {
+      const mRes = await client.query(
+        `SELECT id, name, price FROM menu_items
+         WHERE id = ANY($1) AND available = true AND restaurant_id = $2`,
+        [menuIds, restaurantId]
+      )
+      mRes.rows.forEach(m => { menuMap[m.id] = m })
+    }
+
+    // Fetch deal prices
+    const dealIds = dealItems.map(i => i.dealId)
+    const dealMap = {}
+    if (dealIds.length) {
+      const dRes = await client.query(
+        `SELECT id, title, price FROM deals WHERE id = ANY($1) AND restaurant_id = $2 AND active = true`,
+        [dealIds, restaurantId]
+      )
+      dRes.rows.forEach(d => { dealMap[d.id] = d })
+    }
 
     // Calculate totals
     let subtotal = 0
     const enriched = items.map(i => {
+      if (i.dealId) {
+        const d = dealMap[i.dealId]
+        if (!d) throw Object.assign(new Error(`Deal ${i.dealId} not found`), { status: 400 })
+        if (d.price == null) throw Object.assign(new Error(`Deal "${d.title}" has no price set`), { status: 400 })
+        const line = parseFloat(d.price) * i.quantity
+        subtotal += line
+        return { dealId: i.dealId, menuItemId: null, name: d.title, unitPrice: d.price, lineTotal: line, quantity: i.quantity, notes: i.notes || '' }
+      }
       const m = menuMap[i.menuItemId]
       if (!m) throw Object.assign(
         new Error(`Menu item ${i.menuItemId} not found or unavailable`), { status: 400 }
       )
       const line = parseFloat(m.price) * i.quantity
       subtotal += line
-      return { ...i, name: m.name, unitPrice: m.price, lineTotal: line, notes: i.notes || '' }
+      return { ...i, dealId: null, name: m.name, unitPrice: m.price, lineTotal: line, notes: i.notes || '' }
     })
     const total = Math.round(subtotal * 100) / 100
 
@@ -170,9 +195,9 @@ async function createPublicOrder(req, res, next) {
     // Insert order items — also scoped to the restaurant
     for (const item of enriched) {
       await client.query(
-        `INSERT INTO order_items (restaurant_id, order_id, menu_item_id, name, quantity, unit_price, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [restaurantId, order.id, item.menuItemId, item.name, item.quantity, item.unitPrice, item.notes || '']
+        `INSERT INTO order_items (restaurant_id, order_id, menu_item_id, deal_id, name, quantity, unit_price, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [restaurantId, order.id, item.menuItemId || null, item.dealId || null, item.name, item.quantity, item.unitPrice, item.notes || '']
       )
     }
 
@@ -313,24 +338,48 @@ async function addItemsToPublicOrder(req, res, next) {
       }
 
       // Fetch current menu prices
-      const menuIds = items.map(i => i.menuItemId)
-      const mRes = await client.query(
-        'SELECT id, name, price, station FROM menu_items WHERE id = ANY($1) AND restaurant_id = $2',
-        [menuIds, rid]
-      )
+      const menuOnlyItems = items.filter(i => i.menuItemId)
+      const dealOnlyItems = items.filter(i => i.dealId)
+      const menuIds = menuOnlyItems.map(i => i.menuItemId)
       const menuMap = {}
-      mRes.rows.forEach(m => { menuMap[m.id] = m })
+      if (menuIds.length) {
+        const mRes = await client.query(
+          'SELECT id, name, price, station FROM menu_items WHERE id = ANY($1) AND restaurant_id = $2',
+          [menuIds, rid]
+        )
+        mRes.rows.forEach(m => { menuMap[m.id] = m })
+      }
+      const dealIds = dealOnlyItems.map(i => i.dealId)
+      const dealMap = {}
+      if (dealIds.length) {
+        const dRes = await client.query(
+          'SELECT id, title, price FROM deals WHERE id = ANY($1) AND restaurant_id = $2 AND active = true',
+          [dealIds, rid]
+        )
+        dRes.rows.forEach(d => { dealMap[d.id] = d })
+      }
 
       // Insert new order items
       for (const item of items) {
-        const m = menuMap[item.menuItemId]
-        if (!m) { await client.query('ROLLBACK'); return res.status(400).json({ error: `Menu item ${item.menuItemId} not found` }) }
-        const unitPrice = parseFloat(m.price)
-        await client.query(
-          `INSERT INTO order_items (order_id, menu_item_id, name, quantity, unit_price, notes, station, restaurant_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [rawOrderId, item.menuItemId, m.name, item.quantity, unitPrice, item.notes || '', m.station || 'Kitchen', rid]
-        )
+        if (item.dealId) {
+          const d = dealMap[item.dealId]
+          if (!d) { await client.query('ROLLBACK'); return res.status(400).json({ error: `Deal ${item.dealId} not found` }) }
+          if (d.price == null) { await client.query('ROLLBACK'); return res.status(400).json({ error: `Deal "${d.title}" has no price` }) }
+          await client.query(
+            `INSERT INTO order_items (order_id, menu_item_id, deal_id, name, quantity, unit_price, notes, station, restaurant_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [rawOrderId, null, item.dealId, d.title, item.quantity, parseFloat(d.price), item.notes || '', 'Kitchen', rid]
+          )
+        } else {
+          const m = menuMap[item.menuItemId]
+          if (!m) { await client.query('ROLLBACK'); return res.status(400).json({ error: `Menu item ${item.menuItemId} not found` }) }
+          const unitPrice = parseFloat(m.price)
+          await client.query(
+            `INSERT INTO order_items (order_id, menu_item_id, deal_id, name, quantity, unit_price, notes, station, restaurant_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [rawOrderId, item.menuItemId, null, m.name, item.quantity, unitPrice, item.notes || '', m.station || 'Kitchen', rid]
+          )
+        }
       }
 
       // Recalculate totals from all items

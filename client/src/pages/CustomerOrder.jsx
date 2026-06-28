@@ -515,7 +515,10 @@ export default function CustomerOrder() {
     if (!cart.length) return
     setSubmitting(true)
     try {
-      const itemsPayload = cart.map(c => ({ menuItemId: c.id, quantity: c.quantity, notes: c.note || '' }))
+      const itemsPayload = cart.map(c => c.dealId
+        ? { dealId: c.dealId, quantity: c.quantity, notes: c.note || '' }
+        : { menuItemId: c.id, quantity: c.quantity, notes: c.note || '' }
+      )
 
       if (orderingMore && activeOrder) {
         const updated = await publicApi.addItems(activeOrder.rawId, tableId, itemsPayload)
@@ -1409,14 +1412,15 @@ export default function CustomerOrder() {
         {deals.length > 0 && (
           <div className="flex gap-3 overflow-x-auto scrollbar-hide mb-4 -mx-1 px-1 pb-1">
             {deals.map(deal => {
-              const linkedItem = deal.menuItemId ? menu.find(m => m.id === deal.menuItemId) : null
-              const qty        = linkedItem ? getQty(linkedItem.id) : 0
-              const outOfStock = linkedItem ? (linkedItem.isAvailable === false || (linkedItem.stockQuantity !== null && linkedItem.stockQuantity <= 0)) : false
+              const dealCartId = `deal-${deal.id}`
+              const qty        = getQty(dealCartId)
+              const dealItem   = { id: dealCartId, dealId: deal.id, name: deal.title, price: deal.price ?? 0 }
+              const canOrder   = deal.price != null
               return (
                 <div
                   key={deal.id}
-                  onClick={() => linkedItem && !outOfStock && addItem(linkedItem)}
-                  className={`flex-shrink-0 w-52 rounded-2xl overflow-hidden border border-rose-100 bg-gradient-to-br from-rose-50 to-orange-50 shadow-sm flex flex-col ${linkedItem && !outOfStock ? 'cursor-pointer active:scale-[0.97] transition-transform' : ''}`}
+                  onClick={() => canOrder && addItem(dealItem)}
+                  className={`flex-shrink-0 w-52 rounded-2xl overflow-hidden border border-rose-100 bg-gradient-to-br from-rose-50 to-orange-50 shadow-sm flex flex-col ${canOrder ? 'cursor-pointer active:scale-[0.97] transition-transform' : ''}`}
                 >
                   {deal.imageUrl && (
                     <img src={deal.imageUrl} alt={deal.title} className="w-full h-28 object-cover" />
@@ -1425,28 +1429,24 @@ export default function CustomerOrder() {
                     <p className="text-sm font-bold text-rose-700 line-clamp-1">{deal.title}</p>
                     {deal.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{deal.description}</p>}
                     <div className="flex items-center justify-between mt-auto pt-2">
-                      {linkedItem
-                        ? <p className="text-sm font-bold text-rose-600">{linkedItem.price.toLocaleString()} {currency}</p>
-                        : deal.price != null
-                          ? <p className="text-sm font-bold text-rose-600">{deal.price.toLocaleString()} {currency}</p>
-                          : <span />
+                      {deal.price != null
+                        ? <p className="text-sm font-bold text-rose-600">{deal.price.toLocaleString()} {currency}</p>
+                        : <span />
                       }
-                      {linkedItem && !outOfStock ? (
+                      {canOrder ? (
                         <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                           {qty > 0 && (
                             <>
-                              <button onClick={() => removeItem(linkedItem.id)} className="w-7 h-7 rounded-full bg-white border border-rose-200 text-rose-600 flex items-center justify-center hover:bg-rose-50">
+                              <button onClick={() => removeItem(dealCartId)} className="w-7 h-7 rounded-full bg-white border border-rose-200 text-rose-600 flex items-center justify-center hover:bg-rose-50">
                                 <Minus size={12} />
                               </button>
                               <span className="w-4 text-center text-sm font-bold text-gray-900">{qty}</span>
                             </>
                           )}
-                          <button onClick={() => addItem(linkedItem)} className="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 shadow-sm">
+                          <button onClick={() => addItem(dealItem)} className="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 shadow-sm">
                             <Plus size={12} />
                           </button>
                         </div>
-                      ) : linkedItem && outOfStock ? (
-                        <span className="text-[10px] text-gray-400 font-medium">Out of stock</span>
                       ) : null}
                     </div>
                   </div>
