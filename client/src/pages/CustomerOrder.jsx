@@ -886,7 +886,11 @@ export default function CustomerOrder() {
                 const qty = getQty(item.id)
                 const outOfStock = item.isAvailable === false || (item.stockQuantity !== null && item.stockQuantity !== undefined && item.stockQuantity <= 0)
                 return (
-                  <div key={item.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex ${outOfStock ? 'opacity-60' : ''}`}>
+                  <div
+                    key={item.id}
+                    onClick={() => !outOfStock && addItem(item)}
+                    className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex ${outOfStock ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer active:scale-[0.98] transition-transform'}`}
+                  >
                     <div className="w-24 flex-shrink-0 self-stretch bg-gray-100 overflow-hidden relative" style={{ minHeight: '88px' }}>
                       {item.imageUrl ? (
                         <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover"
@@ -911,19 +915,19 @@ export default function CustomerOrder() {
                         {item.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{tr(item.description)}</p>}
                         <p className="text-sm font-bold text-rose-600 mt-1.5">{item.price.toLocaleString()} {currency}</p>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+                      <div className="flex items-center gap-2 flex-shrink-0 pt-0.5" onClick={e => e.stopPropagation()}>
                         {qty > 0 && !outOfStock && (
                           <>
-                            <button onClick={() => removeItem(item.id)} className="w-7 h-7 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center hover:bg-rose-100"><Minus size={12} /></button>
-                            <span className="w-4 text-center text-sm font-bold text-gray-900">{qty}</span>
+                            <button onClick={() => removeItem(item.id)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center hover:bg-rose-100"><Minus size={13} /></button>
+                            <span className="w-5 text-center text-sm font-bold text-gray-900">{qty}</span>
                           </>
                         )}
                         <button
                           onClick={() => !outOfStock && addItem(item)}
                           disabled={outOfStock}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center shadow-sm ${outOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-rose-500 text-white hover:bg-rose-600'}`}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm ${outOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-rose-500 text-white hover:bg-rose-600'}`}
                         >
-                          <Plus size={12} />
+                          <Plus size={13} />
                         </button>
                       </div>
                     </div>
@@ -1409,7 +1413,11 @@ export default function CustomerOrder() {
               const qty        = linkedItem ? getQty(linkedItem.id) : 0
               const outOfStock = linkedItem ? (linkedItem.isAvailable === false || (linkedItem.stockQuantity !== null && linkedItem.stockQuantity <= 0)) : false
               return (
-                <div key={deal.id} className="flex-shrink-0 w-52 rounded-2xl overflow-hidden border border-rose-100 bg-gradient-to-br from-rose-50 to-orange-50 shadow-sm flex flex-col">
+                <div
+                  key={deal.id}
+                  onClick={() => linkedItem && !outOfStock && addItem(linkedItem)}
+                  className={`flex-shrink-0 w-52 rounded-2xl overflow-hidden border border-rose-100 bg-gradient-to-br from-rose-50 to-orange-50 shadow-sm flex flex-col ${linkedItem && !outOfStock ? 'cursor-pointer active:scale-[0.97] transition-transform' : ''}`}
+                >
                   {deal.imageUrl && (
                     <img src={deal.imageUrl} alt={deal.title} className="w-full h-28 object-cover" />
                   )}
@@ -1424,7 +1432,7 @@ export default function CustomerOrder() {
                           : <span />
                       }
                       {linkedItem && !outOfStock ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                           {qty > 0 && (
                             <>
                               <button onClick={() => removeItem(linkedItem.id)} className="w-7 h-7 rounded-full bg-white border border-rose-200 text-rose-600 flex items-center justify-center hover:bg-rose-50">
