@@ -865,6 +865,8 @@ export default function CustomerOrder() {
 
   // ── Promotions view ────────────────────────────────────────────────────────
   if (view === 'promotions') {
+    const promoItems = menu.filter(m => m.isPromotion && m.isAvailable !== false && (m.stockQuantity === null || m.stockQuantity === undefined || m.stockQuantity > 0))
+    const outOfStockPromoItems = menu.filter(m => m.isPromotion && (m.isAvailable === false || (m.stockQuantity !== null && m.stockQuantity !== undefined && m.stockQuantity <= 0)))
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
@@ -876,36 +878,112 @@ export default function CustomerOrder() {
             <LangBtn />
           </div>
         </header>
-        <main className="px-4 py-5 max-w-xl mx-auto space-y-3">
-          {!promosLoaded ? (
-            <div className="text-center py-12 text-gray-400 text-sm">{t('loading_promos')}</div>
-          ) : promos.length === 0 ? (
+        <main className="px-4 py-5 pb-32 max-w-xl mx-auto space-y-4">
+          {/* Orderable promo items */}
+          {promoItems.length > 0 && (
+            <div className="space-y-3">
+              {[...promoItems, ...outOfStockPromoItems].map(item => {
+                const qty = getQty(item.id)
+                const outOfStock = item.isAvailable === false || (item.stockQuantity !== null && item.stockQuantity !== undefined && item.stockQuantity <= 0)
+                return (
+                  <div key={item.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex ${outOfStock ? 'opacity-60' : ''}`}>
+                    <div className="w-24 flex-shrink-0 self-stretch bg-gray-100 overflow-hidden relative" style={{ minHeight: '88px' }}>
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover"
+                          onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex' }}
+                        />
+                      ) : null}
+                      <div className="w-full h-full flex-col items-center justify-center gap-1 text-center px-2" style={{ display: item.imageUrl ? 'none' : 'flex' }}>
+                        <ImageOff size={18} className="text-gray-300" />
+                      </div>
+                      <span className="absolute top-1.5 left-1.5 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none shadow-sm z-10">
+                        {item.promotionLabel || 'PROMO'}
+                      </span>
+                      {outOfStock && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded text-center leading-tight">{t('out_of_stock')}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-1 items-start justify-between gap-3 p-3 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm">{tr(item.name)}</p>
+                        {item.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{tr(item.description)}</p>}
+                        <p className="text-sm font-bold text-rose-600 mt-1.5">{item.price.toLocaleString()} {currency}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+                        {qty > 0 && !outOfStock && (
+                          <>
+                            <button onClick={() => removeItem(item.id)} className="w-7 h-7 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center hover:bg-rose-100"><Minus size={12} /></button>
+                            <span className="w-4 text-center text-sm font-bold text-gray-900">{qty}</span>
+                          </>
+                        )}
+                        <button
+                          onClick={() => !outOfStock && addItem(item)}
+                          disabled={outOfStock}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center shadow-sm ${outOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-rose-500 text-white hover:bg-rose-600'}`}
+                        >
+                          <Plus size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* No promo items and no vouchers */}
+          {promoItems.length === 0 && outOfStockPromoItems.length === 0 && (!promosLoaded || promos.length === 0) && (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <Tag size={32} className="mb-3 opacity-30" />
               <p className="text-sm">{t('promo_empty')}</p>
             </div>
-          ) : promos.map(p => (
-            <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm">{p.name}</p>
-                  {p.description && <p className="text-xs text-gray-500 mt-0.5">{p.description}</p>}
+          )}
+
+          {/* Voucher codes section */}
+          {promosLoaded && promos.length > 0 && (
+            <div className="space-y-3">
+              {promos.map(p => (
+                <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm">{p.name}</p>
+                      {p.description && <p className="text-xs text-gray-500 mt-0.5">{p.description}</p>}
+                    </div>
+                    <div className="flex-shrink-0">
+                      <span className="inline-block px-2.5 py-1 bg-teal-50 text-teal-700 text-xs font-bold rounded-full">
+                        {p.discount_type === 'percent' ? `${p.discount_value}% OFF` : `${parseFloat(p.discount_value).toLocaleString()} OFF`}
+                      </span>
+                    </div>
+                  </div>
+                  {p.code && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Code:</span>
+                      <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-mono font-bold rounded-lg tracking-wider">{p.code}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex-shrink-0">
-                  <span className="inline-block px-2.5 py-1 bg-teal-50 text-teal-700 text-xs font-bold rounded-full">
-                    {p.discount_type === 'percent' ? `${p.discount_value}% OFF` : `${parseFloat(p.discount_value).toLocaleString()} OFF`}
-                  </span>
-                </div>
-              </div>
-              {p.code && (
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Code:</span>
-                  <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-mono font-bold rounded-lg tracking-wider">{p.code}</span>
-                </div>
-              )}
+              ))}
             </div>
-          ))}
+          )}
         </main>
+
+        {/* Cart button */}
+        {cartCount > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-2 bg-gradient-to-t from-gray-50">
+            <div className="max-w-xl mx-auto">
+              <button
+                onClick={() => setCartOpen(true)}
+                className="w-full flex items-center justify-between px-5 py-3.5 bg-teal-600 text-white rounded-2xl shadow-lg shadow-teal-200 hover:bg-teal-700 font-semibold text-sm"
+              >
+                <span className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">{cartCount}</span>
+                <span>{t('view_order', cartCount)}</span>
+                <span>{cartTotal.toLocaleString()} {currency}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
