@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   ShoppingCart, Plus, Minus, X, UtensilsCrossed,
-  XCircle, CheckCircle2, Clock, Bell, ChevronLeft, ImageOff,
+  XCircle, CheckCircle2, Receipt, Bell, ChevronLeft, ImageOff,
   Search, Star, Tag, PhoneCall, Home,
 } from 'lucide-react'
 import { io } from 'socket.io-client'
@@ -976,7 +976,7 @@ export default function CustomerOrder() {
               disabled={!activeOrder}
               className={`flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl border-2 font-semibold text-sm transition-colors ${activeOrder ? 'border-teal-500 bg-teal-50 text-teal-700 hover:bg-teal-100' : 'border-gray-100 bg-gray-50 text-gray-300'}`}
             >
-              <Clock size={20} />
+              <Receipt size={20} />
               {t('home_my_order')}
               {activeOrder && <span className="text-[10px] font-bold bg-teal-600 text-white px-2 py-0.5 rounded-full">{activeOrder.id}</span>}
             </button>
@@ -1092,7 +1092,7 @@ export default function CustomerOrder() {
                         current ? 'bg-teal-100 border-2 border-teal-500 text-teal-600' :
                         'bg-gray-100 text-gray-400'
                       }`}>
-                        {done ? <CheckCircle2 size={14} /> : current ? <Clock size={13} /> : i + 1}
+                        {done ? <CheckCircle2 size={14} /> : i + 1}
                       </div>
                       <p className={`text-[10px] mt-1 font-medium whitespace-nowrap ${
                         current ? 'text-teal-600' : done ? 'text-gray-500' : 'text-gray-300'
