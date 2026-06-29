@@ -99,6 +99,10 @@ const TR = {
     promo_empty:          'No current promotions',
     loading_promos:       'Loading…',
     back:                 '← Back',
+    // Store closed
+    store_closed_title:   'We\'re Closed',
+    store_closed_msg:     'The restaurant is not currently accepting orders. Please come back later.',
+    store_closed_hint:    'This page will update automatically when we open.',
   },
   lo: {
     loading:              'ກຳລັງໂຫຼດ…',
@@ -189,6 +193,10 @@ const TR = {
     promo_empty:          'ບໍ່ມີໂປຣໂມຊັ່ນໃນຂະນະນີ້',
     loading_promos:       'ກຳລັງໂຫຼດ…',
     back:                 '← ກັບ',
+    // Store closed
+    store_closed_title:   'ຮ້ານປິດແລ້ວ',
+    store_closed_msg:     'ຮ້ານຍັງບໍ່ຮັບການສັ່ງໃນຂະນະນີ້. ກະລຸນາກັບມາໃໝ່ໃນພາຍຫຼັງ.',
+    store_closed_hint:    'ໜ້ານີ້ຈະອັບເດດໂດຍອັດຕະໂນມັດເມື່ອຮ້ານເປີດ.',
   },
 }
 
@@ -271,10 +279,11 @@ export default function CustomerOrder() {
     return () => { if (link) link.href = prev }
   }, [])
 
-  const [table,   setTable]   = useState(null)
-  const [menu,    setMenu]    = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
+  const [table,     setTable]     = useState(null)
+  const [storeOpen, setStoreOpen] = useState(true)
+  const [menu,      setMenu]      = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState(null)
 
   // view: 'home' | 'menu' | 'tracking' | 'complete' | 'cancelled' | 'rating' | 'promotions'
   const [view,         setView]         = useState('home')
@@ -417,6 +426,7 @@ export default function CustomerOrder() {
           publicApi.getDeals(tableId).catch(() => []),
         ])
         setTable(tableData)
+        setStoreOpen(tableData.storeOpen !== false)
         setMenu(menuData)
         setDeals(Array.isArray(dealsData) ? dealsData : [])
         if (tableData.currentOrderId) {
@@ -441,6 +451,18 @@ export default function CustomerOrder() {
     pollRef.current = setInterval(() => loadOrder(activeOrder.rawId), 12000)
     return () => stopPoll()
   }, [view, activeOrder?.rawId, loadOrder, stopPoll])
+
+  // ── Poll store open/closed status every 60s ────────────────────────────────
+  useEffect(() => {
+    if (!tableId) return
+    const iv = setInterval(async () => {
+      try {
+        const td = await publicApi.getTable(tableId)
+        setStoreOpen(td.storeOpen !== false)
+      } catch { /* ignore network errors */ }
+    }, 60000)
+    return () => clearInterval(iv)
+  }, [tableId])
 
   // ── Real-time socket push from server ──────────────────────────────────────
   useEffect(() => {
@@ -739,6 +761,21 @@ export default function CustomerOrder() {
         </div>
         <p className="text-red-500 font-medium mb-1">{t('err_title')}</p>
         <p className="text-gray-400 text-sm">{error}</p>
+      </div>
+    </div>
+  )
+
+  // ── Store closed ───────────────────────────────────────────────────────────
+  if (!storeOpen) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+      <div className="text-center max-w-xs w-full">
+        <div className="flex justify-end mb-2"><LangBtn /></div>
+        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
+          <span className="text-5xl">🔒</span>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('store_closed_title')}</h1>
+        <p className="text-sm text-gray-500 mb-6">{t('store_closed_msg')}</p>
+        <p className="text-xs text-gray-400">{t('store_closed_hint')}</p>
       </div>
     </div>
   )

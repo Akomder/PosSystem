@@ -47,6 +47,14 @@ async function getPublicTable(req, res, next) {
     if (!rows.length) return res.status(404).json({ error: 'Table not found' })
     const r = rows[0]
     const rSettings = r.settings || {}
+
+    // Check if the store is currently open (has an open shift)
+    const shiftRes = await query(
+      `SELECT id FROM shifts WHERE restaurant_id = $1 AND status = 'open' LIMIT 1`,
+      [r.restaurant_id]
+    )
+    const storeOpen = shiftRes.rows.length > 0
+
     res.json({
       id:               `T-${String(r.id).padStart(2, '0')}`,
       number:           r.number,
@@ -58,6 +66,7 @@ async function getPublicTable(req, res, next) {
       currency:         r.currency || 'LAK',
       currentOrderId:   r.current_order_id || null,
       qrImageBase64:    rSettings?.payment?.qrImageBase64 || null,
+      storeOpen,
     })
   } catch (err) { next(err) }
 }
@@ -133,6 +142,16 @@ async function createPublicOrder(req, res, next) {
     if (!tRes.rows.length) throw Object.assign(new Error('Table not found'), { status: 404 })
     const table = tRes.rows[0]
     const restaurantId = table.restaurant_id
+
+    // Reject orders when the store is closed (no open shift)
+    const shiftCheck = await client.query(
+      `SELECT id FROM shifts WHERE restaurant_id = $1 AND status = 'open' LIMIT 1`,
+      [restaurantId]
+    )
+    if (!shiftCheck.rows.length) {
+      await client.query('ROLLBACK')
+      return res.status(503).json({ error: 'Store is currently closed' })
+    }
 
     // Separate menu items vs deal items
     const menuItems = items.filter(i => i.menuItemId)
@@ -335,6 +354,16 @@ async function addItemsToPublicOrder(req, res, next) {
       if (['Closed', 'Cancelled'].includes(status)) {
         await client.query('ROLLBACK')
         return res.status(400).json({ error: 'Cannot add items to a closed or cancelled order' })
+      }
+
+      // Reject if no open shift (store is closed)
+      const shiftChk = await client.query(
+        `SELECT id FROM shifts WHERE restaurant_id = $1 AND status = 'open' LIMIT 1`,
+        [rid]
+      )
+      if (!shiftChk.rows.length) {
+        await client.query('ROLLBACK')
+        return res.status(503).json({ error: 'Store is currently closed' })
       }
 
       // Fetch current menu prices
