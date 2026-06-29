@@ -515,10 +515,13 @@ export default function CustomerOrder() {
     if (!cart.length) return
     setSubmitting(true)
     try {
-      const itemsPayload = cart.map(c => c.dealId
-        ? { dealId: c.dealId, quantity: c.quantity, notes: c.note || '' }
-        : { menuItemId: c.id, quantity: c.quantity, notes: c.note || '' }
-      )
+      const itemsPayload = cart.map(c => {
+        const idStr = String(c.id)
+        if (idStr.startsWith('deal-')) {
+          return { dealId: parseInt(idStr.replace('deal-', '')), quantity: c.quantity, notes: c.note || '' }
+        }
+        return { menuItemId: c.id, quantity: c.quantity, notes: c.note || '' }
+      })
 
       if (orderingMore && activeOrder) {
         const updated = await publicApi.addItems(activeOrder.rawId, tableId, itemsPayload)
