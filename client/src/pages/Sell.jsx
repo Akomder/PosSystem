@@ -4,7 +4,7 @@ import {
   Search, Plus, Minus, X, ShoppingCart, Grid3X3, UtensilsCrossed,
   Printer, CreditCard, Pause, ArrowLeft, User, ChevronRight,
   Tag, Clock, Wifi, ChefHat, LogOut, QrCode, ChevronDown, ChevronUp,
-  Merge, CheckSquare, Square,
+  Merge, CheckSquare, Square, ArrowRightLeft,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useApp } from '../context/AppContext'
@@ -425,6 +425,12 @@ export default function Sell() {
   const [qrNewToast,   setQrNewToast]   = useState(null) // { tableNumber, id }
   const [qrOrders,     setQrOrders]     = useState([])
 
+  // Move table modal
+  const [moveOpen,        setMoveOpen]        = useState(false)
+  const [moveTarget,      setMoveTarget]      = useState(null) // raw table id to move TO
+  const [moving,          setMoving]          = useState(false)
+  const [moveError,       setMoveError]       = useState('')
+
   // Merge table modal
   const [mergeOpen,       setMergeOpen]       = useState(false)
   const [mergeSources,    setMergeSources]    = useState([]) // raw table ids to merge IN
@@ -779,6 +785,22 @@ export default function Sell() {
     return true
   })
 
+  // ── Move table ───────────────────────────────────────────────────────────
+  async function handleMove() {
+    if (!moveTarget || !activeOrder?.tableId) return
+    setMoving(true)
+    setMoveError('')
+    try {
+      await tablesApi.move(activeOrder.tableId, moveTarget)
+      setMoveOpen(false)
+      setMoveTarget(null)
+    } catch (err) {
+      setMoveError(err?.response?.data?.error || err.message || 'Move failed')
+    } finally {
+      setMoving(false)
+    }
+  }
+
   // ── Merge tables ─────────────────────────────────────────────────────────
   // activeOrder.tableId is the TARGET; mergeSources are the tables to fold in
   async function handleMerge() {
@@ -933,21 +955,37 @@ export default function Sell() {
                     {f.label}
                   </button>
                 ))}
-                {/* Merge Table button — only enabled when an occupied table is active */}
-                <button
-                  onClick={() => { setMergeError(''); setMergeSources([]); setMergeOpen(true) }}
-                  disabled={!activeOrder?.tableId}
-                  title="Merge tables into the selected table"
-                  className={clsx(
-                    'ml-auto flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                    activeOrder?.tableId
-                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/40'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
-                  )}
-                >
-                  <Merge size={12} />
-                  Merge Table
-                </button>
+                {/* Move / Merge Table buttons — only enabled when an occupied table is active */}
+                <div className="ml-auto flex items-center gap-1.5">
+                  <button
+                    onClick={() => { setMoveError(''); setMoveTarget(null); setMoveOpen(true) }}
+                    disabled={!activeOrder?.tableId}
+                    title="Move this table's order to an available table"
+                    className={clsx(
+                      'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                      activeOrder?.tableId
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/40'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                    )}
+                  >
+                    <ArrowRightLeft size={12} />
+                    Move Table
+                  </button>
+                  <button
+                    onClick={() => { setMergeError(''); setMergeSources([]); setMergeOpen(true) }}
+                    disabled={!activeOrder?.tableId}
+                    title="Merge tables into the selected table"
+                    className={clsx(
+                      'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                      activeOrder?.tableId
+                        ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/40'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                    )}
+                  >
+                    <Merge size={12} />
+                    Merge Table
+                  </button>
+                </div>
               </div>
 
               {/* Table grid */}
@@ -1480,6 +1518,65 @@ export default function Sell() {
           type="receipt"
           onClose={() => setReceiptOrderId(null)}
         />
+      )}
+
+      {/* Move Table Modal */}
+      {moveOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => e.target === e.currentTarget && setMoveOpen(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 bg-blue-600 text-white">
+              <div className="flex items-center gap-2 font-semibold">
+                <ArrowRightLeft size={16} />
+                Move Table {activeOrder?.tableNumber ?? '—'}
+              </div>
+              <button onClick={() => setMoveOpen(false)} className="p-1 hover:bg-blue-500 rounded-lg transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Move this order to an available table. All items and the waiter transfer over — this table becomes free.
+              </p>
+              <div className="grid grid-cols-3 gap-2 max-h-56 overflow-y-auto">
+                {tables.filter(tbl => tbl.status === 'Available').map(tbl => {
+                  const rawId = parseInt(String(tbl.id).replace('T-', ''), 10)
+                  const selected = moveTarget === rawId
+                  return (
+                    <button
+                      key={tbl.id}
+                      onClick={() => setMoveTarget(selected ? null : rawId)}
+                      className={clsx(
+                        'aspect-square flex flex-col items-center justify-center rounded-xl border-2 text-sm font-semibold transition-all',
+                        selected
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                          : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-300'
+                      )}
+                    >
+                      {tbl.tableNumber}
+                    </button>
+                  )
+                })}
+                {tables.filter(tbl => tbl.status === 'Available').length === 0 && (
+                  <p className="col-span-3 text-center py-6 text-xs text-gray-400">No available tables</p>
+                )}
+              </div>
+              {moveError && <p className="mt-3 text-xs text-red-500">{moveError}</p>}
+            </div>
+            <div className="flex gap-2 px-5 pb-5">
+              <button onClick={() => setMoveOpen(false)} className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleMove}
+                disabled={!moveTarget || moving}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ArrowRightLeft size={14} />
+                {moving ? 'Moving…' : 'Move'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Merge Table Modal */}
