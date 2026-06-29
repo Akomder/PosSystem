@@ -9,6 +9,22 @@ function periodInterval(period) {
   return "CURRENT_DATE - INTERVAL '6 days'"
 }
 
+// Builds a WHERE fragment for date filtering.
+// If ?from=YYYY-MM-DD&to=YYYY-MM-DD are present → parameterised BETWEEN range.
+// Otherwise falls back to period-based interval.
+// Mutates `params` by pushing from/to values.
+function buildDateFilter(req, params, col = 'created_at') {
+  const { from, to, period = 'week' } = req.query
+  if (from && to) {
+    const f = String(from).replace(/[^0-9-]/g, '')
+    const t = String(to).replace(/[^0-9-]/g, '')
+    params.push(f); const fi = params.length
+    params.push(t); const ti = params.length
+    return `${col}::date BETWEEN $${fi}::date AND $${ti}::date`
+  }
+  return `${col} >= ${periodInterval(period)}`
+}
+
 // ─── GET /api/stats/dashboard ─────────────────────────────────────────────────
 async function getDashboard(req, res, next) {
   try {
@@ -252,11 +268,10 @@ async function getRevenue(req, res, next) {
 // ─── GET /api/stats/reports/sales ────────────────────────────────────────────
 async function getReportSales(req, res, next) {
   try {
-    const { period = 'week' } = req.query
-    const since = periodInterval(period)
     const rid = req.restaurantId
     const params = rid ? [rid] : []
     const rFilter = rid ? 'AND restaurant_id = $1' : ''
+    const dateF = buildDateFilter(req, params, 'created_at')
 
     const [summaryRes, dailyRes] = await Promise.all([
       query(
@@ -265,7 +280,7 @@ async function getReportSales(req, res, next) {
            COUNT(*)                   AS total_orders,
            COALESCE(AVG(total), 0)    AS avg_order
          FROM orders
-         WHERE status = 'Closed' AND created_at >= ${since} ${rFilter}`,
+         WHERE status = 'Closed' AND ${dateF} ${rFilter}`,
         params
       ),
       query(
@@ -274,7 +289,7 @@ async function getReportSales(req, res, next) {
            COUNT(*)          AS orders,
            COALESCE(SUM(total), 0) AS revenue
          FROM orders
-         WHERE status = 'Closed' AND created_at >= ${since} ${rFilter}
+         WHERE status = 'Closed' AND ${dateF} ${rFilter}
          GROUP BY date ORDER BY date`,
         params
       ),
@@ -299,28 +314,30 @@ async function getReportSales(req, res, next) {
 // ─── GET /api/stats/reports/products ─────────────────────────────────────────
 async function getReportProducts(req, res, next) {
   try {
-    const { period = 'week' } = req.query
-    const since = periodInterval(period)
     const rid = req.restaurantId
     const params = rid ? [rid] : []
     const rFilter = rid ? 'AND o.restaurant_id = $1' : ''
+    const dateF = buildDateFilter(req, params, 'o.created_at')
 
     const { rows } = await query(
       `SELECT
          oi.name,
+         COALESCE(mi.category, '') AS category,
          SUM(oi.quantity)                 AS qty,
          SUM(oi.quantity * oi.unit_price) AS revenue
        FROM order_items oi
        JOIN orders o ON o.id = oi.order_id
-       WHERE o.status = 'Closed' AND o.created_at >= ${since} ${rFilter}
-       GROUP BY oi.name ORDER BY qty DESC LIMIT 20`,
+       LEFT JOIN menu_items mi ON mi.id = oi.menu_item_id
+       WHERE o.status = 'Closed' AND ${dateF} ${rFilter}
+       GROUP BY oi.name, mi.category ORDER BY qty DESC LIMIT 50`,
       params
     )
 
     res.json(rows.map(r => ({
-      name:    r.name,
-      qty:     parseInt(r.qty),
-      revenue: parseFloat(r.revenue),
+      name:     r.name,
+      category: r.category,
+      qty:      parseInt(r.qty),
+      revenue:  parseFloat(r.revenue),
     })))
   } catch (err) { next(err) }
 }
@@ -328,26 +345,27 @@ async function getReportProducts(req, res, next) {
 // ─── GET /api/stats/reports/customers ────────────────────────────────────────
 async function getReportCustomers(req, res, next) {
   try {
-    const { period = 'week' } = req.query
-    const since = periodInterval(period)
     const rid = req.restaurantId
     const params = rid ? [rid] : []
     const rFilter = rid ? 'AND o.restaurant_id = $1' : ''
+    const dateF = buildDateFilter(req, params, 'o.created_at')
 
     const { rows } = await query(
       `SELECT
          COALESCE(c.name, 'Walk-in') AS name,
+         COALESCE(c.phone, '')        AS phone,
          COUNT(DISTINCT o.id)         AS visits,
          COALESCE(SUM(o.total), 0)    AS spent
        FROM orders o
        LEFT JOIN customers c ON c.id = o.customer_id
-       WHERE o.status = 'Closed' AND o.created_at >= ${since} ${rFilter}
-       GROUP BY c.name ORDER BY spent DESC LIMIT 20`,
+       WHERE o.status = 'Closed' AND ${dateF} ${rFilter}
+       GROUP BY c.name, c.phone ORDER BY spent DESC LIMIT 50`,
       params
     )
 
     res.json(rows.map(r => ({
       name:   r.name,
+      phone:  r.phone,
       visits: parseInt(r.visits),
       spent:  parseFloat(r.spent),
     })))
@@ -357,11 +375,10 @@ async function getReportCustomers(req, res, next) {
 // ─── GET /api/stats/reports/staff ────────────────────────────────────────────
 async function getReportStaff(req, res, next) {
   try {
-    const { period = 'week' } = req.query
-    const since = periodInterval(period)
     const rid = req.restaurantId
     const params = rid ? [rid] : []
     const rFilter = rid ? 'AND restaurant_id = $1' : ''
+    const dateF = buildDateFilter(req, params, 'created_at')
 
     const { rows } = await query(
       `SELECT
@@ -369,7 +386,7 @@ async function getReportStaff(req, res, next) {
          COUNT(*)                        AS orders,
          COALESCE(SUM(total), 0)         AS revenue
        FROM orders
-       WHERE status = 'Closed' AND created_at >= ${since} ${rFilter}
+       WHERE status = 'Closed' AND ${dateF} ${rFilter}
        GROUP BY waiter ORDER BY revenue DESC`,
       params
     )
@@ -385,17 +402,16 @@ async function getReportStaff(req, res, next) {
 // ─── GET /api/stats/reports/finance ──────────────────────────────────────────
 async function getReportFinance(req, res, next) {
   try {
-    const { period = 'week' } = req.query
-    const since = periodInterval(period)
     const rid = req.restaurantId
     const params = rid ? [rid] : []
     const rFilter = rid ? 'AND restaurant_id = $1' : ''
+    const dateF = buildDateFilter(req, params, 'created_at')
 
     const [salesRes, cashRes] = await Promise.all([
       query(
         `SELECT COALESCE(SUM(total), 0) AS revenue
          FROM orders
-         WHERE status = 'Closed' AND created_at >= ${since} ${rFilter}`,
+         WHERE status = 'Closed' AND ${dateF} ${rFilter}`,
         params
       ),
       query(
@@ -403,7 +419,7 @@ async function getReportFinance(req, res, next) {
            COALESCE(SUM(amount) FILTER (WHERE type='income'  AND status='paid'), 0) AS income,
            COALESCE(SUM(amount) FILTER (WHERE type='expense' AND status='paid'), 0) AS expense
          FROM cash_flow_entries
-         WHERE created_at >= ${since} ${rFilter}`,
+         WHERE ${dateF} ${rFilter}`,
         params
       ),
     ])
@@ -473,23 +489,39 @@ async function getReportEOD(req, res, next) {
       // Calendar-date mode (explicit date or no shifts exist yet)
       params = []
       let dateSql
-      if (req.query.date) {
-        const dateStr = req.query.date.replace(/[^0-9-]/g, '')
+      // Accept ?date=, or ?from=/?to= (from date-range filter), or default to today
+      const rawDate = req.query.date || req.query.from || null
+      const rawTo   = req.query.to   || null
+      let dateFilter
+      if (rawDate && rawTo && rawDate !== rawTo) {
+        // Multi-day range from the date-range filter
+        const f = rawDate.replace(/[^0-9-]/g, '')
+        const t = rawTo.replace(/[^0-9-]/g, '')
+        params.push(f); const fi = params.length
+        params.push(t); const ti = params.length
+        dateSql = null // not used in BETWEEN mode
+        dateFilter = `BETWEEN $${fi}::date AND $${ti}::date`
+      } else if (rawDate) {
+        const dateStr = rawDate.replace(/[^0-9-]/g, '')
         params.push(dateStr); dateSql = `$${params.length}::date`
-      } else { dateSql = 'CURRENT_DATE' }
+        dateFilter = `= ${dateSql}`
+      } else {
+        dateSql = 'CURRENT_DATE'
+        dateFilter = `= ${dateSql}`
+      }
       const rFilter = rid ? (params.push(rid), `AND restaurant_id = $${params.length}`) : ''
       const rFilterJoin = rid ? `AND o.restaurant_id = $${params.length}` : ''
       ordersSql = `SELECT COUNT(*) AS total_orders, COALESCE(SUM(subtotal),0) AS subtotal,
                           COALESCE(SUM(discount),0) AS discount, COALESCE(SUM(total),0) AS total
-                   FROM orders WHERE status='Closed' AND created_at::date = ${dateSql} ${rFilter}`
+                   FROM orders WHERE status='Closed' AND created_at::date ${dateFilter} ${rFilter}`
       itemsSql  = `SELECT oi.name, SUM(oi.quantity) AS qty, SUM(oi.quantity*oi.unit_price) AS revenue
                    FROM order_items oi JOIN orders o ON o.id = oi.order_id
-                   WHERE o.status='Closed' AND o.created_at::date = ${dateSql} ${rFilterJoin}
+                   WHERE o.status='Closed' AND o.created_at::date ${dateFilter} ${rFilterJoin}
                    GROUP BY oi.name ORDER BY qty DESC LIMIT 20`
       cashSql   = `SELECT COALESCE(SUM(amount) FILTER (WHERE type='income'  AND status='paid'),0) AS income,
                           COALESCE(SUM(amount) FILTER (WHERE type='expense' AND status='paid'),0) AS expense
-                   FROM cash_flow_entries WHERE created_at::date = ${dateSql} ${rFilter}`
-      label = req.query.date || new Date().toISOString().slice(0, 10)
+                   FROM cash_flow_entries WHERE created_at::date ${dateFilter} ${rFilter}`
+      label = rawDate || new Date().toISOString().slice(0, 10)
     }
 
     const [ordersRes, itemsRes, cashRes] = await Promise.all([
@@ -520,11 +552,10 @@ async function getReportEOD(req, res, next) {
 // ─── GET /api/stats/reports/channel ──────────────────────────────────────────
 async function getReportChannel(req, res, next) {
   try {
-    const { period = 'week' } = req.query
-    const since = periodInterval(period)
     const rid = req.restaurantId
     const params = rid ? [rid] : []
     const rFilter = rid ? 'AND restaurant_id = $1' : ''
+    const dateF = buildDateFilter(req, params, 'created_at')
 
     const { rows } = await query(
       `SELECT
@@ -532,7 +563,7 @@ async function getReportChannel(req, res, next) {
          COUNT(*)                          AS orders,
          COALESCE(SUM(total), 0)           AS revenue
        FROM orders
-       WHERE status = 'Closed' AND created_at >= ${since} ${rFilter}
+       WHERE status = 'Closed' AND ${dateF} ${rFilter}
        GROUP BY payment_method ORDER BY revenue DESC`,
       params
     )
@@ -609,13 +640,13 @@ async function getReportSalesDetail(req, res, next) {
       params.push(parseInt(req.query.shiftId) || 0)
       dayFilter = `o.shift_id = $${params.length}`
     } else {
-      dayFilter = `o.created_at >= ${periodInterval(req.query.period || 'week')}`
+      dayFilter = buildDateFilter(req, params, 'o.created_at')
     }
 
     const { rows } = await query(
       `SELECT o.id AS order_id, o.created_at, o.table_number, o.waiter,
               o.payment_method, o.payment_status, o.discount AS order_discount,
-              oi.name, oi.quantity, oi.unit_price,
+              oi.name, oi.quantity, oi.unit_price, oi.notes,
               (oi.quantity * oi.unit_price) AS line_total,
               COALESCE((
                 SELECT string_agg(oim.name, ', ')
@@ -635,6 +666,7 @@ async function getReportSalesDetail(req, res, next) {
       waiter:        r.waiter,
       name:          r.name,
       modifiers:     r.modifiers,
+      notes:         r.notes || '',
       quantity:      parseFloat(r.quantity),
       unitPrice:     parseFloat(r.unit_price),
       lineTotal:     parseFloat(r.line_total),

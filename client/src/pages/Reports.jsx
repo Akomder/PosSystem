@@ -376,13 +376,14 @@ function SalesDetailReport({ data, t }) {
     <SimpleTable
       headers={[
         t('reports.col.order'), t('reports.col.date'), t('reports.col.table'),
-        t('reports.col.item'), t('reports.col.qty'), t('common.price'),
-        t('reports.col.revenue'), t('reports.channel.method'), t('reports.col.status'),
+        t('reports.col.waiter'), t('reports.col.item'), t('reports.col.qty'), t('common.price'),
+        t('reports.col.revenue'), t('reports.channel.method'), t('reports.col.status'), t('reports.col.notes'),
       ]}
       rows={data.map(r => [
         r.orderId,
         formatDate(r.createdAt),
         r.tableNumber ?? '—',
+        r.waiter ?? '—',
         <div>
           <div className="font-medium text-gray-900 dark:text-gray-100">{r.name}</div>
           {r.modifiers && <div className="text-xs text-gray-400">{r.modifiers}</div>}
@@ -390,8 +391,9 @@ function SalesDetailReport({ data, t }) {
         r.quantity,
         formatCurrency(r.unitPrice),
         formatCurrency(r.lineTotal),
-        r.paymentMethod,
-        r.paymentStatus,
+        r.paymentMethod ?? '—',
+        r.paymentStatus ?? '—',
+        r.notes || '—',
       ])}
     />
   )
@@ -477,6 +479,7 @@ function ProductsReport({ data, t }) {
           <tr className="border-b border-gray-100 dark:border-gray-700">
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-8">#</th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.item')}</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.category')}</th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.qty')}</th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.revenue')}</th>
           </tr>
@@ -497,6 +500,7 @@ function ProductsReport({ data, t }) {
                   />
                 </div>
               </td>
+              <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{r.category || '—'}</td>
               <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-medium">{r.qty}</td>
               <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatCurrency(r.revenue)}</td>
             </tr>
@@ -511,8 +515,14 @@ function CustomersReport({ data, t }) {
   if (!Array.isArray(data)) return null
   return (
     <SimpleTable
-      headers={[t('reports.col.name'), t('reports.col.visits'), t('reports.col.spent')]}
-      rows={data.map(r => [r.name, r.visits, formatCurrency(r.spent)])}
+      headers={[t('reports.col.name'), t('reports.col.phone'), t('reports.col.visits'), t('reports.col.spent'), t('reports.col.avgVisit')]}
+      rows={data.map(r => [
+        r.name,
+        r.phone || '—',
+        r.visits,
+        formatCurrency(r.spent),
+        formatCurrency(r.visits > 0 ? r.spent / r.visits : 0),
+      ])}
     />
   )
 }
