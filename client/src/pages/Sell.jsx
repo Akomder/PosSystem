@@ -18,7 +18,7 @@ import StoreToggle from '../components/layout/StoreToggle'
 import ModifierModal from '../components/ModifierModal'
 import ReceiptModal  from '../components/ReceiptModal'
 import { queueOrder } from '../lib/offlineDb'
-import { onOrderCreated, onOrderUpdated } from '../services/socket'
+import { onOrderCreated, onOrderUpdated, onOrderItemsAdded } from '../services/socket'
 import { APP_TIME_ZONE } from '../utils/formatters'
 
 
@@ -533,7 +533,20 @@ export default function Sell() {
       })
     })
 
-    return () => { offCreated?.(); offUpdated?.() }
+    // Customer added items to existing order → update panel in place
+    const offItemsAdded = onOrderItemsAdded(({ order }) => {
+      if (!order || order.waiter !== 'Guest') return
+      setQrOrders(prev => {
+        const exists = prev.some(o => o.id === order.id)
+        if (exists) return prev.map(o => o.id === order.id ? order : o)
+        return [order, ...prev]
+      })
+      setQrNewToast({ tableNumber: order.tableNumber, id: order.id, extra: true })
+      setQrPanelOpen(true)
+      setTimeout(() => setQrNewToast(null), 4000)
+    })
+
+    return () => { offCreated?.(); offUpdated?.(); offItemsAdded?.() }
   }, [])
 
   // ── Customer search ────────────────────────────────────────────────────────
@@ -1436,7 +1449,9 @@ export default function Sell() {
       {qrNewToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 bg-teal-600 text-white text-sm font-semibold rounded-2xl shadow-xl">
           <QrCode size={15} className="opacity-90" />
-          New QR order — Table {qrNewToast.tableNumber}
+          {qrNewToast.extra
+            ? `Table ${qrNewToast.tableNumber} added more items`
+            : `New QR order — Table ${qrNewToast.tableNumber}`}
         </div>
       )}
 
