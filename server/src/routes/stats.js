@@ -3,7 +3,7 @@ const {
   getDashboard, getRevenue, getTopDishes,
   getReportSales, getReportProducts, getReportCustomers, getReportStaff, getReportFinance,
   getReportEOD, getReportChannel,
-  getReportStockDaily, getReportSalesDetail,
+  getReportStockDaily, getReportSalesDetail, getReportPromotions,
 } = require('../controllers/statsController')
 const authenticate = require('../middleware/auth')
 
@@ -22,5 +22,6 @@ router.get('/reports/eod',       getReportEOD)
 router.get('/reports/channel',   getReportChannel)
 router.get('/reports/stock-daily',  getReportStockDaily)
 router.get('/reports/sales-detail', getReportSalesDetail)
+router.get('/reports/promotions',   getReportPromotions)
 
 module.exports = router

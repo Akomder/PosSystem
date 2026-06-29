@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BarChart2, TrendingUp, ShoppingBag, Users, UserCheck, DollarSign, Calendar, CreditCard, Download, Printer, Package, FileText } from 'lucide-react'
+import { BarChart2, TrendingUp, ShoppingBag, Users, UserCheck, DollarSign, Calendar, CreditCard, Download, Printer, Package, FileText, Tag } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
 import { reportsApi } from '../services/api'
@@ -174,6 +174,29 @@ function getExportConfig(tab, data, period, dateRange) {
           r.notes ?? '',
         ]),
       }
+    case 'promotions':
+      if (!data?.items) return null
+      return {
+        filename,
+        headers: ['#', 'Promotion Name', 'Type', 'Times Ordered', 'Total Qty Sold', 'Total Revenue (LAK)', 'Revenue Share %'],
+        rows: (() => {
+          const total = data.summary?.totalRevenue || 1
+          return [
+            ['--- SUMMARY ---', '', '', '', '', '', ''],
+            ['Total Promotions', '', '', data.summary?.totalOrders ?? '', data.summary?.totalQty ?? '', data.summary?.totalRevenue ?? '', ''],
+            ['--- BREAKDOWN ---', '', '', '', '', '', ''],
+            ...data.items.map((r, i) => [
+              i + 1,
+              r.name,
+              r.type === 'deal' ? 'Deal' : 'Promo Item',
+              r.orderCount,
+              r.totalQty,
+              r.totalRevenue,
+              ((r.totalRevenue / total) * 100).toFixed(1),
+            ]),
+          ]
+        })(),
+      }
     default:
       return null
   }
@@ -188,6 +211,7 @@ const TABS = [
   { key: 'eod',         labelKey: 'reports.eod',         icon: Calendar },
   { key: 'stockDaily',  labelKey: 'reports.stockDaily',  icon: Package },
   { key: 'salesDetail', labelKey: 'reports.salesDetail', icon: FileText },
+  { key: 'promotions',  labelKey: 'reports.promotions',  icon: Tag },
 ]
 
 const PERIODS = [
@@ -235,6 +259,7 @@ export default function Reports() {
       eod:         () => reportsApi.eod(dateRange || period === 'today' ? params : {}),
       stockDaily:  () => reportsApi.stockDaily({}),
       salesDetail: () => reportsApi.salesDetail(params),
+      promotions:  () => reportsApi.promotions(params),
     }
     fetchers[tab]().then(d => {
       if (!cancelled) setData(d)
@@ -350,6 +375,7 @@ export default function Reports() {
       {!loading && data && tab === 'eod'       && <EODReport       data={data} t={t} />}
       {!loading && data && tab === 'stockDaily'  && <StockDailyReport  data={data} t={t} />}
       {!loading && data && tab === 'salesDetail' && <SalesDetailReport data={data} t={t} />}
+      {!loading && data && tab === 'promotions'  && <PromotionsReport  data={data} t={t} />}
     </div>
   )
 }
@@ -632,6 +658,69 @@ function EODReport({ data, t }) {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function PromotionsReport({ data, t }) {
+  if (!data?.items) return null
+  const { summary, items } = data
+  const total = summary.totalRevenue || 1
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard label={t('reports.promo.totalOrders')} value={summary.totalOrders}             icon={Tag}        color="text-rose-600 dark:text-rose-400"   bg="bg-rose-50 dark:bg-rose-900/20" />
+        <StatCard label={t('reports.promo.totalQty')}    value={summary.totalQty}                icon={ShoppingBag} color="text-teal-600 dark:text-teal-400"  bg="bg-teal-50 dark:bg-teal-900/20" />
+        <StatCard label={t('reports.promo.revenue')}     value={formatCurrency(summary.totalRevenue)} icon={TrendingUp} color="text-green-600 dark:text-green-400" bg="bg-green-50 dark:bg-green-900/20" />
+      </div>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 dark:border-gray-700">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-8">#</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.item')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.promo.type')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.promo.timesOrdered')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.qty')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.revenue')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.channel.share')}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+            {items.length === 0 ? (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">No promotion orders for this period</td></tr>
+            ) : items.map((r, i) => (
+              <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td className="px-4 py-3 text-gray-400 font-mono text-xs">{i + 1}</td>
+                <td className="px-4 py-3">
+                  <div className="font-medium text-gray-900 dark:text-gray-100">{r.name}</div>
+                  <div className="mt-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full w-48">
+                    <div className="h-1.5 bg-rose-500 rounded-full" style={{ width: `${(r.totalRevenue / total) * 100}%` }} />
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={clsx(
+                    'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold',
+                    r.type === 'deal'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                      : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                  )}>
+                    {r.type === 'deal' ? t('reports.promo.typeDeal') : t('reports.promo.typePromo')}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.orderCount}</td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-medium">{r.totalQty}</td>
+                <td className="px-4 py-3 font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(r.totalRevenue)}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{((r.totalRevenue / total) * 100).toFixed(1)}%</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

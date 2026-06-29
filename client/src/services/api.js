@@ -169,8 +169,9 @@ export const reportsApi = {
   finance:  (params = {}) => get('/stats/reports/finance?'  + new URLSearchParams(params)),
   eod:      (params = {}) => get('/stats/reports/eod?'      + new URLSearchParams(params)),
   channel:  (params = {}) => get('/stats/reports/channel?'  + new URLSearchParams(params)),
-  stockDaily:  (params = {}) => get('/stats/reports/stock-daily?'  + new URLSearchParams(params)),
-  salesDetail: (params = {}) => get('/stats/reports/sales-detail?' + new URLSearchParams(params)),
+  stockDaily:   (params = {}) => get('/stats/reports/stock-daily?'  + new URLSearchParams(params)),
+  salesDetail:  (params = {}) => get('/stats/reports/sales-detail?' + new URLSearchParams(params)),
+  promotions:   (params = {}) => get('/stats/reports/promotions?'   + new URLSearchParams(params)),
 }
 
 // ─── Zones ────────────────────────────────────────────────────────────────────

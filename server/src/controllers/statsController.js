@@ -710,9 +710,71 @@ async function getTopDishes(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// ─── GET /api/stats/reports/promotions ───────────────────────────────────────
+// Counts deal orders + promotion-flagged menu item orders in the date range.
+async function getReportPromotions(req, res, next) {
+  try {
+    const rid = req.restaurantId
+    const params = rid ? [rid] : []
+    const rFilter = rid ? 'AND o.restaurant_id = $1' : ''
+    const dateF = buildDateFilter(req, params, 'o.created_at')
+
+    const { rows } = await query(
+      `SELECT name, type, SUM(order_count) AS order_count,
+              SUM(total_qty) AS total_qty, SUM(total_revenue) AS total_revenue
+       FROM (
+         -- Deals ordered via deal_id
+         SELECT d.title AS name, 'deal' AS type,
+                COUNT(*) AS order_count,
+                SUM(oi.quantity) AS total_qty,
+                SUM(oi.quantity * oi.unit_price) AS total_revenue
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         JOIN deals d ON d.id = oi.deal_id
+         WHERE o.status = 'Closed' AND oi.deal_id IS NOT NULL AND ${dateF} ${rFilter}
+         GROUP BY d.id, d.title
+         UNION ALL
+         -- Promotion-flagged menu items
+         SELECT mi.name, 'promo' AS type,
+                COUNT(*) AS order_count,
+                SUM(oi.quantity) AS total_qty,
+                SUM(oi.quantity * oi.unit_price) AS total_revenue
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         JOIN menu_items mi ON mi.id = oi.menu_item_id
+         WHERE o.status = 'Closed' AND mi.is_promotion = true AND ${dateF} ${rFilter}
+         GROUP BY mi.id, mi.name
+       ) sub
+       GROUP BY name, type
+       ORDER BY total_revenue DESC`,
+      params
+    )
+
+    const summary = rows.reduce(
+      (acc, r) => ({
+        totalOrders:  acc.totalOrders  + parseInt(r.order_count),
+        totalQty:     acc.totalQty     + parseInt(r.total_qty),
+        totalRevenue: acc.totalRevenue + parseFloat(r.total_revenue),
+      }),
+      { totalOrders: 0, totalQty: 0, totalRevenue: 0 }
+    )
+
+    res.json({
+      summary,
+      items: rows.map(r => ({
+        name:         r.name,
+        type:         r.type,
+        orderCount:   parseInt(r.order_count),
+        totalQty:     parseInt(r.total_qty),
+        totalRevenue: parseFloat(r.total_revenue),
+      })),
+    })
+  } catch (err) { next(err) }
+}
+
 module.exports = {
   getDashboard, getRevenue, getTopDishes,
   getReportSales, getReportProducts, getReportCustomers,
   getReportStaff, getReportFinance, getReportEOD, getReportChannel,
-  getReportStockDaily, getReportSalesDetail,
+  getReportStockDaily, getReportSalesDetail, getReportPromotions,
 }
