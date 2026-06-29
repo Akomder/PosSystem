@@ -13,7 +13,7 @@ function exportCsv(filename, headers, rows) {
     headers.map(escape).join(','),
     ...rows.map(row => row.map(escape).join(',')),
   ]
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url  = URL.createObjectURL(blob)
   const a    = Object.assign(document.createElement('a'), { href: url, download: filename })
   document.body.appendChild(a)
@@ -22,42 +22,98 @@ function exportCsv(filename, headers, rows) {
   URL.revokeObjectURL(url)
 }
 
-function getExportConfig(tab, data, t) {
+function buildCsvFilename(tab, period, dateRange) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE }) // YYYY-MM-DD
+  let from, to
+  if (dateRange?.from && dateRange?.to) {
+    from = dateRange.from
+    to   = dateRange.to
+  } else if (period === 'today') {
+    from = today; to = today
+  } else if (period === 'week') {
+    const d = new Date(); d.setDate(d.getDate() - 6)
+    from = d.toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE }); to = today
+  } else if (period === 'month') {
+    const d = new Date(); d.setDate(d.getDate() - 29)
+    from = d.toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE }); to = today
+  } else {
+    const d = new Date(); d.setFullYear(d.getFullYear() - 1)
+    from = d.toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE }); to = today
+  }
+  return `sale-report(${from}_to_${to}).csv`
+}
+
+function getExportConfig(tab, data, period, dateRange) {
   if (!data) return null
+  const filename = buildCsvFilename(tab, period, dateRange)
   switch (tab) {
     case 'sales':
       if (!data.daily) return null
       return {
-        filename: 'sales-report.csv',
-        headers:  ['Date', 'Orders', 'Revenue'],
-        rows:     data.daily.map(r => [formatDate(r.date), r.orders, r.revenue]),
+        filename,
+        headers: ['Date', 'Orders', 'Revenue (LAK)', 'Avg Order (LAK)'],
+        rows: [
+          // Summary rows
+          ['--- SUMMARY ---', '', '', ''],
+          ['Total Revenue', '', data.summary?.totalRevenue ?? '', ''],
+          ['Total Orders',  '', data.summary?.totalOrders  ?? '', ''],
+          ['Average Order', '', '', data.summary?.avgOrder ?? ''],
+          ['--- DAILY BREAKDOWN ---', '', '', ''],
+          ...data.daily.map(r => [
+            formatDate(r.date),
+            r.orders,
+            r.revenue,
+            r.orders > 0 ? (r.revenue / r.orders).toFixed(0) : 0,
+          ]),
+        ],
       }
     case 'products':
       if (!Array.isArray(data)) return null
       return {
-        filename: 'products-report.csv',
-        headers:  ['#', 'Item', 'Quantity', 'Revenue'],
-        rows:     data.map((r, i) => [i + 1, r.name, r.qty, r.revenue]),
+        filename,
+        headers: ['#', 'Item Name', 'Category', 'Quantity Sold', 'Revenue (LAK)', 'Revenue Share %'],
+        rows: (() => {
+          const total = data.reduce((s, r) => s + (r.revenue || 0), 0) || 1
+          return data.map((r, i) => [
+            i + 1,
+            r.name,
+            r.category ?? '',
+            r.qty,
+            r.revenue,
+            ((r.revenue / total) * 100).toFixed(1),
+          ])
+        })(),
       }
     case 'customers':
       if (!Array.isArray(data)) return null
       return {
-        filename: 'customers-report.csv',
-        headers:  ['Name', 'Visits', 'Total Spent'],
-        rows:     data.map(r => [r.name, r.visits, r.spent]),
+        filename,
+        headers: ['Customer Name', 'Phone', 'Total Visits', 'Total Spent (LAK)', 'Avg Per Visit (LAK)'],
+        rows: data.map(r => [
+          r.name,
+          r.phone ?? '',
+          r.visits,
+          r.spent,
+          r.visits > 0 ? (r.spent / r.visits).toFixed(0) : 0,
+        ]),
       }
     case 'staff':
       if (!Array.isArray(data)) return null
       return {
-        filename: 'staff-report.csv',
-        headers:  ['Staff', 'Orders', 'Revenue'],
-        rows:     data.map(r => [r.staff, r.orders, r.revenue]),
+        filename,
+        headers: ['Staff Name', 'Orders Handled', 'Revenue (LAK)', 'Avg Per Order (LAK)'],
+        rows: data.map(r => [
+          r.staff,
+          r.orders,
+          r.revenue,
+          r.orders > 0 ? (r.revenue / r.orders).toFixed(0) : 0,
+        ]),
       }
     case 'finance':
       if (typeof data?.totalIncome !== 'number') return null
       return {
-        filename: 'finance-report.csv',
-        headers:  ['Category', 'Amount'],
+        filename,
+        headers: ['Category', 'Amount (LAK)'],
         rows: [
           ['Sales Revenue',  data.salesRevenue],
           ['Other Income',   data.otherIncome],
@@ -69,42 +125,54 @@ function getExportConfig(tab, data, t) {
     case 'eod':
       if (typeof data?.totalOrders !== 'number') return null
       return {
-        filename: 'eod-report.csv',
-        headers:  ['Metric', 'Value'],
+        filename,
+        headers: ['Metric', 'Value'],
         rows: [
           ['Total Orders',   data.totalOrders],
-          ['Subtotal',       data.subtotal],
-          ['Discount',       data.discount],
-          ['Total Sales',    data.total],
-          ['Cash Income',    data.cashIncome],
-          ['Cash Expense',   data.cashExpense],
-          ['Net Balance',    data.netBalance],
-          ...(data.items || []).map(i => [`Item: ${i.name}`, `qty=${i.qty} rev=${i.revenue}`]),
+          ['Subtotal (LAK)', data.subtotal],
+          ['Discount (LAK)', data.discount],
+          ['Total Sales (LAK)', data.total],
+          ['Cash Income (LAK)', data.cashIncome],
+          ['Cash Expense (LAK)', data.cashExpense],
+          ['Net Balance (LAK)', data.netBalance],
+          ['', ''],
+          ['--- TOP ITEMS ---', ''],
+          ...(data.items || []).map((i, idx) => [`${idx + 1}. ${i.name}`, `qty: ${i.qty}  revenue: ${i.revenue}`]),
         ],
-      }
-    case 'channel':
-      if (!Array.isArray(data)) return null
-      return {
-        filename: 'channel-report.csv',
-        headers:  ['Method', 'Orders', 'Revenue', 'Share %'],
-        rows: (() => {
-          const total = data.reduce((s, r) => s + r.revenue, 0) || 1
-          return data.map(r => [r.channel, r.orders, r.revenue, ((r.revenue / total) * 100).toFixed(1)])
-        })(),
       }
     case 'stockDaily':
       if (!Array.isArray(data)) return null
       return {
-        filename: 'daily-stock-report.csv',
-        headers:  ['Item', 'Category', 'Opening', 'Sold', 'Remaining'],
-        rows:     data.map(r => [r.name, r.category, r.openingQty, r.soldQty, r.currentQty]),
+        filename,
+        headers: ['Item', 'Category', 'Opening Stock', 'Sold', 'Remaining', 'Status'],
+        rows: data.map(r => [
+          r.name,
+          r.category,
+          r.openingQty,
+          r.soldQty,
+          r.currentQty,
+          r.currentQty <= 0 ? 'Out of Stock' : r.currentQty <= 5 ? 'Low Stock' : 'OK',
+        ]),
       }
     case 'salesDetail':
       if (!Array.isArray(data)) return null
       return {
-        filename: 'sales-detail-report.csv',
-        headers:  ['Order', 'Date', 'Table', 'Waiter', 'Item', 'Modifiers', 'Qty', 'Unit Price', 'Line Total', 'Payment', 'Status'],
-        rows:     data.map(r => [r.orderId, formatDate(r.createdAt), r.tableNumber ?? '', r.waiter ?? '', r.name, r.modifiers, r.quantity, r.unitPrice, r.lineTotal, r.paymentMethod, r.paymentStatus]),
+        filename,
+        headers: ['Order ID', 'Date & Time', 'Table', 'Waiter', 'Item Name', 'Modifiers', 'Qty', 'Unit Price (LAK)', 'Line Total (LAK)', 'Payment Method', 'Payment Status', 'Order Notes'],
+        rows: data.map(r => [
+          r.orderId,
+          r.createdAt ? new Date(r.createdAt).toLocaleString('en-GB', { timeZone: APP_TIME_ZONE }) : '',
+          r.tableNumber ?? '',
+          r.waiter ?? '',
+          r.name,
+          r.modifiers ?? '',
+          r.quantity,
+          r.unitPrice,
+          r.lineTotal,
+          r.paymentMethod,
+          r.paymentStatus,
+          r.notes ?? '',
+        ]),
       }
     default:
       return null
@@ -112,18 +180,18 @@ function getExportConfig(tab, data, t) {
 }
 
 const TABS = [
-  { key: 'sales',     labelKey: 'reports.sales',     icon: TrendingUp   },
-  { key: 'products',  labelKey: 'reports.products',  icon: ShoppingBag  },
-  { key: 'customers', labelKey: 'reports.customers', icon: Users        },
-  { key: 'staff',     labelKey: 'reports.staff',     icon: UserCheck    },
-  { key: 'finance',   labelKey: 'reports.finance',   icon: DollarSign   },
-  { key: 'eod',       labelKey: 'reports.eod',       icon: Calendar     },
-  { key: 'channel',   labelKey: 'reports.channel',   icon: CreditCard   },
-  { key: 'stockDaily', labelKey: 'reports.stockDaily',  icon: Package  },
+  { key: 'sales',       labelKey: 'reports.sales',       icon: TrendingUp },
+  { key: 'products',    labelKey: 'reports.products',    icon: ShoppingBag },
+  { key: 'customers',   labelKey: 'reports.customers',   icon: Users },
+  { key: 'staff',       labelKey: 'reports.staff',       icon: UserCheck },
+  { key: 'finance',     labelKey: 'reports.finance',     icon: DollarSign },
+  { key: 'eod',         labelKey: 'reports.eod',         icon: Calendar },
+  { key: 'stockDaily',  labelKey: 'reports.stockDaily',  icon: Package },
   { key: 'salesDetail', labelKey: 'reports.salesDetail', icon: FileText },
 ]
 
 const PERIODS = [
+  { value: 'today', labelKey: 'reports.today' },
   { value: 'week',  labelKey: 'reports.week'  },
   { value: 'month', labelKey: 'reports.month' },
   { value: 'year',  labelKey: 'reports.year'  },
@@ -139,7 +207,7 @@ export default function Reports() {
   const [loading,   setLoading]   = useState(false)
 
   const handleExportCsv = () => {
-    const cfg = getExportConfig(tab, data, t)
+    const cfg = getExportConfig(tab, data, period, dateRange)
     if (cfg) exportCsv(cfg.filename, cfg.headers, cfg.rows)
   }
 
@@ -149,17 +217,22 @@ export default function Reports() {
     let cancelled = false
     setLoading(true)
     setData(null)
-    const params = dateRange
-      ? { from: dateRange.from, to: dateRange.to }
-      : { period }
+    let params
+    if (dateRange?.from && dateRange?.to) {
+      params = { from: dateRange.from, to: dateRange.to }
+    } else if (period === 'today') {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE })
+      params = { from: today, to: today }
+    } else {
+      params = { period }
+    }
     const fetchers = {
-      sales:     () => reportsApi.sales(params),
-      products:  () => reportsApi.products(params),
-      customers: () => reportsApi.customers(params),
-      staff:     () => reportsApi.staff(params),
-      finance:   () => reportsApi.finance(params),
-      eod:       () => reportsApi.eod(dateRange ? params : {}),
-      channel:   () => reportsApi.channel(params),
+      sales:       () => reportsApi.sales(params),
+      products:    () => reportsApi.products(params),
+      customers:   () => reportsApi.customers(params),
+      staff:       () => reportsApi.staff(params),
+      finance:     () => reportsApi.finance(params),
+      eod:         () => reportsApi.eod(dateRange || period === 'today' ? params : {}),
       stockDaily:  () => reportsApi.stockDaily({}),
       salesDetail: () => reportsApi.salesDetail(params),
     }
@@ -275,7 +348,6 @@ export default function Reports() {
       {!loading && data && tab === 'staff'     && <StaffReport     data={data} t={t} />}
       {!loading && data && tab === 'finance'   && <FinanceReport   data={data} t={t} />}
       {!loading && data && tab === 'eod'       && <EODReport       data={data} t={t} />}
-      {!loading && data && tab === 'channel'   && <ChannelReport   data={data} t={t} />}
       {!loading && data && tab === 'stockDaily'  && <StockDailyReport  data={data} t={t} />}
       {!loading && data && tab === 'salesDetail' && <SalesDetailReport data={data} t={t} />}
     </div>
