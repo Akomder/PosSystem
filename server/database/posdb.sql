@@ -673,6 +673,10 @@ ALTER TABLE order_items ADD COLUMN IF NOT EXISTS notes       TEXT         NOT NU
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS station     VARCHAR(50)  NOT NULL DEFAULT 'Kitchen';
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 
+-- order_items — deal support: deal items have no menu_item_id, only a deal_id
+ALTER TABLE order_items ALTER COLUMN menu_item_id DROP NOT NULL;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS deal_id INTEGER REFERENCES deals(id) ON DELETE SET NULL;
+
 -- menu_items — station + inventory columns (Phase 3 Step 7 + 9)
 ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS station             VARCHAR(50)    NOT NULL DEFAULT 'Kitchen';
 ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS stock_quantity      NUMERIC(10,2)  DEFAULT NULL;
