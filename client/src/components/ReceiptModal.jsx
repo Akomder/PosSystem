@@ -151,8 +151,11 @@ export default function ReceiptModal({ orderId, entityId, type = 'receipt', onCl
                 onLoad={() => {
                   const iframe = iframeRef.current
                   if (!iframe?.contentDocument?.body) return
-                  const h = iframe.contentDocument.body.scrollHeight
-                  if (h > 0) iframe.style.height = `${h}px`
+                  setTimeout(() => {
+                    if (!iframe?.contentDocument?.body) return
+                    const h = iframe.contentDocument.body.scrollHeight
+                    if (h > 0) iframe.style.height = `${h + 16}px`
+                  }, 50)
                 }}
               />
             </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { BarChart2, TrendingUp, ShoppingBag, Users, UserCheck, DollarSign, Calendar, CreditCard, Download, Printer, Package, FileText, Tag } from 'lucide-react'
 import clsx from 'clsx'
 import { useSettings } from '../context/SettingsContext'
@@ -381,18 +381,27 @@ export default function Reports() {
 }
 
 function StockDailyReport({ data, t }) {
+  const [cat, setCat] = useState('All')
+  const categories = useMemo(() => {
+    const cats = [...new Set((data || []).map(r => r.category).filter(Boolean))].sort()
+    return ['All', ...cats]
+  }, [data])
   if (!Array.isArray(data)) return null
+  const filtered = cat === 'All' ? data : data.filter(r => r.category === cat)
   return (
-    <SimpleTable
-      headers={[t('reports.col.item'), t('reports.col.category'), t('reports.stock.opening'), t('reports.stock.sold'), t('reports.stock.remaining')]}
-      rows={data.map(r => [
-        r.name,
-        r.category,
-        r.openingQty,
-        r.soldQty,
-        <span className={r.currentQty <= 0 ? 'text-red-500 font-semibold' : ''}>{r.currentQty}</span>,
-      ])}
-    />
+    <div className="space-y-3">
+      <CategoryPills categories={categories} active={cat} onChange={setCat} />
+      <SimpleTable
+        headers={[t('reports.col.item'), t('reports.col.category'), t('reports.stock.opening'), t('reports.stock.sold'), t('reports.stock.remaining')]}
+        rows={filtered.map(r => [
+          r.name,
+          r.category,
+          r.openingQty,
+          r.soldQty,
+          <span className={r.currentQty <= 0 ? 'text-red-500 font-semibold' : ''}>{r.currentQty}</span>,
+        ])}
+      />
+    </div>
   )
 }
 
@@ -437,6 +446,28 @@ function StatCard({ label, value, icon: Icon, color, bg }) {
           <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{value}</p>
         </div>
       </div>
+    </div>
+  )
+}
+
+function CategoryPills({ categories, active, onChange }) {
+  if (categories.length <= 1) return null
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {categories.map(cat => (
+        <button
+          key={cat}
+          onClick={() => onChange(cat)}
+          className={clsx(
+            'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+            active === cat
+              ? 'bg-teal-600 text-white'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+          )}
+        >
+          {cat}
+        </button>
+      ))}
     </div>
   )
 }
@@ -496,43 +527,52 @@ function SalesReport({ data, t }) {
 }
 
 function ProductsReport({ data, t }) {
+  const [cat, setCat] = useState('All')
+  const categories = useMemo(() => {
+    const cats = [...new Set((data || []).map(r => r.category).filter(Boolean))].sort()
+    return ['All', ...cats]
+  }, [data])
   if (!Array.isArray(data)) return null
-  const max = data[0]?.qty || 1
+  const filtered = cat === 'All' ? data : data.filter(r => r.category === cat)
+  const max = filtered[0]?.qty || 1
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 dark:border-gray-700">
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-8">#</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.item')}</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.category')}</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.qty')}</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.revenue')}</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-          {data.length === 0 && (
-            <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400 text-sm">No data for this period</td></tr>
-          )}
-          {data.map((r, i) => (
-            <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-              <td className="px-4 py-3 text-gray-400 font-mono text-xs">{i + 1}</td>
-              <td className="px-4 py-3">
-                <div className="font-medium text-gray-900 dark:text-gray-100">{r.name}</div>
-                <div className="mt-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full w-48">
-                  <div
-                    className="h-1.5 bg-teal-500 rounded-full"
-                    style={{ width: `${(r.qty / max) * 100}%` }}
-                  />
-                </div>
-              </td>
-              <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{r.category || '—'}</td>
-              <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-medium">{r.qty}</td>
-              <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatCurrency(r.revenue)}</td>
+    <div className="space-y-3">
+      <CategoryPills categories={categories} active={cat} onChange={setCat} />
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 dark:border-gray-700">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-8">#</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.item')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.category')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.qty')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('reports.col.revenue')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+            {filtered.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">No data for this period</td></tr>
+            )}
+            {filtered.map((r, i) => (
+              <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td className="px-4 py-3 text-gray-400 font-mono text-xs">{i + 1}</td>
+                <td className="px-4 py-3">
+                  <div className="font-medium text-gray-900 dark:text-gray-100">{r.name}</div>
+                  <div className="mt-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full w-48">
+                    <div
+                      className="h-1.5 bg-teal-500 rounded-full"
+                      style={{ width: `${(r.qty / max) * 100}%` }}
+                    />
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{r.category || '—'}</td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-medium">{r.qty}</td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatCurrency(r.revenue)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

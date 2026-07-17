@@ -454,14 +454,16 @@ export default function Sell() {
 
   function newTab(rawTableId = null, tableNumber = null) {
     return {
-      id:          Date.now(),
-      orderType:   'Dine In',     // 'Dine In' | 'Takeaway' | 'Delivery'
-      tableId:     rawTableId,    // raw integer — null for non-dine-in
+      id:                 Date.now(),
+      orderType:          'Dine In',  // 'Dine In' | 'Takeaway' | 'Delivery'
+      tableId:            rawTableId, // raw integer — null for non-dine-in
       tableNumber,
-      items:       [],
-      waiter:      '',
-      customer:    null,
-      held:        false,
+      items:              [],
+      waiter:             '',
+      customer:           null,
+      held:               false,
+      existingOrderId:    null,       // formatted ID of a QR order loaded into this tab
+      existingOrderRawId: null,       // raw integer of the same order
     }
   }
 
@@ -570,6 +572,7 @@ export default function Sell() {
 
   // ── Cart helpers ───────────────────────────────────────────────────────────
   const addItem = (menuItem) => {
+    if (activeOrder?.existingOrderRawId) return  // QR order items are fixed; use Pay to checkout
     const hasModifiers = (menuItem.modifierGroups || []).length > 0
     if (hasModifiers) {
       // Open modifier modal — item will be added after selections confirmed
@@ -657,6 +660,31 @@ export default function Sell() {
     setActiveTab(Math.min(activeTab, next.length - 1))
   }
 
+  // ── Load a QR customer order into a cashier tab ────────────────────────────
+  const processQrOrder = (order) => {
+    const rawTableId = order.tableId
+      ? parseInt(String(order.tableId).replace('T-', ''), 10)
+      : null
+    const items = (order.items || []).map((item, idx) => ({
+      cartKey:    `qr-${order.rawId}-${idx}`,
+      menuItemId: parseInt(String(item.id).replace('MI-', ''), 10) || 0,
+      name:       item.name,
+      unitPrice:  item.unitPrice,
+      qty:        item.quantity,
+      modifiers:  item.modifiers || [],
+      notes:      item.notes || '',
+    }))
+    const tab = {
+      ...newTab(rawTableId, order.tableNumber),
+      existingOrderId:    order.id,
+      existingOrderRawId: order.rawId,
+      items,
+    }
+    setOrderTabs(prev => [...prev, tab])
+    setActiveTab(orderTabs.length)
+    setLeftTab('menu')
+  }
+
   // ── Pay ────────────────────────────────────────────────────────────────────
   const subtotal       = activeOrder?.items.reduce((s, i) => s + i.qty * (i.unitPrice || 0), 0) || 0
   const promoDiscount  = promoResult && !promoResult.error ? (promoResult.discount || 0) : 0
@@ -666,6 +694,23 @@ export default function Sell() {
     if (!activeOrder.items.length) return
     setSaving(true)
     try {
+      // ── QR order checkout — order already exists in DB, just record payment ──
+      if (activeOrder.existingOrderRawId) {
+        const closed = await ordersApi.checkout(activeOrder.existingOrderRawId, {
+          payments:      paymentInfo.payments,
+          paymentMethod: paymentInfo.paymentMethod,
+          currency:      paymentInfo.currency,
+          discount:      (paymentInfo.discount || 0) + promoDiscount,
+          voucherCode:   paymentInfo.voucherCode || promoCode || undefined,
+          cashTendered:  paymentInfo.cashTendered,
+          changeAmount:  paymentInfo.changeAmount,
+        })
+        setPayOpen(false)
+        closeTab(activeTab)
+        setReceiptOrderId(closed.rawId)
+        return
+      }
+
       const isDineIn = (activeOrder.orderType || 'Dine In') === 'Dine In'
       const body = {
         orderType:      activeOrder.orderType || 'Dine In',
@@ -700,7 +745,7 @@ export default function Sell() {
 
         setPayOpen(false)
         closeTab(activeTab)
-        setReceiptOrderId(rawOrderId)
+        setReceiptOrderId(order.rawId)
       } catch (err) {
         // ── Offline / network-failure path ─────────────────────────────────
         // Detect network errors: no HTTP status means fetch itself threw
@@ -1043,7 +1088,7 @@ export default function Sell() {
                       <p className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500">No incoming QR orders</p>
                     ) : qrOrders.map(order => (
                       <div key={order.id} className={clsx(
-                        'flex items-start gap-3 px-4 py-2.5 text-xs',
+                        'flex items-center gap-3 px-4 py-2.5 text-xs',
                         order.status === 'Pending' ? 'bg-amber-50 dark:bg-amber-900/10' : 'bg-white dark:bg-gray-800'
                       )}>
                         <div className="flex-1 min-w-0">
@@ -1057,17 +1102,21 @@ export default function Sell() {
                             )}>
                               {order.status}
                             </span>
-                            {order.guestName && (
-                              <span className="text-gray-400 font-normal truncate">{order.guestName}</span>
-                            )}
                           </div>
                           <div className="mt-0.5 text-gray-500 dark:text-gray-400 truncate">
-                            {(order.items || []).map(i => `${i.qty || i.quantity}× ${i.name}`).join(', ')}
+                            {(order.items || []).map(i => `${i.quantity}× ${i.name}`).join(', ')}
                           </div>
                         </div>
-                        <div className="flex-shrink-0 font-semibold text-teal-600 dark:text-teal-400">
+                        <div className="flex-shrink-0 font-semibold text-gray-700 dark:text-gray-300 text-xs">
                           {formatCurrency(order.total)}
                         </div>
+                        <button
+                          onClick={() => processQrOrder(order)}
+                          className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[10px] font-semibold transition-colors"
+                        >
+                          <CreditCard size={10} />
+                          Checkout
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -1353,6 +1402,14 @@ export default function Sell() {
             </div>
           )}
 
+          {/* QR order banner */}
+          {activeOrder?.existingOrderRawId && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium flex-shrink-0">
+              <QrCode size={12} />
+              Customer order · Table {activeOrder.tableNumber} · {activeOrder.existingOrderId}
+            </div>
+          )}
+
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto">
             {!activeOrder?.items.length ? (
@@ -1372,30 +1429,36 @@ export default function Sell() {
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{item.name}</p>
                           <p className="text-xs text-gray-400">{formatCurrency(item.unitPrice)} {t('sell.each')}</p>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => changeQty(key, -1)}
-                            className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
-                          >
-                            <Minus size={11} />
-                          </button>
-                          <span className="w-6 text-center text-sm font-bold text-gray-900 dark:text-gray-100">{item.qty}</span>
-                          <button
-                            onClick={() => changeQty(key, 1)}
-                            className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-teal-100 dark:hover:bg-teal-900/20 hover:text-teal-500 transition-colors"
-                          >
-                            <Plus size={11} />
-                          </button>
-                        </div>
+                        {activeOrder?.existingOrderRawId ? (
+                          <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 w-8 text-center">×{item.qty}</span>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => changeQty(key, -1)}
+                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
+                            >
+                              <Minus size={11} />
+                            </button>
+                            <span className="w-6 text-center text-sm font-bold text-gray-900 dark:text-gray-100">{item.qty}</span>
+                            <button
+                              onClick={() => changeQty(key, 1)}
+                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-teal-100 dark:hover:bg-teal-900/20 hover:text-teal-500 transition-colors"
+                            >
+                              <Plus size={11} />
+                            </button>
+                          </div>
+                        )}
                         <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 w-16 text-right">
                           {formatCurrency(item.qty * item.unitPrice)}
                         </span>
-                        <button
-                          onClick={() => removeItem(key)}
-                          className="p-1 text-gray-300 hover:text-red-500 transition-colors"
-                        >
-                          <X size={13} />
-                        </button>
+                        {!activeOrder?.existingOrderRawId && (
+                          <button
+                            onClick={() => removeItem(key)}
+                            className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
                       </div>
                       {/* Modifier tags */}
                       {item.modifiers?.length > 0 && (
@@ -1439,14 +1502,16 @@ export default function Sell() {
           {/* Action Buttons */}
           <div className="flex-shrink-0 flex flex-col gap-2 px-4 pb-4">
             {/* Send to Kitchen — creates Pending order, alerts Chef, locks table */}
-            <button
-              onClick={handleSendToKitchen}
-              disabled={!activeOrder?.items.length || sending || !currentShift}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm disabled:opacity-40 transition-colors"
-            >
-              <ChefHat size={15} />
-              {sending ? t('sell.sending') : t('sell.sendToKitchen')}
-            </button>
+            {!activeOrder?.existingOrderRawId && (
+              <button
+                onClick={handleSendToKitchen}
+                disabled={!activeOrder?.items.length || sending || !currentShift}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm disabled:opacity-40 transition-colors"
+              >
+                <ChefHat size={15} />
+                {sending ? t('sell.sending') : t('sell.sendToKitchen')}
+              </button>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={handleHold}

@@ -62,6 +62,7 @@ export const ordersApi = {
   cancel:       (id, reason)  => patch(`/orders/${id}/status`, { status: 'Cancelled', cancelReason: reason }),
   update:       (id, body)    => put(`/orders/${id}`, body),
   markItemDone: (orderId, itemId) => patch(`/orders/${orderId}/items/${itemId}/done`),
+  checkout:     (id, body)    => patch(`/orders/${id}/checkout`, body),
 }
 
 // ─── Tables ───────────────────────────────────────────────────────────────────

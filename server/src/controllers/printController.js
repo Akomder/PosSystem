@@ -126,7 +126,7 @@ function buildReceiptHtml(order, restaurant, isKitchen = false) {
       ? "border-top: 2px solid #888;"
       : cfg.dividerStyle === "double"
         ? "border-top: 3px double #666;"
-        : "border-top: 1px dashed #aaa;";
+        : "border-top: 1px dashed #888;";
 
   const dividerEl = `<div style="${divCss} margin: 5px 0;"></div>`;
 
@@ -143,7 +143,7 @@ function buildReceiptHtml(order, restaurant, isKitchen = false) {
         .map(
           (m) => `
       <tr>
-        <td colspan="2" style="font-size:${fontSize - 2}px;color:#666;padding-left:8px;padding-bottom:2px;">
+        <td colspan="2" style="font-size:${fontSize - 2}px;color:#444;padding-left:8px;padding-bottom:2px;">
           ↳ ${escHtml(m.name)}${m.priceAdjustment !== 0 ? ` (${m.priceAdjustment > 0 ? "+" : ""}${fmtCurrency(m.priceAdjustment, cur)})` : ""}
         </td>
         <td></td>
@@ -152,13 +152,13 @@ function buildReceiptHtml(order, restaurant, isKitchen = false) {
         .join("");
 
       const noteLine = item.notes
-        ? `<tr><td colspan="3" style="font-size:${fontSize - 2}px;color:#777;font-style:italic;padding-left:8px;padding-bottom:2px;">✎ ${escHtml(item.notes)}</td></tr>`
+        ? `<tr><td colspan="3" style="font-size:${fontSize - 2}px;color:#555;font-style:italic;padding-left:8px;padding-bottom:2px;">✎ ${escHtml(item.notes)}</td></tr>`
         : "";
 
       const unitPriceLine =
         !isKitchen && cfg.showUnitPrice && qty > 1
           ? `<tr>
-           <td colspan="2" style="font-size:${fontSize - 2}px;color:#888;padding-left:4px;padding-bottom:1px;">
+           <td colspan="2" style="font-size:${fontSize - 2}px;color:#555;padding-left:4px;padding-bottom:1px;">
              @ ${fmtCurrency(unitPrice, cur)} each
            </td>
            <td></td>
@@ -209,7 +209,7 @@ function buildReceiptHtml(order, restaurant, isKitchen = false) {
       paymentRows
         ? `
       ${cfg.showDividers ? dividerEl : ""}
-      <div style="font-size:${fontSize - 2}px;text-transform:uppercase;letter-spacing:0.5px;color:#555;margin-bottom:3px;">${lbl(cfg, "labelPayment", "Payment")}</div>
+      <div style="font-size:${fontSize - 2}px;text-transform:uppercase;letter-spacing:0.5px;color:#333;margin-bottom:3px;">${lbl(cfg, "labelPayment", "Payment")}</div>
       ${paymentRows}
     `
         : ""
@@ -266,19 +266,19 @@ function buildReceiptHtml(order, restaurant, isKitchen = false) {
       ? `<div style="font-size:${nameFs}px;font-weight:${cfg.restaurantNameBold !== false ? "bold" : "normal"};letter-spacing:0.5px;">${escHtml(restaurant.name || "")}</div>`
       : "",
     cfg.showAddress && restaurant.address
-      ? `<div style="font-size:${fontSize - 2}px;color:#555;margin-top:2px;">${escHtml(restaurant.address)}</div>`
+      ? `<div style="font-size:${fontSize - 2}px;color:#333;margin-top:2px;">${escHtml(restaurant.address)}</div>`
       : "",
     cfg.showPhone && restaurant.phone
-      ? `<div style="font-size:${fontSize - 2}px;color:#555;margin-top:2px;">Tel: ${escHtml(restaurant.phone)}</div>`
+      ? `<div style="font-size:${fontSize - 2}px;color:#333;margin-top:2px;">Tel: ${escHtml(restaurant.phone)}</div>`
       : "",
     cfg.showEmail && restaurant.email
-      ? `<div style="font-size:${fontSize - 2}px;color:#555;margin-top:2px;">${escHtml(restaurant.email)}</div>`
+      ? `<div style="font-size:${fontSize - 2}px;color:#333;margin-top:2px;">${escHtml(restaurant.email)}</div>`
       : "",
     cfg.showWebsite && cfg.websiteText
-      ? `<div style="font-size:${fontSize - 2}px;color:#555;margin-top:2px;">${escHtml(cfg.websiteText)}</div>`
+      ? `<div style="font-size:${fontSize - 2}px;color:#333;margin-top:2px;">${escHtml(cfg.websiteText)}</div>`
       : "",
     cfg.headerText
-      ? `<div style="font-size:${fontSize - 1}px;color:#444;font-style:italic;margin-top:3px;">${escHtml(cfg.headerText)}</div>`
+      ? `<div style="font-size:${fontSize - 1}px;color:#333;font-style:italic;margin-top:3px;">${escHtml(cfg.headerText)}</div>`
       : "",
   ]
     .filter(Boolean)
@@ -325,6 +325,10 @@ function buildReceiptHtml(order, restaurant, isKitchen = false) {
       padding: 6mm 4mm;
       color: #111;
       background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
     }
     table { width: 100%; border-collapse: collapse; }
     th {
@@ -332,9 +336,12 @@ function buildReceiptHtml(order, restaurant, isKitchen = false) {
       text-transform: uppercase;
       letter-spacing: 0.5px;
       padding: 2px 0;
-      border-bottom: 1px solid #ccc;
+      border-bottom: 1px solid #999;
     }
-    @media print { html, body { width: ${paperW}; } }
+    @media print {
+      html, body { width: ${paperW}; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
   </style>
 </head>
 <body>
@@ -344,7 +351,7 @@ ${logoHtml}
 <div style="text-align:${hAlign};margin-bottom:8px;">
   ${headerLines}
   <div style="font-size:${fontSize + 1}px;font-weight:bold;margin-top:6px;">— ${lbl(cfg, "labelReceipt", "RECEIPT")} —</div>
-  ${metaLines ? `<div style="font-size:${fontSize - 2}px;color:#444;margin-top:3px;line-height:1.5;">${metaLines}</div>` : ""}
+  ${metaLines ? `<div style="font-size:${fontSize - 2}px;color:#222;margin-top:3px;line-height:1.5;">${metaLines}</div>` : ""}
 </div>
 
 ${cfg.showDividers ? dividerEl : ""}
@@ -362,7 +369,7 @@ ${cfg.showDividers ? dividerEl : ""}
   </tbody>
 </table>
 
-${order.notes ? `${cfg.showDividers ? dividerEl : ""}<div style="font-size:${fontSize - 1}px;font-style:italic;color:#555;">Note: ${escHtml(order.notes)}</div>` : ""}
+${order.notes ? `${cfg.showDividers ? dividerEl : ""}<div style="font-size:${fontSize - 1}px;font-style:italic;color:#333;">Note: ${escHtml(order.notes)}</div>` : ""}
 
 ${totalsBlock}
 ${signatureLine}
@@ -370,7 +377,7 @@ ${altCurrencyBlock}
 ${qrPaymentBlock}
 
 ${cfg.showDividers ? dividerEl : ""}
-<div style="text-align:${fAlign};font-size:${fontSize - 2}px;color:#777;margin-top:4px;line-height:1.5;">${escHtml(footerText)}</div>
+<div style="text-align:${fAlign};font-size:${fontSize - 2}px;color:#555;margin-top:4px;line-height:1.5;">${escHtml(footerText)}</div>
 
 </body>
 </html>`;
@@ -458,23 +465,23 @@ function docShell(title, restaurant, bodyHtml) {
   <style>
     @page { margin: 12mm; size: A5; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; background: #fff; padding: 8px 10px; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; background: #fff; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
     h1 { font-size: 15px; font-weight: 800; text-align: center; margin: 10px 0 4px; letter-spacing: 0.5px; }
-    h2 { font-size: 12px; text-align: center; color: #555; margin-bottom: 10px; }
+    h2 { font-size: 12px; text-align: center; color: #333; margin-bottom: 10px; }
     table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10.5px; }
     th { background: #f3f4f6; font-weight: 700; padding: 5px 4px; border: 1px solid #ddd; text-align: center; }
     td { padding: 4px; border: 1px solid #e5e7eb; vertical-align: top; }
-    .lbl { color: #666; font-size: 10px; }
+    .lbl { color: #444; font-size: 10px; }
     .info-row { margin: 3px 0; font-size: 10.5px; }
     .sig-row { display: flex; justify-content: space-around; margin-top: 28px; text-align: center; }
     .sig-box { flex: 1; padding: 0 10px; }
-    .sig-line { border-top: 1px solid #333; margin-top: 24px; padding-top: 4px; font-size: 10px; color: #555; }
+    .sig-line { border-top: 1px solid #333; margin-top: 24px; padding-top: 4px; font-size: 10px; color: #333; }
     .right { text-align: right; }
     .center { text-align: center; }
     .bold { font-weight: 700; }
     .total-row td { font-weight: 700; background: #f9fafb; }
     .divider { border-top: 1px dashed #bbb; margin: 6px 0; }
-    @media print { html, body { width: 148mm; } }
+    @media print { html, body { width: 148mm; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   </style>
 </head>
 <body>
@@ -496,7 +503,7 @@ function buildDraftHtml(order, restaurant) {
   const fontSize = Math.max(8, Math.min(18, parseInt(cfg.fontSize) || 12));
   const fontFam = FONT_MAP[cfg.fontFamily] || FONT_MAP.monospace;
   const paperW = cfg.paperWidth || "80mm";
-  const divCss = "border-top: 1px dashed #aaa;";
+  const divCss = "border-top: 1px dashed #888;";
   const dividerEl = `<div style="${divCss} margin: 5px 0;"></div>`;
   const orderDate = formatDateTime(order.createdAt);
 
@@ -505,7 +512,7 @@ function buildDraftHtml(order, restaurant) {
       const modLines = (item.modifiers || [])
         .map(
           (m) =>
-            `<tr><td colspan="3" style="font-size:${fontSize - 2}px;color:#666;padding-left:8px;">↳ ${escHtml(m.name)}</td></tr>`,
+            `<tr><td colspan="3" style="font-size:${fontSize - 2}px;color:#444;padding-left:8px;">↳ ${escHtml(m.name)}</td></tr>`,
         )
         .join("");
       return `<tr>
@@ -530,11 +537,11 @@ function buildDraftHtml(order, restaurant) {
   <style>
     @page { margin: 0; size: ${paperW} auto; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: ${fontFam}; font-size: ${fontSize}px; width: ${paperW}; max-width: ${paperW}; padding: 6mm 4mm; color: #111; background: #fff; position: relative; }
+    body { font-family: ${fontFam}; font-size: ${fontSize}px; width: ${paperW}; max-width: ${paperW}; padding: 6mm 4mm; color: #111; background: #fff; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
     table { width: 100%; border-collapse: collapse; }
-    th { font-size: ${fontSize - 2}px; text-transform: uppercase; letter-spacing: .5px; padding: 2px 0; border-bottom: 1px solid #ccc; }
+    th { font-size: ${fontSize - 2}px; text-transform: uppercase; letter-spacing: .5px; padding: 2px 0; border-bottom: 1px solid #999; }
     .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-35deg); font-size: 40px; font-weight: 900; color: rgba(239,68,68,.13); pointer-events: none; white-space: nowrap; z-index: 0; letter-spacing: 3px; }
-    @media print { html, body { width: ${paperW}; } }
+    @media print { html, body { width: ${paperW}; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   </style>
 </head>
 <body>
@@ -542,9 +549,9 @@ function buildDraftHtml(order, restaurant) {
 ${logoHtml}
 <div style="text-align:center;margin-bottom:8px;">
   ${cfg.showRestaurantName ? `<div style="font-size:${fontSize + 4}px;font-weight:bold;">${escHtml(restaurant.name || "")}</div>` : ""}
-  ${restaurant.phone ? `<div style="font-size:${fontSize - 2}px;color:#555;">Tel: ${escHtml(restaurant.phone)}</div>` : ""}
+  ${restaurant.phone ? `<div style="font-size:${fontSize - 2}px;color:#333;">Tel: ${escHtml(restaurant.phone)}</div>` : ""}
   <div style="font-size:${fontSize + 1}px;font-weight:bold;margin-top:6px;color:#dc2626;border:1.5px solid #dc2626;padding:2px 8px;display:inline-block;">— DRAFT ORDER —</div>
-  <div style="font-size:${fontSize - 2}px;color:#555;margin-top:4px;line-height:1.6;">
+  <div style="font-size:${fontSize - 2}px;color:#333;margin-top:4px;line-height:1.6;">
     ${lbl(cfg, "labelOrder", "Order")}: ${escHtml(order.id)}<br/>
     ${order.tableNumber ? `${lbl(cfg, "labelTable", "Table")}: ${order.tableNumber}<br/>` : ""}
     ${order.waiter && order.waiter !== "Unassigned" ? `${lbl(cfg, "labelWaiter", "Waiter")}: ${escHtml(order.waiter)}<br/>` : ""}
@@ -568,7 +575,7 @@ ${dividerEl}
   </div>
 </div>
 ${dividerEl}
-<div style="text-align:center;font-size:${fontSize - 2}px;color:#999;margin-top:4px;font-style:italic;">
+<div style="text-align:center;font-size:${fontSize - 2}px;color:#666;margin-top:4px;font-style:italic;">
   ⚠ This is a draft — not a final receipt
 </div>
 </body></html>`;

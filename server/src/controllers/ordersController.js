@@ -556,4 +556,95 @@ async function markItemDone(req, res, next) {
   } catch (err) { next(err) }
 }
 
-module.exports = { getAllOrders, getOrder, createOrder, updateStatus, updateOrder, markItemDone, ORDER_SELECT, fmtOrder }
+// ─── PATCH /api/orders/:id/checkout ──────────────────────────────────────────
+// Pay and close an existing order (QR/Pending) without re-submitting items.
+async function checkoutQrOrder(req, res, next) {
+  const {
+    payments, paymentMethod, currency = 'LAK',
+    discount = 0, voucherCode, cashTendered, changeAmount,
+  } = req.body
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const rid = req.restaurantId
+
+    const curRes = await client.query(
+      rid
+        ? 'SELECT * FROM orders WHERE id=$1 AND restaurant_id=$2'
+        : 'SELECT * FROM orders WHERE id=$1',
+      rid ? [req.params.id, rid] : [req.params.id]
+    )
+    if (!curRes.rows.length) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ error: 'Order not found' })
+    }
+    const order = curRes.rows[0]
+
+    if (order.status === 'Closed')    { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Order already closed' }) }
+    if (order.status === 'Cancelled') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Cannot checkout a cancelled order' }) }
+
+    const discountAmt  = parseFloat(discount) || 0
+    const finalTotal   = Math.max(0, Math.round((parseFloat(order.total) - discountAmt) * 100) / 100)
+    const paymentsList = Array.isArray(payments) && payments.length ? payments : null
+    const firstMethod  = paymentsList ? paymentsList[0]?.method : (paymentMethod || 'cash')
+    const paidTotal    = paymentsList
+      ? paymentsList.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+      : (parseFloat(cashTendered) || finalTotal)
+    const payStatus    = Math.round(paidTotal * 100) >= Math.round(finalTotal * 100) ? 'paid' : 'partial'
+
+    await client.query(
+      rid
+        ? `UPDATE orders SET status='Closed', payment_status=$1, payment_method=$2, currency=$3,
+             discount=$4, voucher_code=$5, cash_tendered=$6, change_amount=$7, total=$8,
+             updated_at=NOW() WHERE id=$9 AND restaurant_id=$10`
+        : `UPDATE orders SET status='Closed', payment_status=$1, payment_method=$2, currency=$3,
+             discount=$4, voucher_code=$5, cash_tendered=$6, change_amount=$7, total=$8,
+             updated_at=NOW() WHERE id=$9`,
+      rid
+        ? [payStatus, firstMethod, currency, discountAmt, voucherCode || null,
+           parseFloat(cashTendered) || finalTotal, parseFloat(changeAmount) || 0, finalTotal, order.id, rid]
+        : [payStatus, firstMethod, currency, discountAmt, voucherCode || null,
+           parseFloat(cashTendered) || finalTotal, parseFloat(changeAmount) || 0, finalTotal, order.id]
+    )
+
+    if (order.table_id) {
+      await client.query(
+        `UPDATE restaurant_tables SET status='Available', current_order_id=NULL, waiter=NULL WHERE id=$1`,
+        [order.table_id]
+      )
+    }
+
+    if (paymentsList) {
+      for (const p of paymentsList) {
+        await client.query(
+          `INSERT INTO order_payments (order_id, restaurant_id, payment_method, amount, currency, cash_tendered, change_given)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [order.id, order.restaurant_id, p.method, parseFloat(p.amount),
+           p.currency || currency, parseFloat(p.cashTendered) || parseFloat(p.amount), parseFloat(p.changeGiven) || 0]
+        )
+      }
+    } else {
+      await client.query(
+        `INSERT INTO order_payments (order_id, restaurant_id, payment_method, amount, currency, cash_tendered, change_given)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [order.id, order.restaurant_id, firstMethod, finalTotal, currency,
+         parseFloat(cashTendered) || finalTotal, parseFloat(changeAmount) || 0]
+      )
+    }
+
+    await client.query('COMMIT')
+
+    const fullRes = await query(`${ORDER_SELECT} WHERE o.id = $1 GROUP BY o.id`, [order.id])
+    const fullOrder = fmtOrder(fullRes.rows[0])
+    emitOrderUpdated(fullOrder.id, 'Closed', fullOrder)
+    res.json(fullOrder)
+  } catch (err) {
+    await client.query('ROLLBACK')
+    next(err)
+  } finally {
+    client.release()
+  }
+}
+
+module.exports = { getAllOrders, getOrder, createOrder, updateStatus, updateOrder, markItemDone, checkoutQrOrder, ORDER_SELECT, fmtOrder }

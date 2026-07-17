@@ -1,7 +1,7 @@
 const router  = require('express').Router()
 const { body } = require('express-validator')
 const {
-  getAllOrders, getOrder, createOrder, updateStatus, updateOrder, markItemDone,
+  getAllOrders, getOrder, createOrder, updateStatus, updateOrder, markItemDone, checkoutQrOrder,
 } = require('../controllers/ordersController')
 const authenticate = require('../middleware/auth')
 const requireRole  = require('../middleware/authorize')
@@ -43,5 +43,8 @@ router.put(
 
 // Mark a single item as done (kitchen bump)
 router.patch('/:orderId/items/:itemId/done', requireRole('Admin','Waiter','Cashier','Chef'), markItemDone)
+
+// Pay and close an existing order (QR/pending) without re-submitting items
+router.patch('/:id/checkout', requireRole('Admin','Waiter','Cashier'), checkoutQrOrder)
 
 module.exports = router
