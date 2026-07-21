@@ -12,6 +12,7 @@ function fmt(r) {
     description:    r.description,
     tags:           r.tags || [],
     available:      r.available,
+    isAvailable:    r.is_available !== false,
     stock:          r.stock,
     prepTime:       r.prep_time,
     productCode:    r.product_code || '',
@@ -247,7 +248,7 @@ async function createItem(req, res, next) {
   if (!checkValidation(req, res)) return
   const { name, category, price, description, tags, stock,
           productCode, costPrice, productGroup, department, minStock, maxStock, station,
-          stockQuantity, lowStockThreshold, imageUrl, isPromotion, promotionLabel } = req.body
+          stockQuantity, lowStockThreshold, imageUrl, isPromotion, promotionLabel, isAvailable } = req.body
   try {
     // ── Plan limit check ────────────────────────────────────────────────────
     const rid = req.restaurantId
@@ -273,13 +274,13 @@ async function createItem(req, res, next) {
       `INSERT INTO menu_items
          (restaurant_id, name, category, price, description, tags, stock,
           product_code, cost_price, product_group, department, min_stock, max_stock, station,
-          stock_quantity, low_stock_threshold, image_url, is_promotion, promotion_label)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id`,
+          stock_quantity, low_stock_threshold, image_url, is_promotion, promotion_label, is_available)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id`,
       [req.restaurantId, name, category, price, description || '', tags || [], stockVal,
        productCode || null, costPrice ?? 0, productGroup || '', department || '',
        minStock ?? 0, maxStock ?? 9999, station || 'Kitchen',
        stockQtyVal, lowStockThreshold ?? 10,
-       imageUrl || '', isPromotion || false, promotionLabel || null]
+       imageUrl || '', isPromotion || false, promotionLabel || null, isAvailable !== false]
     )
     const { rows } = await query(`${MENU_SELECT} WHERE mi.id = $1`, [ins.rows[0].id])
     res.status(201).json(fmt(rows[0]))
@@ -299,6 +300,7 @@ async function updateItem(req, res, next) {
     station: 'station',
     stockQuantity: 'stock_quantity', lowStockThreshold: 'low_stock_threshold',
     isPromotion: 'is_promotion', promotionLabel: 'promotion_label',
+    isAvailable: 'is_available',
   }
   // Mirror stock fields: editing one keeps the other in sync.
   const body = { ...req.body }
