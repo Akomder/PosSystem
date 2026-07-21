@@ -14,7 +14,7 @@ import { useSettings } from '../context/SettingsContext'
 export default function Shifts() {
   const { user } = useAuth()
   const { t } = useSettings()
-  const canManage = ['Admin','Cashier'].includes(user?.role)
+  const canManage = ['Admin','Cashier','Waiter'].includes(user?.role)
   const [shifts, setShifts]       = useState([])
   const [current, setCurrent]     = useState(null)
   const [loading, setLoading]     = useState(true)
@@ -23,6 +23,7 @@ export default function Shifts() {
   const [form, setForm]           = useState({ openingCash: '', notes: '' })
   const [closeForm, setCloseForm] = useState({ closingCash: '', notes: '' })
   const [saving, setSaving]       = useState(false)
+  const [err, setErr]             = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -37,25 +38,25 @@ export default function Shifts() {
   }
 
   async function handleOpen() {
-    setSaving(true)
+    setSaving(true); setErr('')
     try {
       await shiftsApi.open({ openingCash: parseFloat(form.openingCash) || 0, notes: form.notes })
       setOpenModal(false)
       setForm({ openingCash: '', notes: '' })
       await load()
-    } catch (_) {}
+    } catch (e) { setErr(e.message || 'Failed to open shift') }
     setSaving(false)
   }
 
   async function handleClose() {
     if (!current) return
-    setSaving(true)
+    setSaving(true); setErr('')
     try {
       await shiftsApi.close(current.id, { closingCash: parseFloat(closeForm.closingCash) || 0, notes: closeForm.notes })
       setCloseModal(false)
       setCloseForm({ closingCash: '', notes: '' })
       await load()
-    } catch (_) {}
+    } catch (e) { setErr(e.message || 'Failed to close shift') }
     setSaving(false)
   }
 
@@ -158,8 +159,8 @@ export default function Shifts() {
       </div>
 
       {/* Open Shift Modal */}
-      <Modal isOpen={openModal} onClose={() => setOpenModal(false)} title={t('shifts.openNewShift')}
-        footer={<><Button variant="secondary" onClick={() => setOpenModal(false)}>{t('common.cancel')}</Button><Button loading={saving} icon={PlayCircle} onClick={handleOpen}>{t('shifts.openShift')}</Button></>}
+      <Modal isOpen={openModal} onClose={() => { setOpenModal(false); setErr('') }} title={t('shifts.openNewShift')}
+        footer={<><Button variant="secondary" onClick={() => { setOpenModal(false); setErr('') }}>{t('common.cancel')}</Button><Button loading={saving} icon={PlayCircle} onClick={handleOpen}>{t('shifts.openShift')}</Button></>}
       >
         <div className="space-y-4">
           <Input label={t('shifts.openingCash')} type="number" value={form.openingCash} onChange={e => setForm(f => ({...f, openingCash: e.target.value}))} placeholder="0.00" />
@@ -169,12 +170,13 @@ export default function Shifts() {
               className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
+          {err && <p className="text-sm text-red-500">{err}</p>}
         </div>
       </Modal>
 
       {/* Close Shift Modal */}
-      <Modal isOpen={closeModal} onClose={() => setCloseModal(false)} title={t('shifts.closeCurrentShift')}
-        footer={<><Button variant="secondary" onClick={() => setCloseModal(false)}>{t('common.cancel')}</Button><Button loading={saving} variant="danger" icon={StopCircle} onClick={handleClose}>{t('shifts.closeShift')}</Button></>}
+      <Modal isOpen={closeModal} onClose={() => { setCloseModal(false); setErr('') }} title={t('shifts.closeCurrentShift')}
+        footer={<><Button variant="secondary" onClick={() => { setCloseModal(false); setErr('') }}>{t('common.cancel')}</Button><Button loading={saving} variant="danger" icon={StopCircle} onClick={handleClose}>{t('shifts.closeShift')}</Button></>}
       >
         <div className="space-y-4">
           {current && (
@@ -228,6 +230,7 @@ export default function Shifts() {
               className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
+          {err && <p className="text-sm text-red-500">{err}</p>}
         </div>
       </Modal>
     </div>
