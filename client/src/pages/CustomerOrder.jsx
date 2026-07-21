@@ -535,6 +535,7 @@ export default function CustomerOrder() {
   // ── Submit (new order OR add to existing tab) ──────────────────────────────
   const handleSubmit = async () => {
     if (!cart.length) return
+    if (!storeOpen) { alert(t('store_closed_msg')); return }
     setSubmitting(true)
     try {
       const itemsPayload = cart.map(c => {
@@ -765,8 +766,10 @@ export default function CustomerOrder() {
     </div>
   )
 
-  // ── Store closed ───────────────────────────────────────────────────────────
-  if (!storeOpen) return (
+  // ── Store closed (no active order yet) ──────────────────────────────────────
+  // Customers can still browse the menu; ordering is blocked in handleSubmit,
+  // and the server also rejects orders while the store is closed.
+  if (!storeOpen && !activeOrder && view !== 'menu' && view !== 'home') return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
       <div className="text-center max-w-xs w-full">
         <div className="flex justify-end mb-2"><LangBtn /></div>
@@ -1058,6 +1061,15 @@ export default function CustomerOrder() {
         </header>
 
         <main className="px-4 py-5 pb-12 max-w-xl mx-auto space-y-4">
+          {!storeOpen && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-2">
+              <span className="text-xl leading-none">🔒</span>
+              <div>
+                <p className="text-sm font-semibold text-amber-800">{t('store_closed_title')}</p>
+                <p className="text-xs text-amber-700 mt-0.5">{t('store_closed_msg')}</p>
+              </div>
+            </div>
+          )}
           {/* Guest info card */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <p className="text-xs text-gray-400 mb-3">{t('home_guest_hint')}</p>
